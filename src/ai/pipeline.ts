@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { visionCompletion, chatCompletion } from './client';
 import { OCR_SYSTEM_PROMPT, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
 import { PrescriptionJSON, PipelineStage, ValidationResult } from './types';

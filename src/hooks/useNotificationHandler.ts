@@ -21,9 +21,7 @@ export function useNotificationResponseHandler() {
     );
 
     return () => {
-      if (responseListener.current) {
-        Notifications.removeNotificationSubscription(responseListener.current);
-      }
+      responseListener.current?.remove();
     };
   }, [router]);
 }

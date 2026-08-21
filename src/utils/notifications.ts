@@ -59,7 +59,7 @@ export async function scheduleDoseNotification(params: {
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
     trigger: {
-      type: 'date',
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
       date: triggerDate,
     },
   });
