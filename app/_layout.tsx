@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/theme/provider';
@@ -12,6 +13,12 @@ import { useSettingsStore } from '../src/stores/settings-store';
 import { configureNotifications } from '../src/utils/notifications';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
+import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
+
+// keep the native splash up until we've swapped over to our own animated one
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // no-op — if this fails the native splash just hides on its own, not worth crashing over
+});
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,10 +33,16 @@ function AppContent() {
   const { colors, mode } = useTheme();
   const { setProfile, setLoaded, profile, isLoaded } = useAuthStore();
   const [dbReady, setDbReady] = useState(false);
+  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
 
   // Handle notification taps — navigate to medicine detail
   useNotificationResponseHandler();
+
+  // hand off from the native static splash to our animated one the moment we can render
+  useEffect(() => {
+    SplashScreen.hideAsync().catch(() => {});
+  }, []);
 
   useEffect(() => {
     async function init() {
@@ -54,10 +67,13 @@ function AppContent() {
     init();
   }, [setProfile, setLoaded]);
 
-  if (!dbReady || !isLoaded) {
+  if (!dbReady || !isLoaded || !splashAnimationDone) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background.primary }]}>
-        <ActivityIndicator size="large" color={colors.accent.primary} />
+        <AnimatedSplash
+          backgroundColor={colors.background.primary}
+          onAnimationDone={() => setSplashAnimationDone(true)}
+        />
       </View>
     );
   }
