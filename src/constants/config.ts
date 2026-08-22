@@ -1,6 +1,10 @@
-/** Google Gemini API configuration (free tier with vision) */
-export const GEMINI_MODEL = 'gemini-1.5-flash';
+/** Google Gemini API configuration (free tier with vision) — used only for prescription OCR */
+export const GEMINI_MODEL = 'gemini-2.5-flash';
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+/** OpenRouter configuration — used for text-only chat/explanation, routed to Nemotron 3 Ultra (free) */
+export const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
+export const NEMOTRON_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
 
 /** API timeout in milliseconds */
 export const API_TIMEOUT_MS = 30_000;

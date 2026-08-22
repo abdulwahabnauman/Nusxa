@@ -1,4 +1,11 @@
-import { GEMINI_API_BASE, GEMINI_MODEL, API_TIMEOUT_MS, API_MAX_RETRIES } from '../constants/config';
+import {
+  GEMINI_API_BASE,
+  GEMINI_MODEL,
+  OPENROUTER_API_BASE,
+  NEMOTRON_MODEL,
+  API_TIMEOUT_MS,
+  API_MAX_RETRIES,
+} from '../constants/config';
 
 interface GeminiPart {
   text?: string;
@@ -34,6 +41,30 @@ interface GeminiResponse {
   }>;
   error?: {
     code: number;
+    message: string;
+  };
+}
+
+interface OpenRouterMessage {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+interface OpenRouterRequest {
+  model: string;
+  messages: OpenRouterMessage[];
+  temperature: number;
+  max_tokens: number;
+  response_format?: { type: 'json_object' };
+}
+
+interface OpenRouterResponse {
+  choices?: Array<{
+    message: { content: string };
+    finish_reason?: string;
+  }>;
+  error?: {
+    code: number | string;
     message: string;
   };
 }
@@ -130,15 +161,89 @@ async function callGemini(
   throw lastError ?? new Error('Unknown error calling Gemini');
 }
 
-/** Send a text-only prompt to Gemini */
+/** Call Nemotron 3 Ultra through OpenRouter's free tier (text-only, no vision support) */
+async function callNemotron(
+  systemPrompt: string,
+  messages: OpenRouterMessage[],
+  apiKey: string,
+  temperature = 0.1,
+  jsonResponse = true
+): Promise<string> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+      const body: OpenRouterRequest = {
+        model: NEMOTRON_MODEL,
+        messages: [{ role: 'system', content: systemPrompt }, ...messages],
+        temperature,
+        max_tokens: 4096,
+        ...(jsonResponse ? { response_format: { type: 'json_object' } } : {}),
+      };
+
+      const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        const retryable = response.status === 429 || response.status >= 500;
+        throw new AIError(
+          `Nemotron API error ${response.status}: ${errorBody}`,
+          response.status,
+          retryable
+        );
+      }
+
+      const data: OpenRouterResponse = await response.json();
+
+      if (data.error) {
+        throw new AIError(`Nemotron error: ${data.error.message}`, Number(data.error.code) || undefined);
+      }
+
+      const text = data.choices?.[0]?.message?.content;
+
+      if (!text) {
+        throw new AIError('Empty response from AI service');
+      }
+
+      return text;
+    } catch (error) {
+      lastError = error as Error;
+
+      if (error instanceof AIError && !error.retryable) {
+        throw error;
+      }
+
+      if (attempt < API_MAX_RETRIES) {
+        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+      }
+    }
+  }
+
+  throw lastError ?? new Error('Unknown error calling Nemotron');
+}
+
+/** Send a text-only prompt to Nemotron 3 Ultra (free, via OpenRouter) */
 export async function chatCompletion(
   systemPrompt: string,
   userMessage: string,
   apiKey: string
 ): Promise<string> {
-  return callGemini(
+  return callNemotron(
     systemPrompt,
-    [{ role: 'user', parts: [{ text: userMessage }] }],
+    [{ role: 'user', content: userMessage }],
     apiKey,
     0.1,
     true
@@ -174,7 +279,7 @@ export async function visionCompletion(
   );
 }
 
-/** Multi-turn chat completion */
+/** Multi-turn chat completion (Nemotron 3 Ultra, free via OpenRouter) */
 export async function multiTurnChat(
   messages: Array<{ role: string; content: string }>,
   apiKey: string
@@ -183,13 +288,13 @@ export async function multiTurnChat(
   const systemMsg = messages.find((m) => m.role === 'system');
   const systemPrompt = systemMsg?.content ?? '';
 
-  // Convert remaining messages to Gemini contents
-  const contents: GeminiContent[] = messages
+  // Convert remaining messages to OpenRouter's OpenAI-style format
+  const chatMessages: OpenRouterMessage[] = messages
     .filter((m) => m.role !== 'system')
     .map((m) => ({
-      role: m.role === 'assistant' ? 'model' : 'user',
-      parts: [{ text: m.content }],
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content,
     }));
 
-  return callGemini(systemPrompt, contents, apiKey, 0.3, false);
+  return callNemotron(systemPrompt, chatMessages, apiKey, 0.3, false);
 }

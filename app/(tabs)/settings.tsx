@@ -20,7 +20,7 @@ import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
 import { deleteProfile, updateProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON } from '../../src/utils/export';
-import { saveApiKey, getApiKey, deleteApiKey } from '../../src/utils/secureStorage';
+import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey } from '../../src/utils/secureStorage';
 import { useI18n } from '../../src/i18n';
 
 export default function SettingsScreen() {
@@ -37,12 +37,16 @@ export default function SettingsScreen() {
   const { t, language, setLanguage } = useI18n();
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
+  const [openRouterKeyInput, setOpenRouterKeyInput] = useState('');
+  const [hasStoredOpenRouterKey, setHasStoredOpenRouterKey] = useState(false);
   const [needsRestart, setNeedsRestart] = useState(false);
 
   useEffect(() => {
     async function checkKey() {
       const key = await getApiKey();
       setHasStoredKey(!!key);
+      const openRouterKey = await getOpenRouterKey();
+      setHasStoredOpenRouterKey(!!openRouterKey);
     }
     checkKey();
   }, []);
@@ -322,6 +326,67 @@ export default function SettingsScreen() {
                   Alert.alert('Deleted', 'API key removed.');
                 }}
                 accessibilityLabel="Remove stored API key"
+              >
+                <Text style={[typography.body.sm, { color: colors.error }]}>
+                  {t.settings.removeKey}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
+
+          <View style={{ height: spacing.sm }} />
+
+          <Card>
+            <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>
+              {t.settings.openRouterServiceDesc}{'\n'}https://openrouter.ai/keys
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                style={[
+                  typography.body.base,
+                  {
+                    color: colors.text.primary,
+                    backgroundColor: colors.background.subtle,
+                    borderColor: colors.border.default,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    flex: 1,
+                  },
+                ]}
+                value={openRouterKeyInput}
+                onChangeText={setOpenRouterKeyInput}
+                placeholder={hasStoredOpenRouterKey ? t.settings.apiKeySaved : t.settings.openRouterKeyPlaceholder}
+                placeholderTextColor={colors.text.disabled}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="OpenRouter API key"
+              />
+              <TouchableOpacity
+                style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]}
+                onPress={async () => {
+                  if (!openRouterKeyInput.trim()) return;
+                  await saveOpenRouterKey(openRouterKeyInput.trim());
+                  setOpenRouterKeyInput('');
+                  setHasStoredOpenRouterKey(true);
+                  Alert.alert('Saved', 'API key stored securely.');
+                }}
+                accessibilityLabel="Save OpenRouter API key"
+              >
+                <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
+              </TouchableOpacity>
+            </View>
+            {hasStoredOpenRouterKey && (
+              <TouchableOpacity
+                style={{ marginTop: spacing.sm }}
+                onPress={async () => {
+                  await deleteOpenRouterKey();
+                  setHasStoredOpenRouterKey(false);
+                  Alert.alert('Deleted', 'API key removed.');
+                }}
+                accessibilityLabel="Remove stored OpenRouter API key"
               >
                 <Text style={[typography.body.sm, { color: colors.error }]}>
                   {t.settings.removeKey}
