@@ -20,7 +20,7 @@ import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
 import { deleteProfile, updateProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON } from '../../src/utils/export';
-import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey } from '../../src/utils/secureStorage';
+import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { useI18n } from '../../src/i18n';
 
 export default function SettingsScreen() {
@@ -39,6 +39,8 @@ export default function SettingsScreen() {
   const [hasStoredKey, setHasStoredKey] = useState(false);
   const [openRouterKeyInput, setOpenRouterKeyInput] = useState('');
   const [hasStoredOpenRouterKey, setHasStoredOpenRouterKey] = useState(false);
+  const [groqKeyInput, setGroqKeyInput] = useState('');
+  const [hasStoredGroqKey, setHasStoredGroqKey] = useState(false);
   const [needsRestart, setNeedsRestart] = useState(false);
 
   useEffect(() => {
@@ -47,6 +49,8 @@ export default function SettingsScreen() {
       setHasStoredKey(!!key);
       const openRouterKey = await getOpenRouterKey();
       setHasStoredOpenRouterKey(!!openRouterKey);
+      const groqKey = await getGroqKey();
+      setHasStoredGroqKey(!!groqKey);
     }
     checkKey();
   }, []);
@@ -387,6 +391,67 @@ export default function SettingsScreen() {
                   Alert.alert('Deleted', 'API key removed.');
                 }}
                 accessibilityLabel="Remove stored OpenRouter API key"
+              >
+                <Text style={[typography.body.sm, { color: colors.error }]}>
+                  {t.settings.removeKey}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
+
+          <View style={{ height: spacing.sm }} />
+
+          <Card>
+            <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>
+              {t.settings.groqServiceDesc}{'\n'}https://console.groq.com/keys
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TextInput
+                style={[
+                  typography.body.base,
+                  {
+                    color: colors.text.primary,
+                    backgroundColor: colors.background.subtle,
+                    borderColor: colors.border.default,
+                    borderWidth: 1,
+                    borderRadius: 8,
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    flex: 1,
+                  },
+                ]}
+                value={groqKeyInput}
+                onChangeText={setGroqKeyInput}
+                placeholder={hasStoredGroqKey ? t.settings.apiKeySaved : t.settings.groqKeyPlaceholder}
+                placeholderTextColor={colors.text.disabled}
+                secureTextEntry
+                autoCapitalize="none"
+                autoCorrect={false}
+                accessibilityLabel="Groq API key"
+              />
+              <TouchableOpacity
+                style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]}
+                onPress={async () => {
+                  if (!groqKeyInput.trim()) return;
+                  await saveGroqKey(groqKeyInput.trim());
+                  setGroqKeyInput('');
+                  setHasStoredGroqKey(true);
+                  Alert.alert('Saved', 'API key stored securely.');
+                }}
+                accessibilityLabel="Save Groq API key"
+              >
+                <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
+              </TouchableOpacity>
+            </View>
+            {hasStoredGroqKey && (
+              <TouchableOpacity
+                style={{ marginTop: spacing.sm }}
+                onPress={async () => {
+                  await deleteGroqKey();
+                  setHasStoredGroqKey(false);
+                  Alert.alert('Deleted', 'API key removed.');
+                }}
+                accessibilityLabel="Remove stored Groq API key"
               >
                 <Text style={[typography.body.sm, { color: colors.error }]}>
                   {t.settings.removeKey}

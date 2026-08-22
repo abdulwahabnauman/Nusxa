@@ -2,9 +2,13 @@
 export const GEMINI_MODEL = 'gemini-2.5-flash';
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-/** OpenRouter configuration — used for text-only chat/explanation, routed to Nemotron 3 Ultra (free) */
+/** OpenRouter configuration — primary text provider, routed to Nemotron 3 Ultra (free) */
 export const OPENROUTER_API_BASE = 'https://openrouter.ai/api/v1';
 export const NEMOTRON_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
+
+/** Groq configuration — fallback text provider when Nemotron's free quota runs out (1,000 req/day, far above OpenRouter's 50/day) */
+export const GROQ_API_BASE = 'https://api.groq.com/openai/v1';
+export const GROQ_MODEL = 'openai/gpt-oss-120b';
 
 /** API timeout in milliseconds */
 export const API_TIMEOUT_MS = 30_000;

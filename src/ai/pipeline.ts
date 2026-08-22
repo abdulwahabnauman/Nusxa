@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { visionCompletion, chatCompletion } from './client';
+import { visionCompletion, chatCompletion, TextProviderKeys } from './client';
 import { OCR_SYSTEM_PROMPT, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
 import { PrescriptionJSON, PipelineStage, ValidationResult } from './types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../constants/config';
@@ -158,7 +158,7 @@ export async function explainMedicine(
     meal_instruction: string | null;
     duration: string | null;
   },
-  apiKey: string
+  keys: TextProviderKeys
 ): Promise<string> {
   const userPrompt = `Explain this medicine from a verified prescription in simple language:
 - Name: ${medicine.name ?? 'Unknown'}
@@ -169,5 +169,5 @@ export async function explainMedicine(
 
 Provide a plain-language explanation, how to take it, common side effects, and when to contact a doctor.`;
 
-  return chatCompletion(INTERPRETATION_SYSTEM_PROMPT, userPrompt, apiKey);
+  return chatCompletion(INTERPRETATION_SYSTEM_PROMPT, userPrompt, keys);
 }

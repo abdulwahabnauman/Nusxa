@@ -3,6 +3,8 @@ import {
   GEMINI_MODEL,
   OPENROUTER_API_BASE,
   NEMOTRON_MODEL,
+  GROQ_API_BASE,
+  GROQ_MODEL,
   API_TIMEOUT_MS,
   API_MAX_RETRIES,
 } from '../constants/config';
@@ -161,8 +163,10 @@ async function callGemini(
   throw lastError ?? new Error('Unknown error calling Gemini');
 }
 
-/** Call Nemotron 3 Ultra through OpenRouter's free tier (text-only, no vision support) */
-async function callNemotron(
+/** Call an OpenAI-compatible chat completions endpoint (used for both OpenRouter/Nemotron and Groq) */
+async function callOpenAICompatible(
+  baseUrl: string,
+  model: string,
   systemPrompt: string,
   messages: OpenRouterMessage[],
   apiKey: string,
@@ -177,14 +181,14 @@ async function callNemotron(
       const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
       const body: OpenRouterRequest = {
-        model: NEMOTRON_MODEL,
+        model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         temperature,
         max_tokens: 4096,
         ...(jsonResponse ? { response_format: { type: 'json_object' } } : {}),
       };
 
-      const response = await fetch(`${OPENROUTER_API_BASE}/chat/completions`, {
+      const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,7 +204,7 @@ async function callNemotron(
         const errorBody = await response.text();
         const retryable = response.status === 429 || response.status >= 500;
         throw new AIError(
-          `Nemotron API error ${response.status}: ${errorBody}`,
+          `AI API error ${response.status}: ${errorBody}`,
           response.status,
           retryable
         );
@@ -209,7 +213,7 @@ async function callNemotron(
       const data: OpenRouterResponse = await response.json();
 
       if (data.error) {
-        throw new AIError(`Nemotron error: ${data.error.message}`, Number(data.error.code) || undefined);
+        throw new AIError(`AI service error: ${data.error.message}`, Number(data.error.code) || undefined);
       }
 
       const text = data.choices?.[0]?.message?.content;
@@ -232,19 +236,62 @@ async function callNemotron(
     }
   }
 
-  throw lastError ?? new Error('Unknown error calling Nemotron');
+  throw lastError ?? new Error('Unknown error calling AI service');
 }
 
-/** Send a text-only prompt to Nemotron 3 Ultra (free, via OpenRouter) */
+/** Text keys needed for the primary (Nemotron/OpenRouter) + fallback (Groq) chain */
+export interface TextProviderKeys {
+  openRouterKey: string;
+  groqKey: string;
+}
+
+/**
+ * Call Nemotron 3 Ultra first (free via OpenRouter, but only 50 req/day),
+ * and if that's out of quota or down, drop to Groq's gpt-oss-120b (free, 1,000 req/day).
+ */
+async function callTextModel(
+  systemPrompt: string,
+  messages: OpenRouterMessage[],
+  keys: TextProviderKeys,
+  temperature = 0.1,
+  jsonResponse = true
+): Promise<string> {
+  try {
+    return await callOpenAICompatible(
+      OPENROUTER_API_BASE,
+      NEMOTRON_MODEL,
+      systemPrompt,
+      messages,
+      keys.openRouterKey,
+      temperature,
+      jsonResponse
+    );
+  } catch (primaryError) {
+    // Nemotron exhausted its free quota (or errored) — fall back to Groq
+    if (!keys.groqKey) throw primaryError;
+
+    return callOpenAICompatible(
+      GROQ_API_BASE,
+      GROQ_MODEL,
+      systemPrompt,
+      messages,
+      keys.groqKey,
+      temperature,
+      jsonResponse
+    );
+  }
+}
+
+/** Send a text-only prompt to Nemotron 3 Ultra (free), falling back to Groq's gpt-oss-120b (free) if that's exhausted */
 export async function chatCompletion(
   systemPrompt: string,
   userMessage: string,
-  apiKey: string
+  keys: TextProviderKeys
 ): Promise<string> {
-  return callNemotron(
+  return callTextModel(
     systemPrompt,
     [{ role: 'user', content: userMessage }],
-    apiKey,
+    keys,
     0.1,
     true
   );
@@ -279,10 +326,10 @@ export async function visionCompletion(
   );
 }
 
-/** Multi-turn chat completion (Nemotron 3 Ultra, free via OpenRouter) */
+/** Multi-turn chat completion (Nemotron 3 Ultra, falling back to Groq's gpt-oss-120b when the free quota runs out) */
 export async function multiTurnChat(
   messages: Array<{ role: string; content: string }>,
-  apiKey: string
+  keys: TextProviderKeys
 ): Promise<string> {
   // Extract system prompt from messages
   const systemMsg = messages.find((m) => m.role === 'system');
@@ -296,5 +343,5 @@ export async function multiTurnChat(
       content: m.content,
     }));
 
-  return callNemotron(systemPrompt, chatMessages, apiKey, 0.3, false);
+  return callTextModel(systemPrompt, chatMessages, keys, 0.3, false);
 }

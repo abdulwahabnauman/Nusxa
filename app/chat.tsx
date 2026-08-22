@@ -16,7 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { ChatMessage } from '../src/ai/types';
 import { multiTurnChat } from '../src/ai/client';
-import { resolveOpenRouterKey } from '../src/utils/secureStorage';
+import { resolveTextProviderKeys } from '../src/utils/secureStorage';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
 
 export default function ChatScreen() {
@@ -43,8 +43,8 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
-      const apiKey = await resolveOpenRouterKey();
-      if (!apiKey) {
+      const keys = await resolveTextProviderKeys();
+      if (!keys.openRouterKey && !keys.groqKey) {
         const errorMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
@@ -61,7 +61,7 @@ export default function ChatScreen() {
         { role: 'user' as const, content: userMsg.content },
       ];
 
-      const response = await multiTurnChat(chatMessages, apiKey);
+      const response = await multiTurnChat(chatMessages, keys);
 
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),

@@ -2,6 +2,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const API_KEY_STORAGE_KEY = 'nusxa_gemini_api_key';
 const OPENROUTER_KEY_STORAGE_KEY = 'nusxa_openrouter_api_key';
+const GROQ_KEY_STORAGE_KEY = 'nusxa_groq_api_key';
 
 /** Save the Gemini API key securely (encrypted, device-level) — used for prescription OCR */
 export async function saveApiKey(key: string): Promise<void> {
@@ -53,4 +54,36 @@ export async function resolveOpenRouterKey(): Promise<string> {
   const stored = await getOpenRouterKey();
   if (stored) return stored;
   return process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '';
+}
+
+/** Save the Groq API key securely — used as the fallback for chat/explain when Nemotron's free quota runs out */
+export async function saveGroqKey(key: string): Promise<void> {
+  await SecureStore.setItemAsync(GROQ_KEY_STORAGE_KEY, key);
+}
+
+/** Retrieve the stored Groq API key */
+export async function getGroqKey(): Promise<string | null> {
+  try {
+    return await SecureStore.getItemAsync(GROQ_KEY_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Delete the stored Groq API key */
+export async function deleteGroqKey(): Promise<void> {
+  await SecureStore.deleteItemAsync(GROQ_KEY_STORAGE_KEY);
+}
+
+/** Get the Groq API key from secure store or fall back to env variable */
+export async function resolveGroqKey(): Promise<string> {
+  const stored = await getGroqKey();
+  if (stored) return stored;
+  return process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '';
+}
+
+/** Resolve both text-provider keys at once — used by every chat/explain call site */
+export async function resolveTextProviderKeys(): Promise<{ openRouterKey: string; groqKey: string }> {
+  const [openRouterKey, groqKey] = await Promise.all([resolveOpenRouterKey(), resolveGroqKey()]);
+  return { openRouterKey, groqKey };
 }
