@@ -1,0 +1,104 @@
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
+import { useTheme } from '../../theme/provider';
+
+interface AdherenceRingProps {
+  percentage: number;
+  size?: number;
+  strokeWidth?: number;
+  label?: string;
+}
+
+export function AdherenceRing({
+  percentage,
+  size = 100,
+  strokeWidth = 8,
+  label,
+}: AdherenceRingProps) {
+  const { colors, typography } = useTheme();
+
+  const clampedPercentage = Math.min(100, Math.max(0, percentage));
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
+
+  const ringColor =
+    clampedPercentage >= 80 ? colors.success
+    : clampedPercentage >= 50 ? colors.warning
+    : colors.error;
+
+  return (
+    <View style={[styles.container, { width: size, height: size }]}>
+      <View
+        style={[
+          styles.ring,
+          {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            borderWidth: strokeWidth,
+            borderColor: colors.background.subtle,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.progressOverlay,
+            {
+              width: size,
+              height: size,
+              borderRadius: size / 2,
+              borderWidth: strokeWidth,
+              borderColor: ringColor,
+              borderTopColor: clampedPercentage >= 50 ? ringColor : 'transparent',
+              borderRightColor: clampedPercentage >= 25 ? ringColor : 'transparent',
+              borderBottomColor: clampedPercentage >= 75 ? ringColor : 'transparent',
+              borderLeftColor: clampedPercentage < 25 ? ringColor : 'transparent',
+              transform: [{ rotate: '-90deg' }],
+            },
+          ]}
+        />
+        <View style={styles.center}>
+          <Text
+            style={[
+              typography.heading.lg,
+              { color: colors.text.primary, textAlign: 'center' },
+            ]}
+            accessibilityLabel={`${clampedPercentage}% adherence`}
+          >
+            {Math.round(clampedPercentage)}%
+          </Text>
+          {label && (
+            <Text
+              style={[
+                typography.body.xs,
+                { color: colors.text.secondary, textAlign: 'center', marginTop: 2 },
+              ]}
+            >
+              {label}
+            </Text>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ring: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  progressOverlay: {
+    position: 'absolute',
+  },
+  center: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

@@ -1,0 +1,62 @@
+{
+  "expo": {
+    "name": "Nusxa",
+    "slug": "nusxa",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "nusxa",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3A7B"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.nusxa.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Nusxa needs camera access to scan your prescriptions.",
+        "NSPhotoLibraryUsageDescription": "Nusxa needs photo library access to upload prescription images.",
+        "NSMicrophoneUsageDescription": "Nusxa uses the microphone for voice interaction with your medication companion."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B3A7B"
+      },
+      "package": "com.nusxa.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.VIBRATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Nusxa to access your camera to scan prescriptions."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#2563EB"
+        }
+      ],
+      "expo-sqlite",
+      "expo-secure-store",
+      "expo-asset"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

@@ -1,0 +1,78 @@
+import { format, parse, isValid, startOfDay, endOfDay, addDays, differenceInDays } from 'date-fns';
+
+/** Format a date to YYYY-MM-DD */
+export function formatDateISO(date: Date): string {
+  return format(date, 'yyyy-MM-dd');
+}
+
+/** Format a date to a human-readable string */
+export function formatDateReadable(date: Date): string {
+  return format(date, 'MMM d, yyyy');
+}
+
+/** Format time string (HH:mm) to 12-hour format */
+export function formatTime12h(time24: string): string {
+  const [h, m] = time24.split(':').map(Number);
+  if (h == null || m == null) return time24;
+  const period = h >= 12 ? 'PM' : 'AM';
+  const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+/** Get today's date string in ISO format */
+export function getTodayISO(): string {
+  return formatDateISO(new Date());
+}
+
+/** Get start and end of today as tuple for adherence stats */
+export function getTodayRange(): [string, string] {
+  const now = new Date();
+  return [
+    format(startOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
+    format(endOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
+  ];
+}
+
+/** Get date range for the last N days */
+export function getDateRange(days: number): { start: string; end: string } {
+  const now = new Date();
+  const start = addDays(now, -days);
+  return {
+    start: format(startOfDay(start), "yyyy-MM-dd'T'HH:mm:ss"),
+    end: format(endOfDay(now), "yyyy-MM-dd'T'HH:mm:ss"),
+  };
+}
+
+/** Get the last 7 days with label and ISO date */
+export function getLast7Days(): { label: string; iso: string }[] {
+  const days: { label: string; iso: string }[] = [];
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  for (let i = 6; i >= 0; i--) {
+    const d = addDays(new Date(), -i);
+    days.push({
+      label: dayLabels[d.getDay()] ?? '',
+      iso: formatDateISO(d),
+    });
+  }
+  return days;
+}
+
+/** Check if a date string is valid */
+export function isValidDate(dateStr: string): boolean {
+  const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
+  return isValid(parsed);
+}
+
+/** Get device timezone */
+export function getTimezone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+/** Calculate days remaining in a treatment based on start date and duration */
+export function calculateDaysRemaining(startDate: string, durationDays: number): number {
+  const start = parse(startDate, 'yyyy-MM-dd', new Date());
+  if (!isValid(start)) return 0;
+  const end = addDays(start, durationDays);
+  const remaining = differenceInDays(end, new Date());
+  return Math.max(0, remaining);
+}
