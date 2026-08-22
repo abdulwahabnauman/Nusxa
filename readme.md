@@ -13,7 +13,9 @@ Nusxa (pronounced "nukh-sa") is an **AI Medication Companion** mobile app built 
 ### Prerequisites
 - **Node.js v20+** (LTS) — https://nodejs.org
 - **Expo Go** app on a phone (for quick testing) — Play Store / App Store
-- **A free Google Gemini API key** — https://aistudio.google.com/app/apikey
+- **A free Google Gemini API key** — https://aistudio.google.com/app/apikey (prescription scanning)
+- **A free OpenRouter API key** — https://openrouter.ai/keys (chat/explanations, primary)
+- **A free Groq API key** — https://console.groq.com/keys (chat/explanations, fallback)
 
 ### Run the App
 ```bash
@@ -25,11 +27,24 @@ Scan the QR code with Expo Go on your phone.
 
 > **Important**: Use `npx expo start --clear` whenever you change `.env` values or make structural changes, to clear the Metro bundler cache.
 
-### Configure the AI (Gemini)
-1. Get a free API key from https://aistudio.google.com/app/apikey
-2. Inside the app, go to **Settings > AI Service** and paste the key
-3. The key is stored securely via `expo-secure-store` (encrypted on-device)
-4. Alternatively, add it to the `.env` file: `EXPO_PUBLIC_GEMINI_API_KEY=your_key_here` (then restart with `--clear`)
+> **Note on `npm install` warnings**: you may see an `ERESOLVE` peer dependency warning involving `react-dom`. This is harmless — `react-dom` isn't a real dependency of this app, it only gets pulled in transitively by `expo-router`'s web tooling, which we don't use (Nusxa is Android/iOS only). If `npm install` fails outright rather than just warning, run `npm install --legacy-peer-deps` instead.
+
+> **Web mode (`npx expo start` then pressing `w`) is not supported.** `react-native-web` isn't a real pinned dependency here, it resolves to whatever version npm happens to pick, which is usually incompatible. This app targets Android/iOS only — don't chase web bundling errors, they're expected.
+
+### Configure the AI Services
+Nusxa uses three separate free-tier AI providers, split by task:
+
+1. **Gemini** (vision/OCR) — get a key from https://aistudio.google.com/app/apikey
+2. **OpenRouter** (chat/explanations, primary) — get a key from https://openrouter.ai/keys
+3. **Groq** (chat/explanations, fallback when OpenRouter's free quota runs out) — get a key from https://console.groq.com/keys
+
+Enter all three in **Settings**, each has its own card and input field. Keys are stored via `expo-secure-store` (encrypted on-device). Alternatively, set them in `.env`:
+```
+EXPO_PUBLIC_GEMINI_API_KEY=your_key_here
+EXPO_PUBLIC_OPENROUTER_API_KEY=your_key_here
+EXPO_PUBLIC_GROQ_API_KEY=your_key_here
+```
+(then restart with `--clear`)
 
 ---
 
@@ -37,14 +52,16 @@ Scan the QR code with Expo Go on your phone.
 
 | Layer              | Technology                              |
 |--------------------|-----------------------------------------|
-| Framework          | React Native 0.76 + Expo SDK 52        |
+| Framework          | React Native 0.81.5 + Expo SDK 54       |
 | Language           | TypeScript (strict mode)                |
-| Navigation         | Expo Router v4 (file-based routing)     |
+| Navigation         | Expo Router v6 (file-based routing)     |
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
 | Database           | expo-sqlite (SQLite, offline-first)     |
-| AI Backend         | Google Gemini 1.5 Flash (free tier)     |
+| AI — Vision/OCR    | Google Gemini 2.5 Flash (free tier)     |
+| AI — Chat/Explain  | Nemotron 3 Ultra via OpenRouter (free, primary), Groq gpt-oss-120b (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
-| Secure Storage     | expo-secure-store (API key encryption)  |
+| Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
+| Splash             | expo-splash-screen + custom animated capsule-halves intro |
 | Theming            | Custom token system (light/dark/elderly)|
 | i18n               | Custom context (English + Urdu/RTL)     |
 
@@ -73,15 +90,17 @@ nusxa/
 │       ├── history.tsx           # Prescription history with search, archive, delete
 │       └── settings.tsx          # Theme, language, API key, data export
 │
-├── assets/                       # App icons and splash images
-│   ├── icon.png                  # App store icon (1024x1024)
+├── assets/                       # App icons and splash images (all 1024x1024)
+│   ├── icon.png                  # App store icon
 │   ├── adaptive-icon.png         # Android adaptive icon foreground
-│   ├── splash-icon.png           # Splash screen logo
-│   └── notification-icon.png     # Notification bar icon
+│   ├── splash-icon.png           # Native OS splash image (shown before JS loads, set in app.json)
+│   ├── notification-icon.png     # Notification bar icon (flat white silhouette, transparent bg)
+│   ├── icon-half-navy.png        # Navy half of the capsule, used by the custom animated splash
+│   └── icon-half-white.png       # White half of the capsule, used by the custom animated splash
 │
 ├── src/
 │   ├── ai/                       # AI integration
-│   │   ├── client.ts             # Gemini API client (vision, chat, multi-turn)
+│   │   ├── client.ts             # AI clients — Gemini (vision, OCR only) + Nemotron/Groq (text, chat/explain)
 │   │   ├── pipeline.ts           # OCR pipeline: image → base64 → Gemini → parse → validate
 │   │   ├── prompts.ts            # System prompts for OCR, interpretation, and chat
 │   │   └── types.ts              # PrescriptionJSON, MedicineJSON, ValidationResult types
@@ -100,6 +119,7 @@ nusxa/
 │   │       ├── Badge.tsx, Button.tsx, Card.tsx
 │   │       ├── EmptyState.tsx, Input.tsx, Modal.tsx
 │   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx
+│   │       ├── AnimatedSplash.tsx # Custom post-JS splash: capsule halves slide together
 │   │
 │   ├── constants/
 │   │   ├── config.ts             # App-wide constants (API URL, timeouts, thresholds)
@@ -145,7 +165,7 @@ nusxa/
 │       ├── export.ts             # JSON data export via Share API
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
-│       ├── secureStorage.ts      # expo-secure-store wrapper for API key
+│       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
 │       └── validation.ts         # Input validation helpers
 │
 ├── .env                          # Environment variables (gitignored)
@@ -231,17 +251,25 @@ schedule.tsx → scheduleDoseNotification() (expo-notifications)
 
 ## Important Architectural Decisions
 
-### 1. AI Backend: Google Gemini 1.5 Flash (Free Tier)
-- Config: `src/constants/config.ts` → `GEMINI_MODEL`, `GEMINI_API_BASE`
-- Client: `src/ai/client.ts` — all API calls go through this
-- **Free tier**: 15 requests/min, 1M tokens/context, supports vision
-- Get key: https://aistudio.google.com/app/apikey
+### 1. AI Backend: Split by Task Across Three Free-Tier Providers
+Nusxa doesn't use one AI provider — vision and text are split, because no single free model does both well:
 
-### 2. Secure API Key Storage
-- Primary: `expo-secure-store` (encrypted on-device) via `src/utils/secureStorage.ts`
-- Fallback: `.env` file (`EXPO_PUBLIC_GEMINI_API_KEY`)
-- Resolution order: secure store → env variable (see `resolveApiKey()`)
-- Users enter/remove keys in Settings > AI Service
+- **Vision/OCR** (reading the prescription photo) → **Google Gemini 2.5 Flash**
+  - Config: `src/constants/config.ts` → `GEMINI_MODEL`, `GEMINI_API_BASE`
+  - Free tier: 1,500 requests/day, 15/min
+  - Note: Gemini 1.5 Flash (the original model this app shipped with) was shut down by Google and returns 404 — if you ever see 404s from Gemini, check `GEMINI_MODEL` hasn't drifted back to an old/retired model name
+- **Chat/explanations** (medicine info, chat companion) → **Nemotron 3 Ultra via OpenRouter** (primary), falling back to **Groq's gpt-oss-120b** (free, ~1,000 req/day) if OpenRouter's free quota (much lower, ~50 req/day) is exhausted
+  - Config: `src/constants/config.ts` → `OPENROUTER_API_BASE`, `NEMOTRON_MODEL`, `GROQ_API_BASE`, `GROQ_MODEL`
+  - Client: `src/ai/client.ts` — `callOpenAICompatible()` is the shared caller for both (they're both OpenAI-compatible chat endpoints), `callTextModel()` tries OpenRouter first, then Groq
+  - `chatCompletion()` and `multiTurnChat()` both take a `TextProviderKeys` object (`{ openRouterKey, groqKey }`), not a single key
+
+All AI calls go through `src/ai/client.ts`.
+
+### 2. Secure Storage: Three Separate API Keys
+- `expo-secure-store` (encrypted on-device) via `src/utils/secureStorage.ts`
+- Three independent key pairs: `saveApiKey`/`getApiKey` (Gemini), `saveOpenRouterKey`/`getOpenRouterKey`, `saveGroqKey`/`getGroqKey` — each with matching `delete*` and `resolve*` (checks secure store, falls back to `.env`) functions
+- `resolveTextProviderKeys()` resolves both text-provider keys at once, used by every chat/explain call site
+- Users enter/remove keys in **Settings** — there are three separate cards, one per provider
 
 ### 3. Image Persistence (Expo Go Fix)
 - **Problem**: Expo Go's ImagePicker creates temp files that get cleaned up before processing
@@ -267,6 +295,13 @@ schedule.tsx → scheduleDoseNotification() (expo-notifications)
 - Database columns use snake_case (`onboarding_complete`, `elderly_mode`)
 - Zustand auth store imports the `Profile` type directly from `models.ts`
 - No intermediate mapping layer — stores use the DB type directly
+
+### 7. Two-Stage Splash Screen
+There are two separate splash moments, easy to mix up:
+1. **Native OS splash** — shown before JS loads at all, fully static (OS constraint, cannot be animated). Controlled by `app.json`'s `"splash"` key, uses `assets/splash-icon.png`.
+2. **Custom animated splash** (`src/components/ui/AnimatedSplash.tsx`) — takes over the instant JS boots. Two separate capsule-half images (`assets/icon-half-navy.png`, `assets/icon-half-white.png`) slide in from opposite corners along the capsule's own diagonal and snap together, then the screen fades into the app. Wired up in `app/_layout.tsx` via `SplashScreen.preventAutoHideAsync()` / `hideAsync()`.
+
+This only renders in a real build (dev client or APK) — Expo Go can't fully replicate custom splash behavior, so don't expect to see it while testing in Expo Go.
 
 ---
 
@@ -298,11 +333,25 @@ eas build:configure                          # Generates eas.json
 eas build --platform android --profile preview   # Builds APK in cloud
 ```
 
-### Option B: Local Build
+### Option B: Local Build (Android Studio required)
 ```bash
-npx expo run:android --variant release
-# APK at: android/app/build/outputs/apk/release/
+npx expo prebuild --platform android --clean
+cd android
+./gradlew assembleDebug     # fast, self-signed, good for internal testing
+# or
+./gradlew assembleRelease   # needs a signing keystore first
 ```
+APK output:
+- Debug: `android/app/build/outputs/apk/debug/app-debug.apk`
+- Release: `android/app/build/outputs/apk/release/app-release.apk`
+
+`android/` is a generated folder (regenerated by `prebuild`, not hand-edited) — keep it in `.gitignore`.
+
+### Publishing an APK via GitHub Releases
+Repo → **Releases** tab → **Draft a new release** → choose/create a version tag (e.g. `v1.0.0`) → drag the `.apk` into the binary attachment box → **Publish release**. Anyone can then download it directly from the repo without cloning or building.
+
+### Development Builds vs. Expo Go
+Pressing `s` in `npx expo start` toggles Metro to target a dev-client build instead of Expo Go. This only works if `expo-dev-client` is installed **and** you have an actual dev-client build installed on the test device — otherwise you'll see "Unable to determine the default URI scheme," which just means it fell back to Expo Go. Not needed for normal development; only relevant once testing features Expo Go can't run (background push, this app's custom animated splash, etc).
 
 ### EAS Configuration (create `eas.json`)
 ```json
@@ -333,10 +382,11 @@ npx expo run:android --variant release
 |------|--------|-------|
 | RTL layout | Partial | `I18nManager.forceRTL` works, but some custom components may need manual `flexDirection: 'row-reverse'` adjustments. Full RTL needs visual QA pass. |
 | Notifications in background | Expo Go limitation | Local notifications work, but background execution (when app is fully closed) requires a dev client or production build |
+| Web platform | Not supported | `react-native-web` isn't a real pinned dependency; `npx expo start` → `w` will fail to bundle. Android/iOS only, by design |
 | Camera focus | Basic | No auto-focus indicator or tap-to-focus in the scanner. The `expo-camera` API supports this if needed. |
 | Offline AI | Not implemented | All AI calls require internet. Consider on-device ML models for offline scanning. |
 | Data backup | Not implemented | No cloud sync. All data is local SQLite only. |
-| Push notifications | Not implemented | Only local scheduled notifications. Firebase/OneSignal needed for remote push. |
+| Push notifications | Not implemented | Only local scheduled notifications. Firebase/OneSignal needed for true remote push — unrelated to Expo Go's SDK 53+ restriction, which only blocks remote push *inside Expo Go specifically*; a real APK build is unaffected by that particular restriction. |
 | Tablet layout | Not optimized | `supportsTablet: true` but no tablet-specific layouts |
 | App locking | Not implemented | No biometric/PIN lock. Consider adding for medication privacy. |
 | Accessibility | Basic | Has reduced motion toggle and elderly mode (larger text). Could add screen reader labels to more elements. |
@@ -351,8 +401,12 @@ npx expo run:android --variant release
 - **If it recurs**: Check that `FileSystem.copyAsync` succeeds, and the document directory has write permission
 
 ### Gemini API returns 429 (rate limit)
-- Free tier: 15 requests/minute. The client auto-retries with exponential backoff (2 retries)
+- Free tier: 15 requests/minute, 1,500/day for vision/OCR. The client auto-retries with exponential backoff (2 retries)
 - If frequent, consider caching OCR results
+
+### Chat/explain feature seems slow or fails intermittently
+- OpenRouter's free Nemotron tier has a low daily quota (~50 req/day). When exhausted, `callTextModel()` in `client.ts` automatically retries with backoff before falling to Groq — this adds a few seconds of delay right at the point the quota runs out, that's expected, not a bug
+- If both OpenRouter and Groq keys are empty/invalid, the chat feature will show a "unable to connect" message rather than crash
 
 ### Notifications not showing
 - Expo Go: notifications only work when app is foregrounded or recently used
@@ -376,9 +430,11 @@ npx expo start --clear   # Clear cache and restart
 
 | Variable | Purpose | Required |
 |----------|---------|----------|
-| `EXPO_PUBLIC_GEMINI_API_KEY` | Fallback API key (if secure store is empty) | For AI features |
+| `EXPO_PUBLIC_GEMINI_API_KEY` | Fallback Gemini key (vision/OCR) if secure store is empty | For scanning |
+| `EXPO_PUBLIC_OPENROUTER_API_KEY` | Fallback OpenRouter key (chat/explain, primary) if secure store is empty | For chat/explain |
+| `EXPO_PUBLIC_GROQ_API_KEY` | Fallback Groq key (chat/explain, fallback provider) if secure store is empty | For chat/explain fallback |
 
-The `.env` file is gitignored. Users should enter the API key through the Settings screen (secure store) rather than the `.env` file for production use.
+The `.env` file is gitignored. Users should enter API keys through the Settings screen (secure store) rather than the `.env` file for production use.
 
 ---
 
@@ -389,8 +445,10 @@ The `.env` file is gitignored. Users should enter the API key through the Settin
 | App name, icons, splash | `app.json` |
 | Tab bar labels/icons | `app/(tabs)/_layout.tsx` |
 | Home screen layout | `app/(tabs)/index.tsx` |
-| AI model or API URL | `src/constants/config.ts` |
+| AI models/API URLs (Gemini, OpenRouter, Groq) | `src/constants/config.ts` |
 | AI system prompts | `src/ai/prompts.ts` |
+| Animated splash (post-JS) | `src/components/ui/AnimatedSplash.tsx` |
+| Native splash (pre-JS, static) | `app.json` → `"splash"` key |
 | Database tables | `src/db/schema.ts` + add migration in `src/db/migrations.ts` |
 | Colors / dark mode | `src/theme/tokens.ts` |
 | Font sizes | `src/theme/typography.ts` |
