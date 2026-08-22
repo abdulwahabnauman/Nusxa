@@ -380,7 +380,8 @@ Pressing `s` in `npx expo start` toggles Metro to target a dev-client build inst
 
 | Area | Status | Notes |
 |------|--------|-------|
-| RTL layout | Partial | `I18nManager.forceRTL` works, but some custom components may need manual `flexDirection: 'row-reverse'` adjustments. Full RTL needs visual QA pass. |
+| Urdu translation coverage | Very partial | Only `app/(tabs)/settings.tsx` and the tab bar labels (`app/(tabs)/_layout.tsx`) actually call `useTranslation()`. Switching to Urdu changes those two things only — every other screen (home, medicines, history, chat, onboarding, scan, processing, review, schedule, doctor visit, emergency card, medicine detail) is hardcoded English regardless of language setting. Full Urdu support needs every screen wired to `t.*` strings, not just a translation-file update. |
+| RTL layout | Partial, blocked by the above | `I18nManager.forceRTL` works, but since most screens aren't translated yet, RTL layout has barely been exercised. Some custom components may need manual `flexDirection: 'row-reverse'` adjustments once more screens are actually translated. |
 | Notifications in background | Expo Go limitation | Local notifications work, but background execution (when app is fully closed) requires a dev client or production build |
 | Web platform | Not supported | `react-native-web` isn't a real pinned dependency; `npx expo start` → `w` will fail to bundle. Android/iOS only, by design |
 | Camera focus | Basic | No auto-focus indicator or tap-to-focus in the scanner. The `expo-camera` API supports this if needed. |
@@ -389,7 +390,8 @@ Pressing `s` in `npx expo start` toggles Metro to target a dev-client build inst
 | Push notifications | Not implemented | Only local scheduled notifications. Firebase/OneSignal needed for true remote push — unrelated to Expo Go's SDK 53+ restriction, which only blocks remote push *inside Expo Go specifically*; a real APK build is unaffected by that particular restriction. |
 | Tablet layout | Not optimized | `supportsTablet: true` but no tablet-specific layouts |
 | App locking | Not implemented | No biometric/PIN lock. Consider adding for medication privacy. |
-| Accessibility | Basic | Has reduced motion toggle and elderly mode (larger text). Could add screen reader labels to more elements. |
+| Elderly mode | Minimal — larger text only | `getTypography(elderly)` in `src/theme/typography.ts` is the entire implementation: it swaps to a larger font-size scale, that's it. No larger tap targets, no simplified/reduced-step navigation, no higher-contrast palette, no simplified icons or copy. For the target elderly-user audience this needs real design work, not just a checkbox that bumps font size. |
+| Accessibility (general) | Basic | Has reduced motion toggle. Could add screen reader labels to more elements. |
 | Theme/settings persistence | In-memory only | Theme store and settings store (except language) don't persist to DB — they reset on app restart. Consider adding DB columns for `notifications_enabled`, `reduced_motion`, `theme_preference`. |
 
 ---
@@ -408,10 +410,21 @@ Pressing `s` in `npx expo start` toggles Metro to target a dev-client build inst
 - OpenRouter's free Nemotron tier has a low daily quota (~50 req/day). When exhausted, `callTextModel()` in `client.ts` automatically retries with backoff before falling to Groq — this adds a few seconds of delay right at the point the quota runs out, that's expected, not a bug
 - If both OpenRouter and Groq keys are empty/invalid, the chat feature will show a "unable to connect" message rather than crash
 
+### Red "Console Error" screen on Android in Expo Go mentioning expo-notifications
+- Expected, not a bug. `expo-notifications` auto-registers for a push token the instant it's imported. On iOS in Expo Go this only logs a soft warning; on Android specifically, Expo Go escalates the same situation to a hard `console.error`, which shows as a red overlay
+- Root cause is identical to the iOS warning: Expo Go removed remote push support starting SDK 53. Dismiss the overlay and keep going, local scheduled reminders still work fine in Expo Go
+- Goes away entirely once you're testing on a real dev build or APK instead of Expo Go, since that restriction is Expo-Go-specific
+
 ### Notifications not showing
 - Expo Go: notifications only work when app is foregrounded or recently used
 - Production build needed for true background notifications
 - Check `expo-notifications` permission was granted in onboarding
+
+### Red console error on Android in Expo Go: "expo-notifications: Android Push notifications..."
+- `expo-notifications` auto-registers for a push token the moment it's imported, and this fails on Android specifically in Expo Go (SDK 53+ removed remote push support there). iOS only logs it as a soft warning; Android escalates it to a hard `console.error`, hence the red overlay.
+- This is expected, not a bug in this codebase, and doesn't block anything — dismiss it and keep going. Local scheduled reminders still work fine in Expo Go.
+- It goes away entirely once you're testing on a real dev build or APK instead of Expo Go.
+- Deliberately **not suppressed** with `LogBox.ignoreLogs` — kept visible on purpose so it stays a visible reminder of the Expo Go limitation rather than silently hidden.
 
 ### Database migration errors
 - Migrations are versioned in `src/db/migrations.ts`
