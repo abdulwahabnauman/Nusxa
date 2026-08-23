@@ -31,3 +31,6 @@ expo-env.d.ts
 project.zip
 # Android Studio
 .idea/
+
+# Expo generated native project
+android/
