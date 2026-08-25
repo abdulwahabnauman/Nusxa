@@ -14,11 +14,11 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { useTheme } from '@/src/theme/provider';
-import { useTranslation } from '@/src/i18n';
-import { spacing, typography } from '@/src/theme/tokens';
-import { getContent, toggleBookmark, isBookmarked, updateReadingProgress, markArticleComplete } from '@/src/db/repositories/education';
+import MaterialCommunityIcons from '@expo/vector-icons';
+import { useTheme } from '../../src/theme/provider';
+import { useTranslation } from '../../src/i18n';
+import { spacing, typography } from '../../src/theme/tokens';
+import { getContent, toggleBookmark, isBookmarked, updateReadingProgress, markArticleComplete } from '../../src/db/repositories/education';
 
 export default function EducationDetailScreen() {
   const { colors, typography: typ } = useTheme();
