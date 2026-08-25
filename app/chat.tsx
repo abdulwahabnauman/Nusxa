@@ -18,6 +18,7 @@ import { ChatMessage } from '../src/ai/types';
 import { multiTurnChat } from '../src/ai/client';
 import { resolveTextProviderKeys } from '../src/utils/secureStorage';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
+import { parseMarkdown } from '../src/components/ui/MarkdownText';
 
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -134,14 +135,13 @@ export default function ChatScreen() {
                 { borderRadius: borderRadius.lg, maxWidth: '85%', paddingHorizontal: 14, paddingVertical: 10 },
               ]}
             >
-              <Text
-                style={[
-                  typography.body.sm,
-                  { color: msg.role === 'user' ? '#FFFFFF' : colors.text.primary },
-                ]}
-              >
-                {msg.content}
-              </Text>
+              <View>
+                {parseMarkdown(msg.content).map((node, idx) => (
+                  <React.Fragment key={idx}>
+                    {node}
+                  </React.Fragment>
+                ))}
+              </View>
             </View>
           ))}
 

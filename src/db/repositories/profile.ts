@@ -15,6 +15,8 @@ function parseProfile(row: Record<string, unknown>): Profile {
     elderly_mode: (row.elderly_mode as number) === 1,
     language: (row.language as string) || 'en',
     onboarding_complete: (row.onboarding_complete as number) === 1,
+    notifications_enabled: (row.notifications_enabled as number) === 1,
+    reduced_motion: (row.reduced_motion as number) === 1,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -29,14 +31,18 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function createProfile(
-  data: Partial<Pick<Profile, 'name' | 'date_of_birth' | 'blood_group' | 'allergies' | 'emergency_contact' | 'primary_physician'>>
+  data: Partial<Pick<Profile, 'name' | 'date_of_birth' | 'blood_group' | 'allergies' | 'emergency_contact' | 'primary_physician'> & { 
+    language?: string;
+    notifications_enabled?: boolean;
+    reduced_motion?: boolean;
+  }>
 ): Promise<Profile> {
   const db = getDatabase();
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO profile (id, name, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, created_at, updated_at)
-     VALUES (1, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?);`,
+    `INSERT INTO profile (id, name, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, theme_preference, created_at, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?);`,
     [
       data.name ?? null,
       data.date_of_birth ?? null,
@@ -44,6 +50,10 @@ export async function createProfile(
       JSON.stringify(data.allergies ?? []),
       data.emergency_contact ? JSON.stringify(data.emergency_contact) : null,
       data.primary_physician ?? null,
+      data.language ?? 'en',
+      data.notifications_enabled !== false ? 1 : 0,
+      data.reduced_motion ? 1 : 0,
+      'system', // theme_preference default
       now,
       now,
     ]
@@ -94,6 +104,14 @@ export async function updateProfile(
   if (data.language !== undefined) {
     fields.push('language = ?');
     values.push(data.language);
+  }
+  if (data.notifications_enabled !== undefined) {
+    fields.push('notifications_enabled = ?');
+    values.push(data.notifications_enabled ? 1 : 0);
+  }
+  if (data.reduced_motion !== undefined) {
+    fields.push('reduced_motion = ?');
+    values.push(data.reduced_motion ? 1 : 0);
   }
 
   fields.push('updated_at = ?');

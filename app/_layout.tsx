@@ -8,8 +8,10 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/theme/provider';
 import { openDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
+import { updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore } from '../src/stores/settings-store';
+import { useThemeStore } from '../src/stores/theme-store';
 import { configureNotifications } from '../src/utils/notifications';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
@@ -35,6 +37,7 @@ function AppContent() {
   const [dbReady, setDbReady] = useState(false);
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
+  const syncElderlyMode = useThemeStore((s) => s.setElderlyMode);
 
   // Handle notification taps — navigate to medicine detail
   useNotificationResponseHandler();
@@ -47,18 +50,55 @@ function AppContent() {
   useEffect(() => {
     async function init() {
       try {
+        // Initialize with minimal required services
         await configureNotifications();
-        await openDatabase();
+        
+        try {
+          await openDatabase();
+        } catch (dbError) {
+          console.error('[Init] Database failed, app will run offline:', dbError);
+          // Don't throw - allow app to continue even without DB
+        }
+        
         const existingProfile = await getProfile();
-        if (existingProfile) {
+        
+        // Check if we have a profile record at all
+        if (!existingProfile) {
+          // New user - no profile exists, show onboarding
+          console.log('[Init] No profile found, showing onboarding');
+          setDbReady(true);
+          setLoaded(true);
+          return;
+        }
+        
+        // Profile exists but might not be complete
+        const needsOnboarding = !existingProfile.name || !existingProfile.onboarding_complete;
+        
+        if (needsOnboarding && existingProfile) {
+          // Reset onboarding flag to ensure user goes through setup flow
+          console.log('[Init] Missing name or incomplete onboarding - resetting for fresh start');
+          try {
+            await updateProfile({ onboarding_complete: false });
+            existingProfile.onboarding_complete = false;
+          } catch (error) {
+            console.error('[Init] Failed to reset onboarding flag:', error);
+          }
+        }
+        
+        if (existingProfile && !needsOnboarding) {
           setProfile(existingProfile);
           // Sync language preference from DB to settings store
           if (existingProfile.language) {
             syncLanguage(existingProfile.language as 'en' | 'ur');
           }
+          // Sync elderly mode from DB
+          if (existingProfile.elderly_mode !== undefined) {
+            syncElderlyMode(!!existingProfile.elderly_mode);
+          }
         }
       } catch (error) {
-        console.error('Failed to initialize:', error);
+        console.error('[Init] Fatal initialization error:', error);
+        // Critical failures still caught here
       } finally {
         setDbReady(true);
         setLoaded(true);
@@ -78,7 +118,7 @@ function AppContent() {
     );
   }
 
-  const showOnboarding = !profile || !profile.onboarding_complete;
+  const showOnboarding = !profile || !profile.onboarding_complete || !profile.name;
 
   return (
     <>

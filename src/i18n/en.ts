@@ -14,12 +14,18 @@ export const en = {
     discard: 'Discard',
     edit: 'Edit',
     share: 'Share',
+    yes: 'Yes',
+    no: 'No',
+    close: 'Close',
+    search: 'Search',
   },
   // Navigation
   nav: {
     home: 'Home',
     medicines: 'Medicines',
     history: 'History',
+    education: 'Learn',
+    analytics: 'Analytics',
     settings: 'Settings',
   },
   // Home screen
@@ -37,6 +43,13 @@ export const en = {
     doctorVisit: 'Doctor visit',
     thisWeek: 'This week',
     today: 'Today',
+    yesterday: 'Yesterday',
+    refillSoon: 'Refill soon',
+    daysLeft: 'days left',
+    takeNow: 'Take now',
+    skipDose: 'Skip',
+    completed: 'Completed',
+    missed: 'Missed',
   },
   // Onboarding
   onboarding: {
@@ -55,6 +68,7 @@ export const en = {
     notifDesc: 'Nusxa uses notifications to remind you about your medicines. You can change this anytime in Settings.',
     cameraNote: 'Camera access will be requested when you scan your first prescription.',
     setUp: 'Set up Nusxa',
+    nameRequired: 'Name required',
   },
   // Settings
   settings: {
@@ -101,6 +115,7 @@ export const en = {
     retake: 'Retake',
     useImage: 'Use this image',
     alignGuide: 'Align the prescription within the frame',
+    tapToFocus: 'Tap to focus',
   },
   // Processing
   processing: {
@@ -203,6 +218,71 @@ export const en = {
     outstanding: 'Outstanding dedication!',
     day: 'day',
     days: 'days',
+  },
+  // Medicines list screen
+  medicinesList: {
+    title: 'Medicines',
+    subtitle: 'Your active medications and their schedule',
+    noMedicinesYet: 'No active medicines yet',
+    noMedicinesDesc: 'These will appear here when you verify your first prescription.',
+    viewDetails: 'View details',
+    takenToday: 'Taken today',
+    nextDose: 'Next dose',
+    dosageInfo: 'Dosage info',
+    frequency: 'Frequency',
+    duration: 'Duration',
+  },
+  // Chat screen
+  chat: {
+    title: 'AI Chat',
+    subtitle: 'Ask questions about medicines',
+    placeholder: 'Type your question...',
+    send: 'Send',
+    askingAI: 'Asking AI...',
+    explainThis: 'Explain this medicine',
+    sideEffects: 'Side effects',
+    interactions: 'Interactions',
+    howTake: 'How to take',
+  },
+  // Analytics screen
+  analytics: {
+    title: 'Analytics',
+    subtitle: 'Track your medication adherence patterns',
+    weeklyActivity: 'Weekly Activity',
+    tipTitle: 'Pro Tip',
+    tipText: 'Consistent tracking helps you maintain good health habits. Aim for 90%+ adherence rate!',
+  },
+  // Education screen
+  education: {
+    title: 'Education Library',
+    subtitle: 'Learn about your medications and health',
+    categories: 'Browse by Category',
+    articlesInCategory: 'Articles',
+    popularArticles: 'Popular Articles',
+    noCategories: 'No categories available',
+    noArticles: 'No articles yet',
+    noArticlesMessage: 'Articles will appear here when you explore different categories.',
+    by: 'By',
+    views: 'views',
+    min: 'min',
+    bookmark: 'Bookmark',
+    bookMarked: 'Bookmarked',
+    addedToBookmarks: 'Article added to bookmarks',
+    removedFromBookmarks: 'Article removed from bookmarks',
+    bookmarkTitle: 'Bookmark Saved',
+    completed: 'Complete',
+    congratulationsRead: 'Great job! You finished reading.',
+    markComplete: 'Mark as Read',
+  },
+  // Medicine interactions
+  interactions: {
+    checkButton: 'Check Interactions',
+    foundInteractions: 'Potential Interactions Found',
+    safeAllClear: 'All Clear - No interactions detected!',
+    highSeverity: 'High Risk',
+    mediumSeverity: 'Medium Risk',
+    lowSeverity: 'Low Risk',
+    consultDoctor: 'Consult your doctor immediately if you experience:',
   },
 };
 

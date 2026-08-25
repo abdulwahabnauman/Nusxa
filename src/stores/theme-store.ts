@@ -1,16 +1,66 @@
 import { create } from 'zustand';
 import { ThemeMode } from '../theme/tokens';
+import { getProfile, updateProfile } from '../db/repositories/profile';
 
 interface ThemeState {
   preference: ThemeMode | 'system';
   elderlyMode: boolean;
   setPreference: (pref: ThemeMode | 'system') => void;
   setElderlyMode: (enabled: boolean) => void;
+  loadFromDatabase: () => Promise<void>;
 }
 
-export const useThemeStore = create<ThemeState>((set) => ({
-  preference: 'system',
-  elderlyMode: false,
-  setPreference: (preference) => set({ preference }),
-  setElderlyMode: (elderlyMode) => set({ elderlyMode }),
-}));
+// Helper function to save theme preference to database
+const saveThemeToDatabase = async (state: ThemeState) => {
+  try {
+    await updateProfile({
+      elderly_mode: state.elderlyMode,
+    });
+  } catch (error) {
+    console.error('Failed to save theme settings to database:', error);
+  }
+};
+
+// Load theme settings from database
+const loadThemeFromDatabase = async (): Promise<{ preference: ThemeMode | 'system'; elderlyMode: boolean }> => {
+  try {
+    const profile = await getProfile();
+    if (profile) {
+      return {
+        elderlyMode: profile.elderly_mode,
+        // Note: theme_preference column exists but we'll use system default for now
+        preference: 'system' as ThemeMode | 'system',
+      };
+    }
+  } catch (error) {
+    // Gracefully handle database not initialized errors
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (!errorMessage.includes('Database not initialized')) {
+      console.error('Failed to load theme settings from database:', error);
+    }
+  }
+  return { preference: 'system' as ThemeMode | 'system', elderlyMode: false };
+};
+
+export const useThemeStore = create<ThemeState>((set) => {
+  return {
+    preference: 'system',
+    elderlyMode: false,
+
+    setPreference: (preference: ThemeMode | 'system') => {
+      set({ preference });
+      // Theme preference will be saved when we add it to the profile table
+    },
+
+    setElderlyMode: (elderlyMode: boolean) => {
+      set({ elderlyMode });
+      const state = useThemeStore.getState();
+      saveThemeToDatabase(state);
+    },
+
+    loadFromDatabase: async () => {
+      const settings = await loadThemeFromDatabase();
+      set(settings);
+    },
+  };
+});

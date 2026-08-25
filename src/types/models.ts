@@ -15,6 +15,9 @@ export interface Profile {
   elderly_mode: boolean;
   language: string;
   onboarding_complete: boolean;
+  notifications_enabled: boolean;
+  reduced_motion: boolean;
+  theme_preference?: 'system' | 'light' | 'dark';
   created_at: string;
   updated_at: string;
 }

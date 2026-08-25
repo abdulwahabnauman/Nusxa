@@ -40,8 +40,8 @@ export const darkTokens = {
     strong: '#383838',
   },
   accent: {
-    primary: '#60A5FA',
-    hover: '#93C5FD',
+    primary: '#4A90E2',
+    hover: '#6BA5EF',
     subtle: '#172554',
   },
   success: '#4ADE80',
@@ -69,6 +69,60 @@ export const categoryColors = {
     painkiller: '#FCD34D',
     vitamins: '#5EEAD4',
     default: '#B5B5AF',
+  },
+} as const;
+
+/** Elderly mode theme - enhanced for better visibility */
+export const elderlyTokens = {
+  light: {
+    background: {
+      primary: '#FFFFFF',
+      surface: '#FAFAFA',
+      subtle: '#F3F3F0',
+    },
+    text: {
+      primary: '#000000', // Pure black for maximum contrast
+      secondary: '#333333',
+      disabled: '#666666',
+    },
+    border: {
+      default: '#CCCCCC',
+      strong: '#999999',
+    },
+    accent: {
+      primary: '#0057FF', // Stronger blue (higher contrast)
+      hover: '#0044CC',
+      subtle: '#E6F0FF',
+    },
+    success: '#1B7A2D',
+    warning: '#FF4400', // More intense orange
+    error: '#AA1515',
+    info: '#025C91',
+  },
+  dark: {
+    background: {
+      primary: '#121212',
+      surface: '#1E1E1E',
+      subtle: '#2A2A2A',
+    },
+    text: {
+      primary: '#FFFFFF', // Pure white
+      secondary: '#E0E0E0',
+      disabled: '#9E9E9E',
+    },
+    border: {
+      default: '#3C3C3C',
+      strong: '#555555',
+    },
+    accent: {
+      primary: '#4DA3FF', // Brighter blue for dark mode
+      hover: '#6AB3FF',
+      subtle: '#1A2A3D',
+    },
+    success: '#5DD873',
+    warning: '#FFAE42',
+    error: '#FF8A80',
+    info: '#6BD0FE',
   },
 } as const;
 

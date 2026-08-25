@@ -14,13 +14,78 @@ export default function EmergencyCardScreen() {
   const { colors, typography, spacing } = useTheme();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
+  const setProfile = useAuthStore((s) => s.setProfile);
   const [editing, setEditing] = useState(false);
+  // Store original values for cancellation
+  const [originalBloodGroup, setOriginalBloodGroup] = useState(profile?.blood_group ?? '');
+  const [originalAllergies, setOriginalAllergies] = useState(profile?.allergies?.join(', ') ?? '');
+  const [originalEmergencyName, setOriginalEmergencyName] = useState(profile?.emergency_contact?.name ?? '');
+  const [originalEmergencyPhone, setOriginalEmergencyPhone] = useState(profile?.emergency_contact?.phone ?? '');
+  const [originalPhysician, setOriginalPhysician] = useState(profile?.primary_physician ?? '');
+  
   const [bloodGroup, setBloodGroup] = useState(profile?.blood_group ?? '');
   const [allergies, setAllergies] = useState(profile?.allergies?.join(', ') ?? '');
   const [emergencyName, setEmergencyName] = useState(profile?.emergency_contact?.name ?? '');
   const [emergencyPhone, setEmergencyPhone] = useState(profile?.emergency_contact?.phone ?? '');
   const [physician, setPhysician] = useState(profile?.primary_physician ?? '');
   const [saving, setSaving] = useState(false);
+
+  // Update all states when profile changes
+  useEffect(() => {
+    const newBloodGroup = profile?.blood_group ?? '';
+    const newAllergies = profile?.allergies?.join(', ') ?? '';
+    const newEmergencyName = profile?.emergency_contact?.name ?? '';
+    const newEmergencyPhone = profile?.emergency_contact?.phone ?? '';
+    const newPhysician = profile?.primary_physician ?? '';
+    
+    setBloodGroup(newBloodGroup);
+    setAllergies(newAllergies);
+    setEmergencyName(newEmergencyName);
+    setEmergencyPhone(newEmergencyPhone);
+    setPhysician(newPhysician);
+    
+    // Also reset originals if not editing
+    if (!editing) {
+      setOriginalBloodGroup(newBloodGroup);
+      setOriginalAllergies(newAllergies);
+      setOriginalEmergencyName(newEmergencyName);
+      setOriginalEmergencyPhone(newEmergencyPhone);
+      setOriginalPhysician(newPhysician);
+    }
+  }, [profile]);
+
+  const handleCancel = () => {
+    // Check if any field changed
+    const isDirty = bloodGroup !== originalBloodGroup || 
+                   allergies !== originalAllergies || 
+                   emergencyName !== originalEmergencyName || 
+                   emergencyPhone !== originalEmergencyPhone || 
+                   physician !== originalPhysician;
+    
+    if (isDirty) {
+      Alert.alert(
+        'Discard Changes?',
+        'You have unsaved changes. Are you sure you want to cancel?',
+        [
+          { text: 'Keep Editing', style: 'cancel' },
+          { 
+            text: 'Discard', 
+            onPress: () => {
+              // Reset all fields to original values
+              setBloodGroup(originalBloodGroup);
+              setAllergies(originalAllergies);
+              setEmergencyName(originalEmergencyName);
+              setEmergencyPhone(originalEmergencyPhone);
+              setPhysician(originalPhysician);
+              setEditing(false);
+            }
+          }
+        ]
+      );
+    } else {
+      setEditing(false);
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -31,6 +96,22 @@ export default function EmergencyCardScreen() {
       const allergyList = allergies.split(',').map((a) => a.trim()).filter(Boolean);
 
       await updateProfile({
+        blood_group: bloodGroup || null,
+        allergies: allergyList,
+        emergency_contact: contact,
+        primary_physician: physician || null,
+      });
+      
+      // Update local states and original values first
+      setOriginalBloodGroup(bloodGroup);
+      setOriginalAllergies(allergies);
+      setOriginalEmergencyName(emergencyName);
+      setOriginalEmergencyPhone(emergencyPhone);
+      setOriginalPhysician(physician);
+      
+      // Update profile in auth store too
+      setProfile({
+        ...profile!,
         blood_group: bloodGroup || null,
         allergies: allergyList,
         emergency_contact: contact,
@@ -136,7 +217,7 @@ export default function EmergencyCardScreen() {
         {editing && (
           <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
             <Button title="Save" onPress={handleSave} loading={saving} />
-            <Button title="Cancel" onPress={() => setEditing(false)} variant="ghost" />
+            <Button title="Cancel" onPress={handleCancel} variant="ghost" />
           </View>
         )}
       </ScrollView>

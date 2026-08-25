@@ -86,3 +86,97 @@ export const DEFAULT_SCHEDULE_TIMES: Record<string, string[]> = {
   '3': ['08:00', '13:00', '20:00'],
   '4': ['08:00', '12:00', '17:00', '21:00'],
 };
+
+/** Medicine interaction rules (simplified for demo) */
+export const MEDICINE_INTERACTIONS = [
+  {
+    medicines: ['warfarin', 'aspirin', 'ibuprofen', 'naproxen'],
+    severity: 'high',
+    description: 'Increased bleeding risk when combined with blood thinners',
+  },
+  {
+    medicines: ['amoxicillin', 'tetracycline', 'methotrexate'],
+    severity: 'medium',
+    description: 'Reduced effectiveness of antibiotics',
+  },
+  {
+    medicines: ['simvastatin', 'gemfibrozil', 'niacin'],
+    severity: 'high',
+    description: 'Increased risk of muscle damage (rhabdomyolysis)',
+  },
+  {
+    medicines: ['lisinopril', 'losartan', 'potassium supplements'],
+    severity: 'medium',
+    description: 'Risk of hyperkalemia (high potassium levels)',
+  },
+];
+
+/** Check if any two medicines interact */
+export function checkMedicineInteraction(medicine1: string, medicine2: string): {
+  hasInteraction: boolean;
+  interaction?: {
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+  };
+} {
+  const m1Lower = medicine1.toLowerCase();
+  const m2Lower = medicine2.toLowerCase();
+  
+  for (const rule of MEDICINE_INTERACTIONS) {
+    const matches1 = rule.medicines.some(m => m1Lower.includes(m));
+    const matches2 = rule.medicines.some(m => m2Lower.includes(m));
+    
+    if (matches1 && matches2) {
+      return {
+        hasInteraction: true,
+        interaction: {
+          severity: rule.severity as 'low' | 'medium' | 'high',
+          description: rule.description,
+        },
+      };
+    }
+  }
+  
+  return { hasInteraction: false };
+}
+
+/** Find all potential interactions in a list of medicines */
+export function findAllInteractions(medicines: string[]): Array<{
+  medicine1: string;
+  medicine2: string;
+  interaction: {
+    severity: 'low' | 'medium' | 'high';
+    description: string;
+  };
+}> {
+  const interactions: Array<{
+    medicine1: string;
+    medicine2: string;
+    interaction: {
+      severity: 'low' | 'medium' | 'high';
+      description: string;
+    };
+  }> = [];
+  
+  for (let i = 0; i < medicines.length; i++) {
+    const m1 = medicines[i];
+    if (!m1) continue;
+    
+    for (let j = i + 1; j < medicines.length; j++) {
+      const m2 = medicines[j];
+      if (!m2) continue;
+      
+      const result = checkMedicineInteraction(m1, m2);
+      
+      if (result.hasInteraction && result.interaction) {
+        interactions.push({
+          medicine1: m1,
+          medicine2: m2,
+          interaction: result.interaction,
+        });
+      }
+    }
+  }
+  
+  return interactions;
+}

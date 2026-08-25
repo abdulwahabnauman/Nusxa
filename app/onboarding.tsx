@@ -18,6 +18,7 @@ import { useThemeStore } from '../src/stores/theme-store';
 import { createProfile, completeOnboarding } from '../src/db/repositories/profile';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
+import { useI18n } from '../src/i18n';
 
 type OnboardingStep = 'welcome' | 'profile' | 'permissions' | 'done';
 
@@ -28,6 +29,7 @@ export default function OnboardingScreen() {
   const [step, setStep] = useState<OnboardingStep>('welcome');
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useI18n();
 
   const handleWelcome = () => {
     setStep('profile');
@@ -35,28 +37,54 @@ export default function OnboardingScreen() {
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
-      Alert.alert('Name required', 'Please enter your name to continue.');
+      Alert.alert(t.common.error, t.onboarding.nameRequired || 'Name required');
       return;
     }
+    // Don't save yet - wait until permissions step
     setStep('permissions');
   };
 
   const handlePermissions = async () => {
     setLoading(true);
     try {
-      // Request notification permission
-      try {
-        await Notifications.requestPermissionsAsync();
-      } catch {
-        // Non-critical: continue without notifications
-      }
+      // Request notification permission first
+      const permResult = await Notifications.requestPermissionsAsync({
+        ios: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+          allowAnnouncements: true,
+        },
+        android: {
+          allowAlert: true,
+          allowBadge: true,
+          allowSound: true,
+          allowVibrate: true,
+          allowWarning: true,
+          importance: Notifications.AndroidImportance.HIGH,
+        },
+        web: { vibrate: false },
+      });
 
-      // Create profile
-      const profile = await createProfile({ name: name.trim() });
+      console.log('Notification permission granted:', permResult.granted);
+
+      // Only create profile after successful permission request
+      const profile = await createProfile({ 
+        name: name.trim(),
+        language: 'en' // Default to English for now
+      });
+      
       await completeOnboarding();
       setProfile({ ...profile, onboarding_complete: true });
+      
+      // Navigate to main tabs after successful setup
+      router.replace('/(tabs)/index');
     } catch (error) {
-      Alert.alert('Error', 'Failed to set up your profile. Please try again.');
+      console.error('Onboarding error:', error);
+      Alert.alert(
+        t.common.error, 
+        'Failed to set up your profile. Please try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -82,17 +110,17 @@ export default function OnboardingScreen() {
                 />
               </View>
               <Text style={[typography.heading.h1, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
-                Welcome to Nusxa
+                {t.onboarding.welcomeTitle}
               </Text>
               <Text style={[typography.body.lg, { color: colors.text.secondary, marginTop: spacing.md, textAlign: 'center' }]}>
-                Your AI medication companion. Understand prescriptions, follow schedules, and track your treatment with confidence.
+                {t.onboarding.welcomeDesc}
               </Text>
               <View style={styles.featureList}>
                 {[
-                  { icon: 'camera-outline' as const, text: 'Scan prescriptions with your camera' },
-                  { icon: 'check-circle-outline' as const, text: 'Verify and understand your medicines' },
-                  { icon: 'bell-outline' as const, text: 'Get gentle reminders for each dose' },
-                  { icon: 'chart-line' as const, text: 'Track your progress over time' },
+                  { icon: 'camera-outline' as const, text: t.onboarding.feature1 },
+                  { icon: 'check-circle-outline' as const, text: t.onboarding.feature2 },
+                  { icon: 'bell-outline' as const, text: t.onboarding.feature3 },
+                  { icon: 'chart-line' as const, text: t.onboarding.feature4 },
                 ].map((feature, i) => (
                   <View key={i} style={styles.featureRow}>
                     <MaterialCommunityIcons name={feature.icon} size={20} color={colors.accent.primary} />
@@ -103,7 +131,7 @@ export default function OnboardingScreen() {
                 ))}
               </View>
               <View style={styles.buttonContainer}>
-                <Button title="Get started" onPress={handleWelcome} size="lg" />
+                <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
               </View>
             </View>
           )}
@@ -111,25 +139,25 @@ export default function OnboardingScreen() {
           {step === 'profile' && (
             <View style={styles.stepContainer}>
               <Text style={[typography.heading.h2, { color: colors.text.primary, textAlign: 'center' }]}>
-                What should we call you?
+                {t.onboarding.whatToCall}
               </Text>
               <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center' }]}>
-                Your name helps personalize your experience.
+                {t.onboarding.nameHelp}
               </Text>
               <View style={{ marginTop: spacing.xl, width: '100%' }}>
                 <Input
-                  label="Your name"
+                  label={t.onboarding.yourName}
                   value={name}
                   onChangeText={setName}
-                  placeholder="Enter your name"
+                  placeholder={t.onboarding.yourName}
                   autoCapitalize="words"
                   autoFocus
                   onSubmitEditing={handleProfileSave}
                 />
               </View>
               <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button title="Continue" onPress={handleProfileSave} size="lg" />
-                <Button title="Back" onPress={() => setStep('welcome')} variant="ghost" />
+                <Button title={t.common.continue} onPress={handleProfileSave} size="lg" />
+                <Button title={t.common.back} onPress={() => setStep('welcome')} variant="ghost" />
               </View>
             </View>
           )}
@@ -144,20 +172,20 @@ export default function OnboardingScreen() {
                 />
               </View>
               <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
-                Almost ready
+                {t.onboarding.almostReady}
               </Text>
               <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.md, textAlign: 'center' }]}>
-                Nusxa uses notifications to remind you about your medicines. You can change this anytime in Settings.
+                {t.onboarding.notifDesc}
               </Text>
               <View style={[styles.permissionNote, { backgroundColor: colors.background.subtle, marginTop: spacing.xl }]}>
                 <MaterialCommunityIcons name="information-outline" size={18} color={colors.info} />
                 <Text style={[typography.body.sm, { color: colors.text.secondary, marginLeft: spacing.sm, flex: 1 }]}>
-                  Camera access will be requested when you scan your first prescription.
+                  {t.onboarding.cameraNote}
                 </Text>
               </View>
               <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
                 <Button
-                  title="Set up Nusxa"
+                  title={t.onboarding.setUp}
                   onPress={handlePermissions}
                   loading={loading}
                   size="lg"

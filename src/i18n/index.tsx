@@ -24,12 +24,31 @@ const I18nContext = createContext<I18nContextValue>({
 
 /** Hook to access translations and language state */
 export function useI18n(): I18nContextValue {
-  return useContext(I18nContext);
+  const context = useContext(I18nContext);
+  
+  // Provide safe fallback if language is undefined (during init)
+  const safeLanguage = context.language || 'en';
+  const safeTranslations = translations[safeLanguage] || en;
+  const safeIsRTL = safeLanguage === 'ur';
+  
+  return {
+    t: safeTranslations,
+    language: safeLanguage,
+    isRTL: safeIsRTL,
+    setLanguage: context.setLanguage,
+  };
 }
 
 /** Convenience hook — returns just the translation object */
 export function useTranslation(): TranslationKeys {
-  return useContext(I18nContext).t;
+  const { t } = useContext(I18nContext);
+  
+  // Safety check - ensure we never return undefined
+  if (!t) {
+    return en; // Default to English if language isn't loaded yet
+  }
+  
+  return t;
 }
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
@@ -48,9 +67,13 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const setLanguage = useCallback(
     (lang: Language) => {
-      setLanguagePref(lang);
+      // Always call setLanguagePref - it will handle database readiness
+      if (typeof setLanguagePref === 'function') {
+        setLanguagePref(lang);
+      }
+      // If not a function yet, language won't be saved but UI will work
     },
-    [setLanguagePref],
+    [],
   );
 
   const value: I18nContextValue = {

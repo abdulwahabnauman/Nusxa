@@ -8,6 +8,7 @@ interface CardProps {
   padding?: 'sm' | 'md' | 'lg' | 'none';
   elevated?: boolean;
   accessibilityLabel?: string;
+  role?: 'region' | 'list' | 'article' | 'complementary'; // For screen readers
 }
 
 export function Card({
@@ -16,6 +17,7 @@ export function Card({
   padding = 'md',
   elevated = false,
   accessibilityLabel,
+  role = 'region',
 }: CardProps) {
   const { colors, spacing, borderRadius } = useTheme();
 
@@ -46,6 +48,8 @@ export function Card({
         style,
       ]}
       accessibilityLabel={accessibilityLabel}
+      role={role}
+      pointerEvents="box-none" // Allows children to be interactive
     >
       {children}
     </View>

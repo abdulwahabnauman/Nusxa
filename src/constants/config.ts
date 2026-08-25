@@ -1,5 +1,5 @@
-/** Google Gemini API configuration (free tier with vision) — used only for prescription OCR */
-export const GEMINI_MODEL = 'gemini-2.5-flash';
+/** Google Gemini API configuration (free tier with vision) — used for prescription OCR */
+export const GEMINI_MODEL = 'gemini-3.6-flash'; // Latest stable free tier model
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 /** OpenRouter configuration — primary text provider, routed to Nemotron 3 Ultra (free) */

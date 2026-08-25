@@ -1,6 +1,6 @@
 /** SQL statements for creating the Nusxa database schema (version 1) */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -14,7 +14,11 @@ CREATE TABLE IF NOT EXISTS profile (
   elderly_mode INTEGER DEFAULT 0,
   onboarding_complete INTEGER DEFAULT 0,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  language TEXT DEFAULT 'en',
+  notifications_enabled INTEGER DEFAULT 1,
+  reduced_motion INTEGER DEFAULT 0,
+  theme_preference TEXT DEFAULT 'system'
 );
 `;
 
@@ -112,4 +116,11 @@ export const CREATE_INDEXES = [
 /** Migration v2 SQL */
 export const ALTER_PROFILE_ADD_LANGUAGE = `
 ALTER TABLE profile ADD COLUMN language TEXT DEFAULT 'en';
+`;
+
+/** Migration v3 SQL - Add settings persistence columns */
+export const ALTER_PROFILE_ADD_SETTINGS = `
+ALTER TABLE profile ADD COLUMN notifications_enabled INTEGER DEFAULT 1;
+ALTER TABLE profile ADD COLUMN reduced_motion INTEGER DEFAULT 0;
+ALTER TABLE profile ADD COLUMN theme_preference TEXT DEFAULT 'system';
 `;

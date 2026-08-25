@@ -15,13 +15,16 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { Button } from '../src/components/ui/Button';
+import { useI18n } from '../src/i18n';
 
 export default function ScanScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
+  const { t } = useI18n();
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null);
   const cameraRef = useRef<ExpoCameraView>(null);
 
   const handleRequestCamera = async () => {
@@ -122,6 +125,28 @@ export default function ScanScreen() {
     }
   };
 
+  // Handle tap to focus
+  const handleCameraTap = (e: any) => {
+    if (!cameraRef.current) return;
+    
+    const layout = (e.nativeEvent as any).layout;
+    const x = layout.x + layout.width / 2;
+    const y = layout.y + layout.height / 2;
+    
+    // Show focus indicator
+    setFocusPoint({ x: layout.x + layout.width / 2, y: layout.y + 100 });
+    
+    // Focus on tapped area
+    try {
+      cameraRef.current.focusAsync();
+    } catch (error) {
+      console.log('Auto-focus not supported on this device');
+    }
+    
+    // Hide indicator after animation
+    setTimeout(() => setFocusPoint(null), 800);
+  };
+
   // Permission not yet requested
   if (!permission && !capturedImage) {
     return (
@@ -189,7 +214,14 @@ export default function ScanScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={false}
+          onZoom={() => {}}
         >
+          {/* Tap to focus handler */}
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            onPress={handleCameraTap}
+            activeOpacity={1}
+          />
           {/* Overlay guide */}
           <View style={styles.overlay}>
             <View style={styles.overlayTop} />
@@ -219,6 +251,17 @@ export default function ScanScreen() {
               </TouchableOpacity>
             </View>
           </View>
+
+          {/* Focus Indicator Overlay */}
+          {focusPoint && (
+            <View style={styles.focusOverlay}>
+              <View style={[styles.focusCircle, { left: focusPoint.x - 40, top: focusPoint.y - 40 }]}>
+                <View style={styles.crosshairHorizontal} />
+                <View style={styles.crosshairVertical} />
+              </View>
+              <Text style={styles.focusHint}>{t.scanner.tapToFocus}</Text>
+            </View>
+          )}
         </ExpoCameraView>
       </View>
     );
@@ -329,5 +372,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     justifyContent: 'center',
+  },
+  focusOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  focusCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  crosshairHorizontal: {
+    width: '100%',
+    height: 2,
+    backgroundColor: '#FF4400',
+  },
+  crosshairVertical: {
+    width: 2,
+    height: '100%',
+    backgroundColor: '#FF4400',
+    position: 'absolute',
+  },
+  focusHint: {
+    marginTop: 60,
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
 });

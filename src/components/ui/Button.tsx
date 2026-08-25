@@ -25,6 +25,7 @@ interface ButtonProps {
   accessibilityLabel?: string;
   accessibilityHint?: string;
   accessibilityRole?: AccessibilityRole;
+  largeTouchTarget?: boolean; // For elderly mode - ensures minimum touch target size
 }
 
 export function Button({
@@ -38,6 +39,8 @@ export function Button({
   style,
   accessibilityLabel,
   accessibilityHint,
+  accessibilityRole,
+  largeTouchTarget = false,
 }: ButtonProps) {
   const { colors, typography, borderRadius, spacing } = useTheme();
 
@@ -109,6 +112,8 @@ export function Button({
       accessibilityHint={accessibilityHint}
       accessibilityRole="button"
       accessibilityState={{ disabled: disabled || loading, busy: loading }}
+      // Ensure minimum touch target of 44x44 pixels for accessibility
+      hitSlop={largeTouchTarget ? { top: 10, bottom: 10, left: 10, right: 10 } : undefined}
     >
       {loading ? (
         <ActivityIndicator

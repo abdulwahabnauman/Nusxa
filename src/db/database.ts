@@ -8,10 +8,27 @@ let db: SQLite.SQLiteDatabase | null = null;
 export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
 
-  db = await SQLite.openDatabaseAsync(DB_NAME);
-  await db.execAsync('PRAGMA journal_mode = WAL;');
-  await db.execAsync('PRAGMA foreign_keys = ON;');
-  await runMigrations(db);
+  try {
+    db = await SQLite.openDatabaseAsync(DB_NAME);
+    
+    // PRAGMA settings - with error handling for compatibility
+    try {
+      await db.execAsync('PRAGMA journal_mode = DELETE;');
+    } catch {
+      console.log('[DB] Could not set journal_mode, continuing...');
+    }
+    
+    try {
+      await db.execAsync('PRAGMA foreign_keys = ON;');
+    } catch (error) {
+      console.error('[DB] Foreign keys failed:', error);
+    }
+    
+    await runMigrations(db);
+  } catch (error) {
+    console.error('[DB] Failed to initialize:', error);
+    throw new Error(`Database initialization failed: ${error}`);
+  }
 
   return db;
 }

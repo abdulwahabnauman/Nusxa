@@ -1,15 +1,15 @@
 import React, { createContext, useContext, useMemo, useEffect } from 'react';
 import { useColorScheme } from 'react-native';
-import { lightTokens, darkTokens, ThemeTokens, ThemeMode } from './tokens';
+import { lightTokens, darkTokens, ThemeTokens, ThemeMode, elderlyTokens, elderlyTokens as elderlyColorsTokens } from './tokens';
 import { getTypography, Typography } from './typography';
-import { spacing, borderRadius } from './spacing';
+import { spacing, borderRadius, elderlySpacing, elderlyBorderRadius } from './spacing';
 import { useThemeStore } from '../stores/theme-store';
 
 interface ThemeContextValue {
-  colors: ThemeTokens;
+  colors: any;
   typography: Typography;
-  spacing: typeof spacing;
-  borderRadius: typeof borderRadius;
+  spacing: typeof spacing | typeof elderlySpacing;
+  borderRadius: typeof borderRadius | typeof elderlyBorderRadius;
   mode: ThemeMode;
   isDark: boolean;
 }
@@ -29,12 +29,15 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [preference, systemScheme]);
 
   const value = useMemo<ThemeContextValue>(() => {
-    const colors = resolvedMode === 'dark' ? darkTokens : lightTokens;
+    // Use elderly colors if elderly mode is enabled
+    const baseColors = resolvedMode === 'dark' ? darkTokens : lightTokens;
+    const elderlyColors = resolvedMode === 'dark' ? elderlyTokens.dark : elderlyTokens.light;
+    
     return {
-      colors,
+      colors: elderlyMode ? elderlyColors : baseColors,
       typography: getTypography(elderlyMode),
-      spacing,
-      borderRadius,
+      spacing: elderlyMode ? elderlySpacing : spacing,
+      borderRadius: elderlyMode ? elderlyBorderRadius : borderRadius,
       mode: resolvedMode,
       isDark: resolvedMode === 'dark',
     };

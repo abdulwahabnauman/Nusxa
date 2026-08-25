@@ -9,9 +9,14 @@ import { Button } from '../src/components/ui/Button';
 import { processPrescription } from '../src/ai/pipeline';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
 import { resolveApiKey } from '../src/utils/secureStorage';
+import { useTranslation } from '../src/i18n';
+import { useSettingsStore } from '../src/stores/settings-store';
 
 export default function ProcessingScreen() {
   const { colors, typography, spacing } = useTheme();
+  const t = useTranslation();
+  const currentLanguage = useSettingsStore((s) => s.language);
+  const isRTL = currentLanguage === 'ur';
   const router = useRouter();
   const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
   const [stage, setStage] = useState<PipelineStage>('preparing');
@@ -38,8 +43,16 @@ export default function ProcessingScreen() {
         setStage('error');
         return;
       }
-      const res = await processPrescription(imageUri!, apiKey, setStage);
+      
+      // Process with callback to update stages
+      const res = await processPrescription(imageUri!, apiKey, (newStage) => {
+        setStage(newStage);
+      });
+      
       setResult(res);
+      
+      // Explicitly mark final step as completed
+      setStage('complete');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
       setError(message);
@@ -131,7 +144,15 @@ export default function ProcessingScreen() {
               {result.validation.warnings.length > 0 &&
                 ` — ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
             </Text>
-            <Button title="Review prescription" onPress={handleContinue} size="lg" />
+            <View style={{ width: '100%', flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing.md }}>
+              <Button title="Review prescription" onPress={handleContinue} size="lg" />
+              <Button 
+                title="OK" 
+                onPress={() => router.back()} 
+                variant="ghost"
+                size="lg"
+              />
+            </View>
           </View>
         )}
       </View>

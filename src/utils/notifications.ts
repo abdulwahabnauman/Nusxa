@@ -1,17 +1,36 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
-/** Configure notification behavior */
+/** Configure notification behavior - wrapped in try/catch for safety */
 export async function configureNotifications(): Promise<void> {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
-  });
+  try {
+    // Set up notification handler with safe defaults
+    Notifications.setNotificationHandler({
+      handleNotification: async (notification) => {
+        // Log notification receipt for debugging
+        console.log('[Notifications] Received notification:', notification.request.content.title);
+        
+        return {
+          shouldShowAlert: true,
+          shouldPlaySound: Platform.OS !== 'web',
+          shouldSetBadge: false,
+          shouldShowBanner: Platform.OS === 'android',
+          shouldShowList: true,
+        };
+      },
+    });
+
+    // Configure Google Play services for notifications on Android
+    if (Platform.OS === 'android') {
+      await Notifications.setAndroidChannelDefaultsAsync([
+        'default',
+        'medication-reminders',
+      ]);
+    }
+  } catch (error) {
+    console.error('[Notifications] Failed to configure:', error);
+    // Don't crash app if notifications fail
+  }
 }
 
 /** Check notification permission status */

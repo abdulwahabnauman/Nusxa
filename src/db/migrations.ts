@@ -9,7 +9,9 @@ import {
   CREATE_SCHEMA_VERSION_TABLE,
   CREATE_INDEXES,
   ALTER_PROFILE_ADD_LANGUAGE,
+  ALTER_PROFILE_ADD_SETTINGS,
 } from './schema';
+import { EDUCATION_SCHEMA } from './schemas/education';
 
 interface Migration {
   version: number;
@@ -43,8 +45,56 @@ const migration_v2: Migration = {
   },
 };
 
-/** All migrations in order */
-const migrations: Migration[] = [migration_v1, migration_v2];
+/** Version 3: Add settings persistence columns */
+const migration_v3: Migration = {
+  version: 3,
+  up: async (db) => {
+    try {
+      await db.runAsync(
+        'ALTER TABLE profile ADD COLUMN elderly_mode INTEGER DEFAULT 0;',
+      );
+    } catch (e) {
+      // Column may already exist
+    }
+    try {
+      await db.runAsync('ALTER TABLE profile ADD COLUMN reduced_motion INTEGER DEFAULT 0;');
+    } catch {
+      // Ignore if exists
+    }
+  },
+};
+
+/** Version 4: Add education content library tables */
+const migration_v4: Migration = {
+  version: 4,
+  up: async (db) => {
+    // Create education-related tables
+    await db.execAsync(EDUCATION_SCHEMA);
+    
+    // Update schema version to 4
+    await db.runAsync(
+      `UPDATE schema_version SET version = 4;`,
+    );
+  },
+};
+
+/** Version 5: Education schema consistency */
+const migration_v5: Migration = {
+  version: 5,
+  up: async (db) => {
+    await db.runAsync(
+      `UPDATE schema_version SET version = 5;`,
+    );
+  },
+};
+
+export const MIGRATIONS: Migration[] = [
+  migration_v1,
+  migration_v2,
+  migration_v3,
+  migration_v4,
+  migration_v5,
+];
 
 /** Run pending migrations */
 export async function runMigrations(db: SQLiteDatabase): Promise<void> {
@@ -62,9 +112,11 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   const currentVersion = result?.version ?? 0;
 
   // Run pending migrations
-  for (const migration of migrations) {
+  for (const migration of MIGRATIONS) {
     if (migration.version > currentVersion) {
       await migration.up(db);
     }
   }
 }
+
+export const CURRENT_SCHEMA_VERSION = 5;
