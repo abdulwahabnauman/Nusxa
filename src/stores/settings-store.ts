@@ -19,8 +19,8 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
   try {
     await updateProfile({
       language: state.language,
-      notifications_enabled: state.notificationsEnabled ? 1 : 0,
-      reduced_motion: state.reducedMotion ? 1 : 0,
+      notifications_enabled: state.notificationsEnabled,
+      reduced_motion: state.reducedMotion,
     });
   } catch (error) {
     console.error('Failed to save settings to database:', error);
@@ -34,8 +34,8 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
     if (profile) {
       return {
         language: (profile.language as Language) || 'en',
-        notificationsEnabled: profile.notifications_enabled !== 0,
-        reducedMotion: profile.reduced_motion !== 0,
+        notificationsEnabled: !!profile.notifications_enabled,
+        reducedMotion: !!profile.reduced_motion,
       };
     }
   } catch (error) {

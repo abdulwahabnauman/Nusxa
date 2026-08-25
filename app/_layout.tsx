@@ -3,6 +3,7 @@ import { View, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/theme/provider';
@@ -38,6 +39,11 @@ function AppContent() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
   const syncElderlyMode = useThemeStore((s) => s.setElderlyMode);
+
+  // Load the Nastaliq font used for Urdu text
+  const [fontsLoaded] = useFonts({
+    NotoNastaliqUrdu: require('../assets/fonts/NotoNastaliqUrdu.ttf'),
+  });
 
   // Handle notification taps — navigate to medicine detail
   useNotificationResponseHandler();
@@ -107,7 +113,7 @@ function AppContent() {
     init();
   }, [setProfile, setLoaded]);
 
-  if (!dbReady || !isLoaded || !splashAnimationDone) {
+  if (!dbReady || !isLoaded || !splashAnimationDone || !fontsLoaded) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background.primary }]}>
         <AnimatedSplash

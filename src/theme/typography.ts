@@ -39,71 +39,86 @@ const weights = {
   bold: '700' as TextStyle['fontWeight'],
 } as const;
 
-export function getTypography(elderly: boolean) {
+export function getTypography(elderly: boolean, fontFamily?: string) {
   const sizes = elderly ? elderlyFontSize : baseFontSize;
+  // Optional custom family (e.g. Nastaliq for Urdu) applied to every text style.
+  // Nastaliq script has deep descenders, so line heights are enlarged when it is active.
+  const font = fontFamily ? { fontFamily } : {};
+  const lh = (value: number) => (fontFamily ? Math.round(value * 1.9) : value);
 
   return {
     sizes,
     weights,
     heading: {
       h1: {
+        ...font,
         fontSize: sizes['3xl'],
-        lineHeight: 36,
+        lineHeight: lh(36),
         fontWeight: weights.bold,
       } as TextStyle,
       h2: {
+        ...font,
         fontSize: sizes['2xl'],
-        lineHeight: 32,
+        lineHeight: lh(32),
         fontWeight: weights.bold,
       } as TextStyle,
       h3: {
+        ...font,
         fontSize: sizes.xl,
-        lineHeight: 28,
+        lineHeight: lh(28),
         fontWeight: weights.semibold,
       } as TextStyle,
       h4: {
+        ...font,
         fontSize: sizes.lg,
-        lineHeight: 28,
+        lineHeight: lh(28),
         fontWeight: weights.semibold,
       } as TextStyle,
     },
     body: {
       lg: {
+        ...font,
         fontSize: sizes.lg,
-        lineHeight: 28,
+        lineHeight: lh(28),
         fontWeight: weights.regular,
       } as TextStyle,
       base: {
+        ...font,
         fontSize: sizes.base,
-        lineHeight: 24,
+        lineHeight: lh(24),
         fontWeight: weights.regular,
       } as TextStyle,
       sm: {
+        ...font,
         fontSize: sizes.sm,
-        lineHeight: 20,
+        lineHeight: lh(20),
         fontWeight: weights.regular,
       } as TextStyle,
       xs: {
+        ...font,
         fontSize: sizes.xs,
-        lineHeight: 16,
+        lineHeight: lh(16),
         fontWeight: weights.regular,
       } as TextStyle,
     },
     label: {
       base: {
+        ...font,
         fontSize: sizes.sm,
-        lineHeight: 20,
+        lineHeight: lh(20),
         fontWeight: weights.medium,
       } as TextStyle,
       sm: {
+        ...font,
         fontSize: sizes.xs,
-        lineHeight: 16,
+        lineHeight: lh(16),
         fontWeight: weights.medium,
       } as TextStyle,
     },
     button: {
+      ...font,
       fontSize: sizes.base,
-      lineHeight: 24,
+      lineHeight: lh(24),
       fontWeight: weights.semibold,
     } as TextStyle,
   };

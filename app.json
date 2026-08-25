@@ -21,11 +21,6 @@
         "NSPhotoLibraryUsageDescription": "Nusxa needs photo library access to upload prescription images.",
         "NSMicrophoneUsageDescription": "Nusxa uses the microphone for voice interaction with your medication companion.",
         "UIRequiredDeviceCapabilities": ["armv7"]
-      },
-      "fontFamily": {
-        "regular": "NotoNastaliqUrdu-Regular",
-        "bold": "NotoNastaliqUrdu-Bold",
-        "italic": "NotoNastaliqUrdu-Italic"
       }
     },
     "android": {

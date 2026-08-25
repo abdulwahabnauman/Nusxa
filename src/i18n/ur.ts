@@ -66,6 +66,7 @@ export const ur: TranslationKeys = {
     notifDesc: 'نکسا آپ کی ادویات کی یاد دہانی کے لیے اطلاعات استعمال کرتا ہے۔ آپ ترتیبات میں کسی بھی وقت تبدیل کر سکتے ہیں۔',
     cameraNote: 'جب آپ اپنا پہلا نسخہ اسکین کریں گے تو کیمرے تک رسائی کی درخواست کی جائے گی۔',
     setUp: 'نکسا سیٹ اپ کریں',
+    nameRequired: 'نام درکار ہے',
   },
   settings: {
     title: 'ترتیبات',
@@ -235,6 +236,14 @@ export const ur: TranslationKeys = {
     weeklyActivity: 'ہفتہ وار سرگرمی',
     tipTitle: 'پرو ٹپ',
     tipText: 'مستقل ٹریکنگ آپ کو اچھی صحت کی عادتیں برقرار رکھنے میں مدد کرتی ہے۔ 90٪ + اطاعت کی شرح کا مقصد!',
+    adherence: 'اطاعت',
+    taken: 'لی گئی',
+    missed: 'چھوٹ گئی',
+    total: 'کل',
+    noData: 'ابھی کوئی ڈیٹا دستیاب نہیں',
+    last7Days: 'پچھلے 7 دن',
+    last30Days: 'پچھلے 30 دن',
+    allTime: 'تمام وقت',
   },
   // Education screen
   education: {

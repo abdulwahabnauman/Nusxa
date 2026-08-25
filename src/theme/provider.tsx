@@ -4,6 +4,10 @@ import { lightTokens, darkTokens, ThemeTokens, ThemeMode, elderlyTokens, elderly
 import { getTypography, Typography } from './typography';
 import { spacing, borderRadius, elderlySpacing, elderlyBorderRadius } from './spacing';
 import { useThemeStore } from '../stores/theme-store';
+import { useSettingsStore } from '../stores/settings-store';
+
+/** Custom font family used for Urdu (Nastaliq script), loaded via expo-font */
+export const URDU_FONT_FAMILY = 'NotoNastaliqUrdu';
 
 interface ThemeContextValue {
   colors: any;
@@ -20,6 +24,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const preference = useThemeStore((s) => s.preference);
   const elderlyMode = useThemeStore((s) => s.elderlyMode);
+  const language = useSettingsStore((s) => s.language);
 
   const resolvedMode: ThemeMode = useMemo(() => {
     if (preference === 'system') {
@@ -32,16 +37,18 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Use elderly colors if elderly mode is enabled
     const baseColors = resolvedMode === 'dark' ? darkTokens : lightTokens;
     const elderlyColors = resolvedMode === 'dark' ? elderlyTokens.dark : elderlyTokens.light;
-    
+    // Apply Nastaliq font when Urdu is selected
+    const fontFamily = language === 'ur' ? URDU_FONT_FAMILY : undefined;
+
     return {
       colors: elderlyMode ? elderlyColors : baseColors,
-      typography: getTypography(elderlyMode),
+      typography: getTypography(elderlyMode, fontFamily),
       spacing: elderlyMode ? elderlySpacing : spacing,
       borderRadius: elderlyMode ? elderlyBorderRadius : borderRadius,
       mode: resolvedMode,
       isDark: resolvedMode === 'dark',
     };
-  }, [resolvedMode, elderlyMode]);
+  }, [resolvedMode, elderlyMode, language]);
 
   return (
     <ThemeContext.Provider value={value}>

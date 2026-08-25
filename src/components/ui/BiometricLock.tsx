@@ -3,12 +3,12 @@
  * Adds PIN + fingerprint/FaceID lock to protect sensitive medical data
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, Alert } from 'react-native';
-import { useTheme } from '../src/theme/provider';
-import { typography, spacing } from '../src/theme/tokens';
+import { useTheme } from '../../theme/provider';
+import { spacing } from '../../theme/spacing';
 
-type AuthState = 'locked' | 'unlocked' | 'setup_pin' | 'change_pin';
+type AuthState = 'checking' | 'locked' | 'unlocked' | 'setup_pin' | 'change_pin';
 
 export default function BiometricLock({ 
   children, 
@@ -46,7 +46,7 @@ export default function BiometricLock({
         <View style={[styles.lockIcon, { backgroundColor: colors.accent.subtle }]}>
           <Text style={{ fontSize: 48 }}>🔒</Text>
         </View>
-        <Text style={[typ.heading.md, { color: colors.text.primary }]}>Secure Check...</Text>
+        <Text style={[typ.heading.h4, { color: colors.text.primary }]}>Secure Check...</Text>
       </View>
     );
   }
@@ -56,7 +56,7 @@ export default function BiometricLock({
     <Modal visible transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={[styles.card, { backgroundColor: colors.background.surface }]}>
-          <Text style={[typ.heading.lg, { color: colors.text.primary, marginBottom: spacing.md }]}>
+          <Text style={[typ.heading.h3, { color: colors.text.primary, marginBottom: spacing.md }]}>
             🔐 Enter PIN Code
           </Text>
           
@@ -101,7 +101,7 @@ export default function BiometricLock({
                   }
                 }}
               >
-                <Text style={[typ.label.lg, { color: colors.text.primary }]}>
+                <Text style={[typ.label.base, { color: colors.text.primary }]}>
                   {num}
                 </Text>
               </TouchableOpacity>
@@ -115,7 +115,7 @@ export default function BiometricLock({
                 setPinInput(pinInput.slice(0, -1));
               }}
             >
-              <Text style={[typ.body.md, { color: colors.text.secondary }]} style={{ ...typography.body.md, fontWeight: 'bold' }}>⌫</Text>
+              <Text style={[typ.body.base, { color: colors.text.secondary, fontWeight: 'bold' }]}>⌫</Text>
             </TouchableOpacity>
             
             <TouchableOpacity
@@ -130,7 +130,7 @@ export default function BiometricLock({
                 }
               }}
             >
-              <Text style={[typ.label.lg, { color: colors.text.primary }]}>0</Text>
+              <Text style={[typ.label.base, { color: colors.text.primary }]}>0</Text>
             </TouchableOpacity>
           </View>
 

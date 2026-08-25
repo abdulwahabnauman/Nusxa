@@ -251,6 +251,14 @@ export const en = {
     weeklyActivity: 'Weekly Activity',
     tipTitle: 'Pro Tip',
     tipText: 'Consistent tracking helps you maintain good health habits. Aim for 90%+ adherence rate!',
+    adherence: 'Adherence',
+    taken: 'Taken',
+    missed: 'Missed',
+    total: 'Total',
+    noData: 'No data available yet',
+    last7Days: 'Last 7 days',
+    last30Days: 'Last 30 days',
+    allTime: 'All time',
   },
   // Education screen
   education: {
