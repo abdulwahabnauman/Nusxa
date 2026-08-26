@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { Card } from '../src/components/ui/Card';
+import { MonthCalendar } from '../src/components/progress/MonthCalendar';
 import { getDatabase } from '../src/db/database';
 
 interface AdherenceData {
@@ -305,6 +306,14 @@ export default function AnalyticsScreen() {
             {t.analytics.weeklyActivity}
           </Text>
           {renderBarChart()}
+        </View>
+
+        {/* Monthly adherence calendar */}
+        <View style={{ marginTop: spacing.md }}>
+          <Text style={[typ.label.base, { color: colors.text.secondary, marginBottom: spacing.sm, marginHorizontal: spacing.base }]}>
+            {t.analytics.monthCalendar}
+          </Text>
+          <MonthCalendar />
         </View>
 
         {/* Tips card */}

@@ -291,6 +291,12 @@ export const ur: TranslationKeys = {
     last7Days: 'پچھلے 7 دن',
     last30Days: 'پچھلے 30 دن',
     allTime: 'تمام وقت',
+    monthCalendar: 'ماہانہ پیروی',
+    legendGood: 'اچھا',
+    legendPartial: 'جزوی',
+    legendMissed: 'چھوٹی',
+    prevMonth: 'پچھلہ مہینہ',
+    nextMonth: 'اگلہ مہینہ',
   },
   // Education screen
   education: {

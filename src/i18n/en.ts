@@ -306,6 +306,12 @@ export const en = {
     last7Days: 'Last 7 days',
     last30Days: 'Last 30 days',
     allTime: 'All time',
+    monthCalendar: 'Monthly Adherence',
+    legendGood: 'Good',
+    legendPartial: 'Partial',
+    legendMissed: 'Missed',
+    prevMonth: 'Previous month',
+    nextMonth: 'Next month',
   },
   // Education screen
   education: {
