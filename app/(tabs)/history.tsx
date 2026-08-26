@@ -10,6 +10,15 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { Card } from '../../src/components/ui/Card';
@@ -17,6 +26,8 @@ import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { useUndoToast } from '../../src/components/ui/UndoToast';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
+import { useI18n } from '../../src/i18n';
+import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import {
   getAllPrescriptions,
   searchPrescriptions,
@@ -107,11 +118,43 @@ const PrescriptionRow = memo(function PrescriptionRow({
 export default function HistoryScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
+  const { t, isRTL } = useI18n();
+  const reducedMotion = useReducedMotion();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const { showUndoToast, undoToastElement } = useUndoToast();
+
+  // Marquee placeholder: the search hint stays on one line and, when it is
+  // wider than the field, slides across slowly instead of wrapping/disappearing.
+  const [placeholderFieldW, setPlaceholderFieldW] = useState(0);
+  const [placeholderTextW, setPlaceholderTextW] = useState(0);
+  const marqueeX = useSharedValue(0);
+  const placeholderOverflow = Math.max(0, placeholderTextW - placeholderFieldW);
+
+  useEffect(() => {
+    if (reducedMotion || placeholderOverflow <= 0) {
+      marqueeX.value = 0;
+      return;
+    }
+    const dir = isRTL ? 1 : -1;
+    const dist = placeholderOverflow + 12;
+    // Slow, legible crawl (~18px/s), with pauses at both ends
+    marqueeX.value = withRepeat(
+      withSequence(
+        withDelay(1500, withTiming(dir * dist, { duration: Math.max(2000, dist * 55), easing: Easing.linear })),
+        withDelay(1200, withTiming(0, { duration: 600, easing: Easing.out(Easing.quad) })),
+      ),
+      -1,
+      false,
+    );
+  }, [placeholderOverflow, isRTL, reducedMotion, marqueeX]);
+
+  const marqueeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: marqueeX.value }],
+  }));
 
   const loadPrescriptions = useCallback(async () => {
     try {
@@ -213,10 +256,10 @@ export default function HistoryScreen() {
     <>
       <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
         <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-          History
+          {t.history.title}
         </Text>
         <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-          Your prescription records
+          {t.history.subtitle}
         </Text>
       </View>
 
@@ -233,14 +276,34 @@ export default function HistoryScreen() {
           ]}
         >
           <MaterialCommunityIcons name="magnify" size={20} color={colors.text.disabled} />
-          <TextInput
-            style={[typography.body.base, { color: colors.text.primary, flex: 1, marginLeft: 8 }]}
-            placeholder="Search by medicine, doctor, or date"
-            placeholderTextColor={colors.text.disabled}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            accessibilityLabel="Search prescriptions"
-          />
+          <View
+            style={styles.searchField}
+            onLayout={(e) => setPlaceholderFieldW(e.nativeEvent.layout.width)}
+          >
+            {!searchQuery && !searchFocused && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.searchPlaceholderOverlay, marqueeStyle]}
+              >
+                <Text
+                  numberOfLines={1}
+                  onLayout={(e) => setPlaceholderTextW(e.nativeEvent.layout.width)}
+                  style={[typography.body.base, { color: colors.text.disabled }]}
+                >
+                  {t.history.searchPlaceholder}
+                </Text>
+              </Animated.View>
+            )}
+            <TextInput
+              style={[typography.body.base, { color: colors.text.primary, flex: 1 }]}
+              placeholder=""
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              accessibilityLabel={t.history.searchPlaceholder}
+            />
+          </View>
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
               <MaterialCommunityIcons name="close-circle" size={18} color={colors.text.disabled} />
@@ -260,11 +323,11 @@ export default function HistoryScreen() {
   ) : (
     <EmptyState
       icon="history"
-      title={searchQuery ? 'No results found' : 'No prescription history'}
+      title={searchQuery ? t.history.noResults : t.history.noHistory}
       description={
         searchQuery
-          ? 'Try a different search term.'
-          : 'Your scanned prescriptions will appear here, organized chronologically.'
+          ? t.history.noResultsDesc
+          : t.history.noHistoryDesc
       }
     />
   );
@@ -314,6 +377,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     minHeight: 44,
+  },
+  searchField: {
+    flex: 1,
+    marginStart: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  searchPlaceholderOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    start: 0,
+    justifyContent: 'center',
   },
   content: {
     flex: 1,
