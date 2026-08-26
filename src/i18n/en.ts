@@ -70,6 +70,8 @@ export const en = {
     monthSubtitle: 'One full month — outstanding dedication!',
     doseTakenToast: 'Dose marked as taken',
     doseSkippedToast: 'Dose skipped',
+    takeAll: 'Take all {n} doses ({time})',
+    takeAllToast: '{n} doses marked as taken',
   },
   // Onboarding
   onboarding: {
@@ -277,6 +279,16 @@ export const en = {
     sideEffects: 'Side effects',
     interactions: 'Interactions',
     howTake: 'How to take',
+    chipPurpose: 'What is this medicine for?',
+    chipSideEffects: 'Common side effects?',
+    chipHowToTake: 'How should I take it?',
+    chipInteractions: 'Interactions with other medicines?',
+  },
+  errorBoundary: {
+    title: 'Something went wrong',
+    message: 'The app hit an unexpected error. Your data is safe on this device.',
+    retry: 'Try again',
+    shareDetails: 'Share error details',
   },
   // Analytics screen
   analytics: {

@@ -69,6 +69,8 @@ export const ur: TranslationKeys = {
     monthSubtitle: 'پورا مہینہ — بے مثال محنت!',
     doseTakenToast: 'خوراک لی گئی کے طور پر نشان زد',
     doseSkippedToast: 'خوراک چھوڑ دی گئی',
+    takeAll: 'تمام {n} خوراکیں لیں ({time})',
+    takeAllToast: '{n} خوراکیں لی گئی کے طور پر نشان زد',
   },
   onboarding: {
     welcomeTitle: 'نکسا میں خوش آمدید',
@@ -262,6 +264,16 @@ export const ur: TranslationKeys = {
     sideEffects: 'ضمنی اثرات',
     interactions: 'تعاملات',
     howTake: 'کیسے لیں',
+    chipPurpose: 'یہ دوا کس کام کے لیے ہے؟',
+    chipSideEffects: 'عام ضمنی اثرات؟',
+    chipHowToTake: 'لینے کا طریقہ کیا ہے؟',
+    chipInteractions: 'دوسری ادویات کے ساتھ تعامل؟',
+  },
+  errorBoundary: {
+    title: 'کچھ غلط ہو گیا',
+    message: 'ایپ میں ایک غیر متوقع خرابی پیش آئی۔ آپ کا ڈیٹا اس ڈیوائس پر محفوظ ہے۔',
+    retry: 'دوبارہ کوشش کریں',
+    shareDetails: 'خرابی کی تفصیلات شیئر کریں',
   },
   // Analytics screen
   analytics: {

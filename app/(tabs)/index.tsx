@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -24,7 +24,8 @@ import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
-import { getTodayRange, getLast7Days, getTodayISO } from '../../src/utils/date';
+import { getTodayRange, getLast7Days, getTodayISO, formatTime12h } from '../../src/utils/date';
+import { cancelNotification, snoozeNotificationId, syncRefillNotifications } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
@@ -130,6 +131,9 @@ export default function HomeScreen() {
         }
       }
       setStreak(currentStreak);
+
+      // Reconcile throttled refill reminders with current inventory
+      void syncRefillNotifications();
     } catch {
       // Silently handle — offline mode is fine
     }
@@ -147,6 +151,8 @@ export default function HomeScreen() {
 
   const handleTaken = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
+      // The dose is handled — no need for a snoozed re-ring to fire
+      cancelNotification(snoozeNotificationId(scheduleId)).catch(() => {});
       const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
       const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
@@ -185,6 +191,7 @@ export default function HomeScreen() {
 
   const handleSkip = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
+      cancelNotification(snoozeNotificationId(scheduleId)).catch(() => {});
       const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
       const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'skipped');
@@ -205,6 +212,69 @@ export default function HomeScreen() {
       Alert.alert('Error', 'Could not record dose. Please try again.');
     }
   }, [loadData, todayItems, showUndoToast]);
+
+  // "Take all" quick action: pending doses sharing the same reminder time,
+  // only offered when at least two doses overlap at that time.
+  const takeAllGroup = useMemo(() => {
+    const pending = todayItems.filter((item) => item.status === 'pending');
+    const byTime = new Map<string, TodayScheduleItem[]>();
+    for (const item of pending) {
+      const list = byTime.get(item.time) ?? [];
+      list.push(item);
+      byTime.set(item.time, list);
+    }
+    const groups = [...byTime.entries()]
+      .filter(([, list]) => list.length >= 2)
+      .sort(([a], [b]) => a.localeCompare(b));
+    return groups[0]?.[1] ?? null;
+  }, [todayItems]);
+
+  const handleTakeAll = useCallback(async () => {
+    const group = takeAllGroup;
+    if (!group || group.length === 0) return;
+    const snapshots = group.map((item) => ({ item }));
+    const today = getTodayISO();
+    try {
+      for (const { item } of snapshots) {
+        cancelNotification(snoozeNotificationId(item.scheduleId)).catch(() => {});
+        await upsertDoseStatus(item.scheduleId, item.medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
+        try {
+          const med = await getMedicine(item.medicineId);
+          if (med && med.remaining_quantity !== null && med.remaining_quantity > 0) {
+            await updateInventory(item.medicineId, med.remaining_quantity - 1);
+          }
+        } catch { /* inventory tracking is best-effort */ }
+      }
+      doseHaptic();
+      await loadData();
+
+      showUndoToast(
+        t.home.takeAllToast.replace('{n}', String(group.length)),
+        async () => {
+          try {
+            for (const { item } of snapshots) {
+              if (item.doseRecordId) {
+                await updateDoseRecord(item.doseRecordId, { status: item.status });
+              } else {
+                const records = await getTodayDoseRecords(getTodayISO());
+                const fresh = records.find((r) => r.schedule_id === item.scheduleId);
+                if (fresh) await deleteDoseRecord(fresh.id);
+              }
+              try {
+                const med = await getMedicine(item.medicineId);
+                if (med && med.remaining_quantity !== null) {
+                  await updateInventory(item.medicineId, med.remaining_quantity + 1);
+                }
+              } catch { /* best-effort */ }
+            }
+            await loadData();
+          } catch { /* undo is best-effort */ }
+        }
+      );
+    } catch {
+      Alert.alert('Error', 'Could not record doses. Please try again.');
+    }
+  }, [takeAllGroup, loadData, showUndoToast, t]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -260,6 +330,20 @@ export default function HomeScreen() {
         {hasSchedule && (
           <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.lg }}>
             <NextDoseHero items={todayItems} onTaken={handleTaken} />
+            {takeAllGroup && (
+              <TouchableOpacity
+                style={[styles.takeAll, { backgroundColor: colors.accent.subtle, marginTop: spacing.sm }]}
+                onPress={handleTakeAll}
+                accessibilityLabel={`Take all ${takeAllGroup.length} doses scheduled at ${takeAllGroup[0]!.time}`}
+              >
+                <MaterialCommunityIcons name="check-all" size={20} color={colors.accent.primary} />
+                <Text style={[typography.label.base, { color: colors.accent.primary, marginLeft: 8 }]}>
+                  {t.home.takeAll
+                    .replace('{n}', String(takeAllGroup.length))
+                    .replace('{time}', formatTime12h(takeAllGroup[0]!.time))}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -393,6 +477,13 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     marginTop: 20,
+  },
+  takeAll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
   },
   section: {
     marginTop: 24,

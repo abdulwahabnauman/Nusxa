@@ -1,11 +1,13 @@
 /**
  * NextDoseHero — glanceable "next dose" card for the Home screen
- * Shows the upcoming (or overdue) pending dose with a live countdown
- * plus one-tap Take and 10-minute Snooze actions.
+ * Shows the upcoming (or overdue) pending dose with a live countdown,
+ * a progress ring that fills over the hour before the dose, plus
+ * one-tap Take and configurable Snooze actions (long-press for options).
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillIcon } from '../ui/PillIcon';
 import { useTheme } from '../../theme/provider';
@@ -13,9 +15,19 @@ import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
 import { formatDigits } from '../../utils/numerals';
 import { getTimeRangeParts } from '../../utils/date';
+import { scheduleSnoozeReminder } from '../../utils/notifications';
 import type { TodayScheduleItem } from '../../types/models';
 
-const SNOOZE_MINUTES = 10;
+/** Snooze durations offered on long-press (minutes) */
+export const SNOOZE_OPTIONS = [5, 10, 15, 30];
+
+/* Countdown ring geometry */
+const RING_SIZE = 52;
+const RING_RADIUS = 24;
+const RING_STROKE = 3;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+/* The ring fills during the final hour before the dose is due */
+const RING_LEAD_MS = 60 * 60 * 1000;
 
 interface NextDoseHeroProps {
   items: TodayScheduleItem[];
@@ -34,8 +46,11 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const { colors, typography: typ, spacing } = useTheme();
   const { t } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const snoozeMinutes = useSettingsStore((s) => s.snoozeMinutes);
+  const setSnoozeMinutes = useSettingsStore((s) => s.setSnoozeMinutes);
   const [now, setNow] = useState(() => Date.now());
   const [snoozedUntil, setSnoozedUntil] = useState<Record<string, number>>({});
+  const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
 
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
 
@@ -113,18 +128,36 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     .replace('{start}', nf(rangeStart))
     .replace('{end}', nf(rangeEnd));
 
-  const handleSnooze = () => {
-    setSnoozedUntil((current) => ({
-      ...current,
-      [next.scheduleId]: Date.now() + SNOOZE_MINUTES * 60_000,
-    }));
-    setNow(Date.now());
-  };
-
-  // Themed like the rest of the card family: surface background, hairline
-  // border and a tinted left edge (accent, or warning once the dose is due).
   const overdue = diffMs <= 0;
   const heroTint = overdue ? colors.warning : colors.accent.primary;
+
+  // Ring fills from 0 → 1 during the last hour before the dose is due
+  const ringProgress = overdue
+    ? 1
+    : Math.max(0, Math.min(1, 1 - diffMs / RING_LEAD_MS));
+  const ringOffset = RING_CIRCUMFERENCE * (1 - ringProgress);
+
+  /** Snooze the reminder card locally and arm a one-shot re-ring. */
+  const applySnooze = (minutes: number) => {
+    const at = new Date(Date.now() + minutes * 60_000);
+    setSnoozedUntil((current) => ({
+      ...current,
+      [next.scheduleId]: at.getTime(),
+    }));
+    setShowSnoozeOptions(false);
+    setNow(Date.now());
+    scheduleSnoozeReminder({
+      scheduleId: next.scheduleId,
+      medicineId: next.medicineId,
+      medicineName: next.medicineName,
+      at,
+    }).catch(() => {});
+  };
+
+  const pickSnooze = (minutes: number) => {
+    setSnoozeMinutes(minutes);
+    applySnooze(minutes);
+  };
 
   return (
     <View
@@ -139,13 +172,38 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
-        <View
-          style={[
-            styles.iconBubble,
-            { backgroundColor: overdue ? colors.warning + '26' : colors.accent.subtle },
-          ]}
-        >
-          <PillIcon size={26} color={heroTint} contrastColor={heroTint + '55'} />
+        <View style={styles.ringWrap}>
+          <Svg width={RING_SIZE} height={RING_SIZE}>
+            <Circle
+              cx={RING_SIZE / 2}
+              cy={RING_SIZE / 2}
+              r={RING_RADIUS}
+              stroke={colors.border.default}
+              strokeWidth={RING_STROKE}
+              fill="none"
+            />
+            <Circle
+              cx={RING_SIZE / 2}
+              cy={RING_SIZE / 2}
+              r={RING_RADIUS}
+              stroke={heroTint}
+              strokeWidth={RING_STROKE}
+              strokeLinecap="round"
+              fill="none"
+              strokeDasharray={RING_CIRCUMFERENCE}
+              strokeDashoffset={ringOffset}
+              transform={`rotate(-90 ${RING_SIZE / 2} ${RING_SIZE / 2})`}
+            />
+          </Svg>
+          <View
+            style={[
+              styles.iconBubble,
+              styles.iconBubbleAbsolute,
+              { backgroundColor: overdue ? colors.warning + '26' : colors.accent.subtle },
+            ]}
+          >
+            <PillIcon size={22} color={heroTint} contrastColor={heroTint + '55'} />
+          </View>
         </View>
 
         <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -192,9 +250,10 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
         {!isSnoozed && (
           <TouchableOpacity
             style={[styles.snoozeButton, { borderColor: colors.border.default }]}
-            onPress={handleSnooze}
+            onPress={() => applySnooze(snoozeMinutes)}
+            onLongPress={() => setShowSnoozeOptions((v) => !v)}
             activeOpacity={0.85}
-            accessibilityLabel={`Snooze reminder for ${SNOOZE_MINUTES} minutes`}
+            accessibilityLabel={`Snooze reminder for ${snoozeMinutes} minutes. Long-press to choose a duration.`}
           >
             <MaterialCommunityIcons
               name="clock-outline"
@@ -210,11 +269,39 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
                 },
               ]}
             >
-              {`${t.home.snooze} ${nf(SNOOZE_MINUTES)}${t.home.minutesShort}`}
+              {`${t.home.snooze} ${nf(snoozeMinutes)}${t.home.minutesShort}`}
             </Text>
           </TouchableOpacity>
         )}
       </View>
+
+      {showSnoozeOptions && !isSnoozed && (
+        <View style={[styles.snoozeOptions, { marginTop: spacing.sm }]}>
+          {SNOOZE_OPTIONS.map((min) => (
+            <TouchableOpacity
+              key={min}
+              style={[
+                styles.snoozeChip,
+                {
+                  backgroundColor: snoozeMinutes === min ? colors.accent.primary : colors.background.subtle,
+                  borderColor: snoozeMinutes === min ? colors.accent.primary : colors.border.default,
+                },
+              ]}
+              onPress={() => pickSnooze(min)}
+              accessibilityLabel={`Snooze for ${min} minutes`}
+            >
+              <Text
+                style={[
+                  typ.label.sm,
+                  { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary },
+                ]}
+              >
+                {`${nf(min)}${t.home.minutesShort}`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      )}
     </View>
   );
 }
@@ -225,12 +312,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
   },
-  iconBubble: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  ringWrap: {
+    width: RING_SIZE,
+    height: RING_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconBubble: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBubbleAbsolute: {
+    position: 'absolute',
+    width: 38,
+    height: 38,
+    borderRadius: 19,
   },
   actions: {
     flexDirection: 'row',
@@ -251,6 +347,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
+    borderWidth: 1,
+  },
+  snoozeOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  snoozeChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
     borderWidth: 1,
   },
 });
