@@ -17,6 +17,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { Button } from '../src/components/ui/Button';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { useI18n } from '../src/i18n';
 
 export default function ScanScreen() {
@@ -91,7 +92,7 @@ export default function ScanScreen() {
         setCameraActive(false);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to capture photo. Please try again.');
+      showToast('Failed to capture photo. Please try again.', 'error');
     }
   };
 
@@ -179,7 +180,7 @@ export default function ScanScreen() {
         }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to select image. Please try again.');
+      showToast('Failed to select image. Please try again.', 'error');
     }
   };
 

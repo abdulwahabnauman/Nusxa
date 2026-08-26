@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,6 +19,7 @@ import { useSettingsStore } from '../src/stores/settings-store';
 import { upsertProfileForOnboarding } from '../src/db/repositories/profile';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { useI18n } from '../src/i18n';
 
 type OnboardingStep = 'welcome' | 'profile' | 'permissions' | 'done';
@@ -39,7 +39,7 @@ export default function OnboardingScreen() {
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
-      Alert.alert(t.common.error, t.onboarding.nameRequired || 'Name required');
+      showToast(t.onboarding.nameRequired || 'Name required', 'warning');
       return;
     }
     // Don't save yet - wait until permissions step
@@ -71,10 +71,7 @@ export default function OnboardingScreen() {
       router.replace('/');
     } catch (error) {
       console.error('Onboarding error:', error);
-      Alert.alert(
-        t.common.error, 
-        'Failed to set up your profile. Please try again.'
-      );
+      showToast('Failed to set up your profile. Please try again.', 'error');
     } finally {
       setLoading(false);
     }

@@ -19,6 +19,7 @@ import { useNotificationResponseHandler } from '../src/hooks/useNotificationHand
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
+import { GlobalToast } from '../src/components/ui/GlobalToast';
 import type { Profile } from '../src/types/models';
 
 // keep the native splash up until we've swapped over to our own animated one
@@ -206,6 +207,7 @@ export default function RootLayout() {
           <I18nProvider>
             <ErrorBoundary>
               <AppContent />
+              <GlobalToast />
             </ErrorBoundary>
           </I18nProvider>
         </ThemeProvider>

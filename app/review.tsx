@@ -15,6 +15,7 @@ import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Badge } from '../src/components/ui/Badge';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { PrescriptionJSON, MedicineJSON, ValidationResult } from '../src/ai/types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../src/constants/config';
 
@@ -84,11 +85,7 @@ export default function ReviewScreen() {
     });
 
     if (missing.length > 0) {
-      Alert.alert(
-        'Required fields missing',
-        `Please fill in these fields before verifying:\n\n${missing.join('\n')}`,
-        [{ text: 'OK' }]
-      );
+      showToast(`Required fields missing — please fill in: ${missing.join(', ')}`, 'warning', 5000);
       return;
     }
 
@@ -114,7 +111,7 @@ export default function ReviewScreen() {
         },
       });
     } catch (err) {
-      Alert.alert('Error', 'Failed to save prescription. Please try again.');
+      showToast('Failed to save prescription. Please try again.', 'error');
     } finally {
       setSaving(false);
     }

@@ -82,7 +82,7 @@ export function Toast({
         accessibilityLabel={`${type}: ${message}. Tap to dismiss.`}
       >
         <MaterialCommunityIcons name={ICON_MAP[type]} size={22} color={iconColor} />
-        <Text style={[typography.body.sm, { color: colors.text.primary, flex: 1, marginLeft: spacing.sm }]}>
+        <Text style={[typography.body.sm, { color: colors.text.primary, flex: 1, marginStart: spacing.sm }]}>
           {message}
         </Text>
       </TouchableOpacity>

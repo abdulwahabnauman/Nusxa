@@ -10,6 +10,7 @@ import { useThemeStore } from '../../src/stores/theme-store';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
+import { showToast } from '../../src/components/ui/GlobalToast';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
@@ -69,7 +70,7 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete everything', style: 'destructive', onPress: async () => {
           try { await deleteProfile(); }
-          catch (err) { Alert.alert('Error', 'Failed to delete data. Please try again.'); }
+          catch (err) { showToast('Failed to delete data. Please try again.', 'error'); }
         }}
       ]
     );
@@ -101,13 +102,14 @@ export default function SettingsScreen() {
                 if (restored) setProfile(restored);
               } catch { /* profile section refreshes on next load */ }
 
-              Alert.alert(
-                'Import complete',
-                `Restored ${counts.medicines} medicine${counts.medicines !== 1 ? 's' : ''}, ${counts.schedules} schedule${counts.schedules !== 1 ? 's' : ''} and ${counts.doseRecords} dose record${counts.doseRecords !== 1 ? 's' : ''}.`
+              showToast(
+                `Import complete — restored ${counts.medicines} medicine${counts.medicines !== 1 ? 's' : ''}, ${counts.schedules} schedule${counts.schedules !== 1 ? 's' : ''} and ${counts.doseRecords} dose record${counts.doseRecords !== 1 ? 's' : ''}.`,
+                'success',
+                6000,
               );
             } catch (err) {
               const message = err instanceof Error ? err.message : 'The file could not be imported.';
-              Alert.alert('Import failed', message);
+              showToast(`Import failed — ${message}`, 'error', 6000);
             } finally {
               setImporting(false);
             }
@@ -148,7 +150,7 @@ export default function SettingsScreen() {
                         setProfile({ ...profile!, name: nameInput.trim() });
                         setNameInput(nameInput.trim());
                         setEditingName(false);
-                        Alert.alert('Saved', 'Your name has been updated.');
+                        showToast('Your name has been updated.', 'success');
                       } catch (err) {
                         console.error('Failed to save name:', err);
                         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -156,14 +158,14 @@ export default function SettingsScreen() {
                           setTimeout(async () => {
                             try {
                               await updateProfile({ name: nameInput.trim() });
-                              Alert.alert('Saved', 'Your name has been updated!');
+                              showToast('Your name has been updated.', 'success');
                               setEditingName(false);
                             } catch {
-                              Alert.alert('Error', 'Database not ready. Please try again later.');
+                              showToast('Database not ready. Please try again later.', 'error');
                             }
                           }, 1000);
                         } else {
-                          Alert.alert('Error', 'Failed to save name. Please try again.');
+                          showToast('Failed to save name. Please try again.', 'error');
                         }
                       } finally { setSavingName(false); }
                     }}
@@ -303,11 +305,11 @@ export default function SettingsScreen() {
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiServiceDesc}\nhttps://aistudio.google.com/app/apikey</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TextInput style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]} value={apiKeyInput} onChangeText={setApiKeyInput} placeholder={hasStoredKey ? t.settings.apiKeySaved : t.settings.apiKeyPlaceholder} placeholderTextColor={colors.text.disabled} secureTextEntry autoCapitalize="none" autoCorrect={false} accessibilityLabel="Gemini API key" />
-              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]} onPress={async () => { if (!apiKeyInput.trim()) return; await saveApiKey(apiKeyInput.trim()); setApiKeyInput(''); setHasStoredKey(true); Alert.alert('Saved', 'API key stored securely.'); }} accessibilityLabel="Save API key">
+              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]} onPress={async () => { if (!apiKeyInput.trim()) return; await saveApiKey(apiKeyInput.trim()); setApiKeyInput(''); setHasStoredKey(true); showToast('API key stored securely.', 'success'); }} accessibilityLabel="Save API key">
                 <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
               </TouchableOpacity>
             </View>
-            {hasStoredKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteApiKey(); setHasStoredKey(false); Alert.alert('Deleted', 'API key removed.'); }} accessibilityLabel="Remove stored API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
+            {hasStoredKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteApiKey(); setHasStoredKey(false); showToast('API key removed.', 'info'); }} accessibilityLabel="Remove stored API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
           </Card>
 
           <View style={{ height: spacing.sm }} />
@@ -316,11 +318,11 @@ export default function SettingsScreen() {
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.openRouterServiceDesc}\nhttps://openrouter.ai/keys</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TextInput style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]} value={openRouterKeyInput} onChangeText={setOpenRouterKeyInput} placeholder={hasStoredOpenRouterKey ? t.settings.apiKeySaved : t.settings.openRouterKeyPlaceholder} placeholderTextColor={colors.text.disabled} secureTextEntry autoCapitalize="none" autoCorrect={false} accessibilityLabel="OpenRouter API key" />
-              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]} onPress={async () => { if (!openRouterKeyInput.trim()) return; await saveOpenRouterKey(openRouterKeyInput.trim()); setOpenRouterKeyInput(''); setHasStoredOpenRouterKey(true); Alert.alert('Saved', 'API key stored securely.'); }} accessibilityLabel="Save OpenRouter API key">
+              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]} onPress={async () => { if (!openRouterKeyInput.trim()) return; await saveOpenRouterKey(openRouterKeyInput.trim()); setOpenRouterKeyInput(''); setHasStoredOpenRouterKey(true); showToast('API key stored securely.', 'success'); }} accessibilityLabel="Save OpenRouter API key">
                 <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
               </TouchableOpacity>
             </View>
-            {hasStoredOpenRouterKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteOpenRouterKey(); setHasStoredOpenRouterKey(false); Alert.alert('Deleted', 'API key removed.'); }} accessibilityLabel="Remove stored OpenRouter API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
+            {hasStoredOpenRouterKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteOpenRouterKey(); setHasStoredOpenRouterKey(false); showToast('API key removed.', 'info'); }} accessibilityLabel="Remove stored OpenRouter API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
           </Card>
 
           <View style={{ height: spacing.sm }} />
@@ -329,11 +331,11 @@ export default function SettingsScreen() {
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.groqServiceDesc}\nhttps://console.groq.com/keys</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <TextInput style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]} value={groqKeyInput} onChangeText={setGroqKeyInput} placeholder={hasStoredGroqKey ? t.settings.apiKeySaved : t.settings.groqKeyPlaceholder} placeholderTextColor={colors.text.disabled} secureTextEntry autoCapitalize="none" autoCorrect={false} accessibilityLabel="Groq API key" />
-              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]} onPress={async () => { if (!groqKeyInput.trim()) return; await saveGroqKey(groqKeyInput.trim()); setGroqKeyInput(''); setHasStoredGroqKey(true); Alert.alert('Saved', 'API key stored securely.'); }} accessibilityLabel="Save Groq API key">
+              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, borderRadius: 8 }]} onPress={async () => { if (!groqKeyInput.trim()) return; await saveGroqKey(groqKeyInput.trim()); setGroqKeyInput(''); setHasStoredGroqKey(true); showToast('API key stored securely.', 'success'); }} accessibilityLabel="Save Groq API key">
                 <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
               </TouchableOpacity>
             </View>
-            {hasStoredGroqKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteGroqKey(); setHasStoredGroqKey(false); Alert.alert('Deleted', 'API key removed.'); }} accessibilityLabel="Remove stored Groq API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
+            {hasStoredGroqKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteGroqKey(); setHasStoredGroqKey(false); showToast('API key removed.', 'info'); }} accessibilityLabel="Remove stored Groq API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
           </Card>
         </View>
 
@@ -358,7 +360,7 @@ export default function SettingsScreen() {
                     dialogTitle: 'Export Nusxa data',
                   });
                 } catch {
-                  Alert.alert('Error', 'Failed to export data.');
+                  showToast('Failed to export data.', 'error');
                 }
               }}
               accessibilityLabel="Export data as JSON"

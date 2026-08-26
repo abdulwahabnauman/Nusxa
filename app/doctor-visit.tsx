@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { EmptyState } from '../src/components/ui/EmptyState';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
 import { getActiveSchedules } from '../src/db/repositories/schedule';
 import { getProfile } from '../src/db/repositories/profile';
@@ -64,7 +65,7 @@ export default function DoctorVisitScreen() {
         UTI: 'com.adobe.pdf',
       });
     } catch {
-      Alert.alert('Error', 'Failed to generate the PDF report.');
+      showToast('Failed to generate the PDF report.', 'error');
     } finally {
       // The share sheet copies the file out, so the temp PDF can go afterwards
       if (pdfUri) {

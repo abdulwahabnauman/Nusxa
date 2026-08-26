@@ -7,6 +7,7 @@ import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
 import { Input } from '../src/components/ui/Input';
 import { Button } from '../src/components/ui/Button';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { getProfile, updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 
@@ -119,9 +120,9 @@ export default function EmergencyCardScreen() {
       });
 
       setEditing(false);
-      Alert.alert('Saved', 'Your emergency card has been updated.');
+      showToast('Your emergency card has been updated.', 'success');
     } catch (err) {
-      Alert.alert('Error', 'Failed to save. Please try again.');
+      showToast('Failed to save. Please try again.', 'error');
     } finally {
       setSaving(false);
     }

@@ -4,7 +4,6 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import { useSettingsStore } from '../src/stores/settings-store';
 import { formatDigits } from '../src/utils/numerals';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { Input } from '../src/components/ui/Input';
 import { PrescriptionJSON } from '../src/ai/types';
 import {
@@ -78,16 +78,18 @@ export default function ScheduleScreen() {
     try {
       const outcome = await savePrescription(prescription, schedules, imageUri);
 
-      Alert.alert(
-        'Schedule confirmed',
+      // Toast lives in the root layout, so it stays visible after navigating
+      showToast(
         outcome.updated > 0
-          ? `${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list — reminders were refreshed with the new times, no duplicates added. You will receive reminders at the scheduled times.`
-          : 'Your medication schedule has been set up. You will receive reminders at the scheduled times.',
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+          ? `Schedule confirmed — ${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list, so reminders were refreshed with the new times instead of adding duplicates.`
+          : 'Schedule confirmed — your medication schedule has been set up. You will receive reminders at the scheduled times.',
+        'success',
+        6000,
       );
+      router.replace('/(tabs)');
     } catch (err) {
       console.error('Schedule confirmation error:', err);
-      Alert.alert('Error', 'Failed to save schedule. Please try again.');
+      showToast('Failed to save schedule. Please try again.', 'error');
     } finally {
       setConfirming(false);
     }

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { ProgressSteps } from '../src/components/ui/ProgressSteps';
 import { Button } from '../src/components/ui/Button';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { processPrescription } from '../src/ai/pipeline';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
 import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
@@ -101,10 +102,12 @@ export default function ProcessingScreen() {
         outcome.updated > 0
           ? `${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list — the details and reminders were refreshed instead of adding duplicates.${outcome.added > 0 ? ` ${outcome.added} new medicine${outcome.added === 1 ? ' was' : 's were'} added.` : ''}`
           : 'Your prescription was approved. Medicines are loaded with default reminder times — adjust them anytime from the medicine details.';
-      Alert.alert(title, body, [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]);
+      // Toast lives in the root layout, so it stays visible after navigating
+      showToast(`${title} — ${body}`, 'success', 6000);
+      router.replace('/(tabs)');
     } catch (err) {
       console.error('Approve prescription error:', err);
-      Alert.alert('Error', 'Failed to save your medicines. Please try again.');
+      showToast('Failed to save your medicines. Please try again.', 'error');
     } finally {
       setSaving(false);
     }

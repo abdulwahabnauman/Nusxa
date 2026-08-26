@@ -6,7 +6,6 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -22,6 +21,7 @@ import { PillIcon } from '../../src/components/ui/PillIcon';
 import { ScheduleTimeline } from '../../src/components/medicine/ScheduleTimeline';
 import { NextDoseHero } from '../../src/components/medicine/NextDoseHero';
 import { useUndoToast } from '../../src/components/ui/UndoToast';
+import { showToast } from '../../src/components/ui/GlobalToast';
 import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
@@ -230,7 +230,7 @@ export default function HomeScreen() {
         } catch { /* undo is best-effort */ }
       });
     } catch {
-      Alert.alert('Error', 'Could not record dose. Please try again.');
+      showToast('Could not record dose. Please try again.', 'error');
     }
   }, [loadData, todayItems, showUndoToast]);
 
@@ -254,7 +254,7 @@ export default function HomeScreen() {
         } catch { /* undo is best-effort */ }
       });
     } catch {
-      Alert.alert('Error', 'Could not record dose. Please try again.');
+      showToast('Could not record dose. Please try again.', 'error');
     }
   }, [loadData, todayItems, showUndoToast]);
 
@@ -317,7 +317,7 @@ export default function HomeScreen() {
         }
       );
     } catch {
-      Alert.alert('Error', 'Could not record doses. Please try again.');
+      showToast('Could not record doses. Please try again.', 'error');
     }
   }, [takeAllGroup, loadData, showUndoToast, t]);
 
