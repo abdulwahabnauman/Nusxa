@@ -241,38 +241,38 @@ export default function HomeScreen() {
             Quick access
           </Text>
           <View style={styles.quickLinks}>
-            <Card style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }} padding="sm">
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={() => router.push('/emergency-card')}
                 accessibilityLabel="Emergency card"
               >
                 <MaterialCommunityIcons name="medical-bag" size={24} color={colors.error} />
-                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs }]}>
-                  Emergency card
+                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
+                  Emergency
                 </Text>
               </TouchableOpacity>
             </Card>
-            <Card style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }} padding="sm">
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={() => router.push('/doctor-visit')}
                 accessibilityLabel="Doctor visit report"
               >
                 <MaterialCommunityIcons name="clipboard-text-outline" size={24} color={colors.accent.primary} />
-                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs }]}>
+                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
                   Doctor visit
                 </Text>
               </TouchableOpacity>
             </Card>
-            <Card style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }} padding="sm">
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={() => router.push('/analytics')}
                 accessibilityLabel="Progress analytics"
               >
                 <MaterialCommunityIcons name="chart-bar" size={24} color={colors.success} />
-                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs }]}>
+                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
                   Progress
                 </Text>
               </TouchableOpacity>

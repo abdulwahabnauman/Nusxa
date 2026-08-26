@@ -1,5 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { useTheme } from '../../src/theme/provider';
@@ -27,6 +28,9 @@ export default function TabLayout() {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.border.default,
           borderTopWidth: 1,
+          // Lift labels off the screen edge so descenders are never eaten
+          paddingTop: 6,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
           ...(isRTL && {
             flexDirection: 'row-reverse',
           }),
