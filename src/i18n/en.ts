@@ -20,6 +20,7 @@ export const en = {
     close: 'Close',
     search: 'Search',
     undo: 'Undo',
+    notSet: 'Not set',
   },
   // Navigation
   nav: {
@@ -232,6 +233,7 @@ export const en = {
     questionsPlaceholder: 'Add questions before your visit...',
     disclaimer: 'This report is a patient-generated summary and is not an official medical record.',
     shareReport: 'Share report',
+    preparing: 'Preparing PDF…',
     noMedicines: 'No active medicines',
     noMedicinesDesc: 'When you have active medicines, a visit report will be generated here.',
   },

@@ -21,6 +21,7 @@ export const ur: TranslationKeys = {
     close: 'بند کریں',
     search: 'تلاش',
     undo: 'واپس',
+    notSet: 'سیٹ نہیں',
   },
   nav: {
     home: 'ہوم',
@@ -215,12 +216,13 @@ export const ur: TranslationKeys = {
   },
   doctorVisit: {
     title: 'ڈاکٹر سے ملاقات کی رپورٹ',
-    subtitle: 'مريض کی تیار کردہ خلاصہ، سرکاری طبی ریکارڈ نہیں۔',
+    subtitle: 'مریض کی تیار کردہ خلاصہ، سرکاری طبی ریکارڈ نہیں۔',
     currentMedicines: 'موجودہ ادویات',
     questions: 'ڈاکٹر کے لیے سوالات',
     questionsPlaceholder: 'ملاقات سے پہلے سوالات شامل کریں...',
-    disclaimer: 'یہ رپورٹ مريض کی تیار کردہ خلاصہ ہے اور سرکاری طبی ریکارڈ نہیں ہے۔',
+    disclaimer: 'یہ رپورٹ مریض کی تیار کردہ خلاصہ ہے اور سرکاری طبی ریکارڈ نہیں ہے۔',
     shareReport: 'رپورٹ شیئر کریں',
+    preparing: 'پی ڈی ایف تیار ہو رہی ہے…',
     noMedicines: 'کوئی فعال دوا نہیں',
     noMedicinesDesc: 'جب آپ کے پاس فعال ادویات ہوں گی تو ملاقات کی رپورٹ یہاں تیار کی جائے گی۔',
   },

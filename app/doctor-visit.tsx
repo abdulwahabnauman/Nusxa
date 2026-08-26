@@ -13,10 +13,12 @@ import { showToast } from '../src/components/ui/GlobalToast';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
 import { getActiveSchedules } from '../src/db/repositories/schedule';
 import { getProfile } from '../src/db/repositories/profile';
+import { useI18n } from '../src/i18n';
 import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -80,10 +82,10 @@ export default function DoctorVisitScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            Doctor Visit Report
+            {t.doctorVisit.title}
           </Text>
           <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            A summary to share with your healthcare provider. This is a patient-generated summary, not an official medical record.
+            {t.doctorVisit.subtitle}
           </Text>
         </View>
 
@@ -91,8 +93,8 @@ export default function DoctorVisitScreen() {
           <View style={{ paddingHorizontal: spacing.base, marginTop: 32 }}>
             <EmptyState
               icon="clipboard-text-outline"
-              title="No active medicines"
-              description="When you have active medicines, a visit report will be generated here."
+              title={t.doctorVisit.noMedicines}
+              description={t.doctorVisit.noMedicinesDesc}
             />
           </View>
         ) : (
@@ -100,7 +102,7 @@ export default function DoctorVisitScreen() {
             {/* Current Medicines */}
             <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
               <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-                Current medicines
+                {t.doctorVisit.currentMedicines}
               </Text>
               <Card>
                 {medicines.map((med, i) => (
@@ -125,7 +127,7 @@ export default function DoctorVisitScreen() {
             {/* Questions for doctor */}
             <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
               <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-                Questions for your doctor
+                {t.doctorVisit.questions}
               </Text>
               <Card>
                 <TextInput
@@ -138,12 +140,12 @@ export default function DoctorVisitScreen() {
                       padding: 0,
                     },
                   ]}
-                  placeholder="Add questions before your visit so you don't forget to ask them..."
+                  placeholder={t.doctorVisit.questionsPlaceholder}
                   placeholderTextColor={colors.text.disabled}
                   value={questions}
                   onChangeText={setQuestions}
                   multiline
-                  accessibilityLabel="Questions for your doctor"
+                  accessibilityLabel={t.doctorVisit.questions}
                 />
               </Card>
             </View>
@@ -153,8 +155,8 @@ export default function DoctorVisitScreen() {
               <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.border.default }}>
                 <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                   <MaterialCommunityIcons name="information-outline" size={18} color={colors.info} />
-                  <Text style={[typography.body.xs, { color: colors.text.secondary, marginLeft: 8, flex: 1 }]}>
-                    This report is a patient-generated summary and is not an official medical record. Always consult your healthcare provider for medical decisions.
+                  <Text style={[typography.body.xs, { color: colors.text.secondary, marginStart: 8, flex: 1 }]}>
+                    {t.doctorVisit.disclaimer}
                   </Text>
                 </View>
               </Card>
@@ -163,7 +165,7 @@ export default function DoctorVisitScreen() {
             {/* Share */}
             <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
               <Button
-                title={sharing ? 'Preparing PDF…' : 'Share PDF report'}
+                title={sharing ? t.doctorVisit.preparing : t.doctorVisit.shareReport}
                 onPress={handleShare}
                 loading={sharing}
                 icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color="#FFFFFF" />}

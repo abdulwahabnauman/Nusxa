@@ -62,7 +62,14 @@ export function AdherenceRing({
           <Text
             style={[
               typography.heading.h2,
-              { color: colors.text.primary, textAlign: 'center' },
+              {
+                color: colors.text.primary,
+                textAlign: 'center',
+                // Compact, ring-relative sizing so both the percentage and the
+                // label fit inside the circle even in tall Nastaliq script.
+                fontSize: size * 0.24,
+                lineHeight: size * 0.3,
+              },
             ]}
             accessibilityLabel={`${clampedPercentage}% adherence`}
           >
@@ -72,7 +79,13 @@ export function AdherenceRing({
             <Text
               style={[
                 typography.body.xs,
-                { color: colors.text.secondary, textAlign: 'center', marginTop: 2 },
+                {
+                  color: colors.text.secondary,
+                  textAlign: 'center',
+                  marginTop: 0,
+                  fontSize: Math.max(9, size * 0.13),
+                  lineHeight: Math.max(12, size * 0.18),
+                },
               ]}
             >
               {label}

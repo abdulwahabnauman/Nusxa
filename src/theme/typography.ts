@@ -42,9 +42,12 @@ const weights = {
 export function getTypography(elderly: boolean, fontFamily?: string) {
   const sizes = elderly ? elderlyFontSize : baseFontSize;
   // Optional custom family (e.g. Nastaliq for Urdu) applied to every text style.
-  // Nastaliq script has deep descenders, so line heights are enlarged when it is active.
-  const font = fontFamily ? { fontFamily } : {};
-  const lh = (value: number) => (fontFamily ? Math.round(value * 1.9) : value);
+  // Nastaliq script has deep descenders, so line heights stay enlarged when it
+  // is active — but Nastaliq glyphs render visually large, so sizes shrink a
+  // little and includeFontPadding is dropped to keep Urdu text from ballooning.
+  const font = fontFamily ? { fontFamily, includeFontPadding: false } : {};
+  const fs = (value: number) => (fontFamily ? Math.round(value * 0.9) : value);
+  const lh = (value: number) => (fontFamily ? Math.round(value * 1.6) : value);
 
   return {
     sizes,
@@ -52,25 +55,25 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
     heading: {
       h1: {
         ...font,
-        fontSize: sizes['3xl'],
+        fontSize: fs(sizes['3xl']),
         lineHeight: lh(36),
         fontWeight: weights.bold,
       } as TextStyle,
       h2: {
         ...font,
-        fontSize: sizes['2xl'],
+        fontSize: fs(sizes['2xl']),
         lineHeight: lh(32),
         fontWeight: weights.bold,
       } as TextStyle,
       h3: {
         ...font,
-        fontSize: sizes.xl,
+        fontSize: fs(sizes.xl),
         lineHeight: lh(28),
         fontWeight: weights.semibold,
       } as TextStyle,
       h4: {
         ...font,
-        fontSize: sizes.lg,
+        fontSize: fs(sizes.lg),
         lineHeight: lh(28),
         fontWeight: weights.semibold,
       } as TextStyle,
@@ -78,25 +81,25 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
     body: {
       lg: {
         ...font,
-        fontSize: sizes.lg,
+        fontSize: fs(sizes.lg),
         lineHeight: lh(28),
         fontWeight: weights.regular,
       } as TextStyle,
       base: {
         ...font,
-        fontSize: sizes.base,
+        fontSize: fs(sizes.base),
         lineHeight: lh(24),
         fontWeight: weights.regular,
       } as TextStyle,
       sm: {
         ...font,
-        fontSize: sizes.sm,
+        fontSize: fs(sizes.sm),
         lineHeight: lh(20),
         fontWeight: weights.regular,
       } as TextStyle,
       xs: {
         ...font,
-        fontSize: sizes.xs,
+        fontSize: fs(sizes.xs),
         lineHeight: lh(16),
         fontWeight: weights.regular,
       } as TextStyle,
@@ -104,20 +107,20 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
     label: {
       base: {
         ...font,
-        fontSize: sizes.sm,
+        fontSize: fs(sizes.sm),
         lineHeight: lh(20),
         fontWeight: weights.medium,
       } as TextStyle,
       sm: {
         ...font,
-        fontSize: sizes.xs,
+        fontSize: fs(sizes.xs),
         lineHeight: lh(16),
         fontWeight: weights.medium,
       } as TextStyle,
     },
     button: {
       ...font,
-      fontSize: sizes.base,
+      fontSize: fs(sizes.base),
       lineHeight: lh(24),
       fontWeight: weights.semibold,
     } as TextStyle,
