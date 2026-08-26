@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, LogBox } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -24,6 +25,18 @@ import type { Profile } from '../src/types/models';
 SplashScreen.preventAutoHideAsync().catch(() => {
   // no-op — if this fails the native splash just hides on its own, not worth crashing over
 });
+
+// Expo Go removed Android push-token support in SDK 53, and expo-notifications
+// logs a scary-looking warning/error just for importing the module (its
+// DevicePushTokenAutoRegistration side-effect fires at require time). Nusxa
+// only uses LOCAL scheduled notifications, which work fine in Expo Go — so
+// silence that false alarm there. Real dev builds/APKs never emit it.
+if (Constants.appOwnership === 'expo') {
+  LogBox.ignoreLogs([
+    'expo-notifications: Android Push notifications',
+    'functionality is not fully supported in Expo Go',
+  ]);
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {

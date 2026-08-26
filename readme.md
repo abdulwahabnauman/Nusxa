@@ -599,7 +599,7 @@ The core medication tracking functionality works flawlessly! The remaining gaps 
 - `expo-notifications` auto-registers for a push token the moment it's imported, and this fails on Android specifically in Expo Go (SDK 53+ removed remote push support there). iOS only logs it as a soft warning; Android escalates it to a hard `console.error`, hence the red overlay.
 - This is expected, not a bug in this codebase, and doesn't block anything — dismiss it and keep going. Local scheduled reminders still work fine in Expo Go.
 - It goes away entirely once you're testing on a real dev build or APK instead of Expo Go.
-- Deliberately **not suppressed** with `LogBox.ignoreLogs` — kept visible on purpose so it stays a visible reminder of the Expo Go limitation rather than silently hidden.
+- As of the August 26 batch it **is** suppressed in Expo Go via a scoped `LogBox.ignoreLogs` in `app/_layout.tsx` (gated on `Constants.appOwnership === 'expo'`, so real builds are untouched). If you ever see it again, a newer expo-notifications likely changed the message text — update the ignore patterns.
 
 ### Database migration errors
 - Migrations are versioned in `src/db/migrations.ts`
