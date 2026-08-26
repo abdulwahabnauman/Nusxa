@@ -379,8 +379,9 @@ This only renders in a real build (dev client or APK) — Expo Go can't fully re
 ### 8. Shared Brand Pill Icon (`PillIcon.tsx`)
 - Every pill/medicine icon in the app renders through `src/components/ui/PillIcon.tsx` — a `react-native-svg` capsule tilted 45°, matching the app logo silhouette (two-tone navy/white)
 - One dynamically-themed component covers both light and dark mode: `color` drives outline/filled half from theme tokens; passing `contrastColor` fills the second half (duotone), omitting it renders a monochrome outline glyph (tab bar, muted empty states)
-- Used in: medicines tab bar icon, onboarding hero, schedule screen headers, and both empty states (`EmptyState` accepts a custom node via its `icon` prop)
-- Never reintroduce `MaterialCommunityIcons name="pill"` — always use `PillIcon`
+- `MedicineFormIcon` (same file) renders a distinct glyph per medicine form — tablet, capsule, syrup bottle, syringe, cream tube, drops, inhaler, patch — with `normalizeMedicineForm()` mapping free-text AI values to glyphs; capsule keeps the brand mark, unknown forms fall back to a lozenge
+- `PillIcon` (brand mark) stays for: medicines tab bar icon, onboarding hero, and empty states (`EmptyState` accepts a custom node via its `icon` prop); medicine-bound icons (cards, home hero, detail headers, education lists, schedule screen) always use `MedicineFormIcon` with the medicine's `form`
+- Never reintroduce `MaterialCommunityIcons name="pill"` — always use `PillIcon` / `MedicineFormIcon`
 
 ### 9. Animation Conventions (Reanimated)
 - All animation uses **react-native-reanimated**, never the legacy core `Animated` API
@@ -396,7 +397,7 @@ This only renders in a real build (dev client or APK) — Expo Go can't fully re
 
 ### 11. Onboarding Gate & Image Aspect Normalization
 - **Onboarding gate** (`app/_layout.tsx`): onboarding shows when `profile.name` OR `profile.onboarding_complete` is missing — deterministic, identical in Expo Go and release APKs, no `__DEV__` gating. Onboarding completion uses `upsertProfileForOnboarding()` (handles upgrade installs where a nameless profile row already exists), and a notification-permission failure can never block profile creation
-- **Aspect ratio** (`app/scan.tsx`): the picker is called WITHOUT a forced `aspect` (Android would hard-crop real prescription content). Manual cropping stays available via `allowsEditing`, and `normalizeToScanAspect()` handles ratio correction as a separate step afterwards. Note: in Expo SDK 54 the `extent` (padding) action of expo-image-manipulator is web-only, so on native the image is kept intact rather than padded — nothing is ever cut off
+- **Aspect ratio** (`app/scan.tsx`): the picker is called WITHOUT a forced `aspect` (Android would hard-crop real prescription content) and with `allowsEditing: false` — cropping happens fully in-app instead (pan + pinch in a themed crop stage, applied via expo-image-manipulator), because the OS cropper cannot be restyled and its apply button is easy to miss. `normalizeToScanAspect()` handles ratio correction as a separate step afterwards. Note: in Expo SDK 54 the `extent` (padding) action of expo-image-manipulator is web-only, so on native the image is kept intact rather than padded — nothing is ever cut off
 
 ### 12. Doctor Visit PDF
 - Generated fully on-device with `expo-print` from an HTML template in `src/utils/pdf.ts` (A4, navy letterhead, medicines table, daily schedule table, patient notes, disclaimer), shared via `expo-sharing` as `application/pdf`
@@ -434,12 +435,19 @@ eas build --platform android --profile preview   # Builds APK in cloud
 
 ### Option B: Local Build (Android Studio required)
 ```bash
-npx expo prebuild --platform android --clean
+npx expo prebuild --platform android --clean   # only needed after adding/changing native plugins
 cd android
 ./gradlew assembleDebug     # fast, self-signed, good for internal testing
 # or
 ./gradlew assembleRelease   # needs a signing keystore first
 ```
+
+Day-to-day release APK on Windows (JS/TS-only changes — no prebuild or clean needed):
+```powershell
+cd android
+.\gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+The `-PreactNativeArchitectures=arm64-v8a` flag skips unused ABIs and makes the build noticeably faster.
 APK output:
 - Debug: `android/app/build/outputs/apk/debug/app-debug.apk`
 - Release: `android/app/build/outputs/apk/release/app-release.apk`
