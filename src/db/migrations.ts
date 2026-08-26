@@ -11,7 +11,15 @@ import {
   ALTER_PROFILE_ADD_LANGUAGE,
   ALTER_PROFILE_ADD_SETTINGS,
 } from './schema';
-import { EDUCATION_SCHEMA, SAMPLE_CATEGORIES, SAMPLE_CONTENT } from './schemas/education';
+import {
+  EDUCATION_SCHEMA,
+  SAMPLE_CATEGORIES,
+  SAMPLE_CONTENT,
+  ADDITIONAL_CATEGORIES,
+  ADDITIONAL_CONTENT,
+  type EducationCategorySeed,
+  type EducationContentSeed,
+} from './schemas/education';
 
 interface Migration {
   version: number;
@@ -88,57 +96,70 @@ const migration_v5: Migration = {
   },
 };
 
+/** Insert categories idempotently (slugs are unique) */
+async function seedCategories(
+  db: SQLiteDatabase,
+  list: EducationCategorySeed[]
+): Promise<void> {
+  for (const category of list) {
+    await db.runAsync(
+      `INSERT OR IGNORE INTO education_categories
+       (slug, title_en, title_ur, description_en, description_ur, icon_name, color, sort_order, is_active)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+      [
+        category.slug,
+        category.title_en,
+        category.title_ur,
+        category.description_en ?? null,
+        category.description_ur ?? null,
+        category.icon_name,
+        category.color,
+        category.sort_order,
+      ],
+    );
+  }
+}
+
+/** Insert content idempotently, resolving category refs (sort order) to real ids */
+async function seedContent(
+  db: SQLiteDatabase,
+  list: EducationContentSeed[]
+): Promise<void> {
+  const categories = await db.getAllAsync<{ id: number; sort_order: number }>(
+    'SELECT id, sort_order FROM education_categories ORDER BY sort_order ASC',
+  );
+  const idByOrder = new Map(categories.map((c) => [c.sort_order, c.id]));
+
+  for (const content of list) {
+    const categoryId = idByOrder.get(content.category_id) ?? content.category_id;
+    await db.runAsync(
+      `INSERT OR IGNORE INTO education_content
+       (category_id, slug, title_en, title_ur, summary_en, summary_ur, content_en, content_ur,
+        read_time_minutes, is_published, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        categoryId,
+        content.slug,
+        content.title_en,
+        content.title_ur,
+        content.summary_en ?? null,
+        content.summary_ur ?? null,
+        content.content_en ?? null,
+        content.content_ur ?? null,
+        content.read_time_minutes,
+        content.is_published,
+        content.sort_order,
+      ],
+    );
+  }
+}
+
 /** Version 6: Seed education library with sample categories and content */
 const migration_v6: Migration = {
   version: 6,
   up: async (db) => {
-    // Insert categories (idempotent — slugs are unique)
-    for (const category of SAMPLE_CATEGORIES) {
-      await db.runAsync(
-        `INSERT OR IGNORE INTO education_categories
-         (slug, title_en, title_ur, description_en, description_ur, icon_name, color, sort_order, is_active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)`,
-        [
-          category.slug,
-          category.title_en,
-          category.title_ur,
-          category.description_en ?? null,
-          category.description_ur ?? null,
-          category.icon_name,
-          category.color,
-          category.sort_order,
-        ],
-      );
-    }
-
-    // Map sample content category refs (1-based sort order) to real category ids
-    const categories = await db.getAllAsync<{ id: number; sort_order: number }>(
-      'SELECT id, sort_order FROM education_categories ORDER BY sort_order ASC',
-    );
-    const idByOrder = new Map(categories.map((c) => [c.sort_order, c.id]));
-
-    for (const content of SAMPLE_CONTENT) {
-      const categoryId = idByOrder.get(content.category_id) ?? content.category_id;
-      await db.runAsync(
-        `INSERT OR IGNORE INTO education_content
-         (category_id, slug, title_en, title_ur, summary_en, summary_ur, content_en, content_ur,
-          read_time_minutes, is_published, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          categoryId,
-          content.slug,
-          content.title_en,
-          content.title_ur,
-          content.summary_en ?? null,
-          content.summary_ur ?? null,
-          content.content_en ?? null,
-          content.content_ur ?? null,
-          content.read_time_minutes,
-          content.is_published,
-          content.sort_order,
-        ],
-      );
-    }
+    await seedCategories(db, SAMPLE_CATEGORIES);
+    await seedContent(db, SAMPLE_CONTENT);
   },
 };
 
@@ -169,6 +190,21 @@ const migration_v7: Migration = {
   },
 };
 
+/**
+ * Version 8: Expand the education library.
+ * Early builds shipped only two sample articles; this adds the full starter
+ * library (a fifth category plus ten bilingual articles). INSERT OR IGNORE
+ * keeps it safe to re-run on devices that already have some of the slugs.
+ */
+const migration_v8: Migration = {
+  version: 8,
+  up: async (db) => {
+    await seedCategories(db, ADDITIONAL_CATEGORIES);
+    await seedContent(db, ADDITIONAL_CONTENT);
+    await db.runAsync('UPDATE schema_version SET version = 8;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -177,6 +213,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v5,
   migration_v6,
   migration_v7,
+  migration_v8,
 ];
 
 /** Run pending migrations */
@@ -202,4 +239,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 7;
+export const CURRENT_SCHEMA_VERSION = 8;
