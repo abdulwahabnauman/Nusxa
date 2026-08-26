@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -103,7 +103,7 @@ export default function ProcessingScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
           <MaterialCommunityIcons
             name={stage === 'error' ? 'alert-circle-outline' : 'file-document-outline'}
@@ -128,11 +128,12 @@ export default function ProcessingScreen() {
 
         {stage === 'error' && (
           <View style={styles.errorActions}>
-            <Button title="Try again" onPress={handleRetry} />
+            <Button title="Try again" onPress={handleRetry} style={{ flex: 1 }} />
             <Button
               title="Go back"
               onPress={() => router.back()}
               variant="ghost"
+              style={{ flex: 1 }}
             />
           </View>
         )}
@@ -155,7 +156,7 @@ export default function ProcessingScreen() {
             </View>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -165,10 +166,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 24,
   },
   iconContainer: {
     width: 96,
@@ -180,8 +182,8 @@ const styles = StyleSheet.create({
   errorActions: {
     marginTop: 32,
     width: '100%',
+    flexDirection: 'row',
     gap: 12,
-    alignItems: 'center',
   },
   successActions: {
     marginTop: 32,

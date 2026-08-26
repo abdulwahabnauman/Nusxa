@@ -56,11 +56,15 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Language           | TypeScript (strict mode)                |
 | Navigation         | Expo Router v6 (file-based routing)     |
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
-| Database           | expo-sqlite (SQLite, offline-first)     |
-| AI — Vision/OCR    | Google Gemini 2.5 Flash (free tier)     |
+| Database           | expo-sqlite (SQLite, offline-first, schema v6) |
+| AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
 | AI — Chat/Explain  | Nemotron 3 Ultra via OpenRouter (free, primary), Groq gpt-oss-120b (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
 | Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
+| PDF Generation     | expo-print + expo-sharing (doctor visit reports, on-device) |
+| Animations         | react-native-reanimated (reduced-motion aware) |
+| Vector Graphics    | react-native-svg (brand pill icon, charts) |
+| File Picking       | expo-document-picker (JSON data import) |
 | Splash             | expo-splash-screen + custom animated capsule-halves intro |
 | Theming            | Custom token system (light/dark/elderly)|
 | i18n               | Custom context (English + Urdu/RTL)     |
@@ -79,16 +83,18 @@ nusxa/
 │   ├── review.tsx                # Prescription review + field editing
 │   ├── schedule.tsx              # Schedule confirmation (creates DB records + notifications)
 │   ├── chat.tsx                  # AI chat about medicines
-│   ├── doctor-visit.tsx          # Doctor visit report generator
+│   ├── doctor-visit.tsx          # Doctor visit report — generates & shares an on-device PDF
 │   ├── emergency-card.tsx        # Emergency info card
 │   ├── medicine/
 │   │   └── [id].tsx              # Medicine detail page (dynamic route)
 │   └── (tabs)/                   # Bottom tab navigation
-│       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Settings)
+│       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Learn, Analytics, Settings)
 │       ├── index.tsx             # Home — today's schedule, adherence ring, streak, weekly chart
 │       ├── medicines.tsx         # Active medicines list with refill estimates
 │       ├── history.tsx           # Prescription history with search, archive, delete
-│       └── settings.tsx          # Theme, language, API key, data export
+│       ├── education.tsx         # Education library (browse, bookmarks, reading history)
+│       ├── analytics.tsx         # Adherence analytics dashboard
+│       └── settings.tsx          # Theme, language, API keys, data export/import
 │
 ├── assets/                       # App icons and splash images (all 1024x1024)
 │   ├── icon.png                  # App store icon
@@ -107,8 +113,8 @@ nusxa/
 │   │
 │   ├── components/
 │   │   ├── medicine/             # Medicine-specific components
-│   │   │   ├── MedicineCard.tsx  # Card with schedule times + refill info
-│   │   │   ├── DoseItem.tsx      # Single dose row (taken/skip/pending)
+│   │   │   ├── MedicineCard.tsx  # Card with schedule times + refill info (FadeInUp entrance)
+│   │   │   ├── DoseItem.tsx      # Single dose row (taken/skip/pending, animated status icon)
 │   │   │   ├── ScheduleTimeline.tsx  # Vertical timeline of doses
 │   │   │   └── VerificationField.tsx # Editable field with confidence indicator
 │   │   ├── progress/             # Adherence tracking components
@@ -116,9 +122,12 @@ nusxa/
 │   │   │   ├── StreakCounter.tsx # Non-shaming streak display
 │   │   │   └── WeeklyChart.tsx   # 7-day bar chart
 │   │   └── ui/                   # Reusable UI primitives
-│   │       ├── Badge.tsx, Button.tsx, Card.tsx
-│   │       ├── EmptyState.tsx, Input.tsx, Modal.tsx
-│   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx
+│   │       ├── Badge.tsx, Button.tsx (spring press feedback), Card.tsx
+│   │       ├── EmptyState.tsx (accepts icon name or custom node), Input.tsx, Modal.tsx
+│   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx (all Reanimated)
+│   │       ├── PillIcon.tsx      # Shared brand capsule SVG (replaces all ad-hoc pill icons)
+│   │       ├── BiometricLock.tsx # PIN + biometric app lock
+│   │       ├── MarkdownText.tsx  # Markdown renderer for AI chat responses
 │   │       ├── AnimatedSplash.tsx # Custom post-JS splash: capsule halves slide together
 │   │
 │   ├── constants/
@@ -128,13 +137,16 @@ nusxa/
 │   ├── db/                       # SQLite database layer
 │   │   ├── database.ts           # Connection manager (open, get, close)
 │   │   ├── schema.ts             # SQL CREATE statements (v2 schema)
-│   │   ├── migrations.ts         # Migration runner (version-based)
+│   │   ├── migrations.ts         # Migration runner (version-based, currently v6)
+│   │   ├── schemas/
+│   │   │   └── education.ts      # Education library SQL schema
 │   │   └── repositories/         # Data access layer (one file per table)
-│   │       ├── profile.ts        # Profile CRUD (single-row, id=1)
+│   │       ├── profile.ts        # Profile CRUD (single-row, id=1) + onboarding upsert
 │   │       ├── prescription.ts   # Prescription CRUD + search
 │   │       ├── medicine.ts       # Medicine CRUD + inventory update
 │   │       ├── schedule.ts       # Schedule CRUD + active queries
-│   │       └── dose.ts           # Dose record CRUD + today's records
+│   │       ├── dose.ts           # Dose record CRUD + today's records
+│   │       └── education.ts      # Education content, bookmarks, reading history
 │   │
 │   ├── hooks/
 │   │   ├── useNotificationHandler.ts  # Notification tap → navigate to medicine
@@ -162,7 +174,8 @@ nusxa/
 │   │
 │   └── utils/
 │       ├── date.ts               # Date helpers (ISO, getTodayRange, getLast7Days)
-│       ├── export.ts             # JSON data export via Share API
+│       ├── export.ts             # JSON data export + transactional import (restore)
+│       ├── pdf.ts                # Doctor visit PDF generation (expo-print HTML template)
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
 │       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
@@ -177,9 +190,9 @@ nusxa/
 
 ---
 
-## Database Schema (v4)
+## Database Schema (v6)
 
-Original v2 schema + education library extension:
+Core schema + settings columns + education library extension:
 
 ### Core Tables (v2):
 ```sql
@@ -216,7 +229,7 @@ dose_records
 └── notes
 ```
 
-### Education Library Tables (NEW - v3/v4):
+### Education Library Tables (v4–v6):
 ```sql
 education_categories
 ├── id (PK), slug (unique)
@@ -252,6 +265,8 @@ education_reading_history
 ```
 scan.tsx (camera/gallery)
   → copies image to persistent storage (fixes Expo Go temp file cleanup)
+  → normalizeToScanAspect(): aspect correction happens AFTER picking,
+    never via the OS crop UI (see Architectural Decisions #11)
   → passes URI to processing.tsx
     → pipeline.ts: imageToBase64() → visionCompletion() → parseOCRResponse() → validatePrescription()
   → review.tsx (user verifies/edits extracted fields)
@@ -276,6 +291,28 @@ schedule.tsx → scheduleDoseNotification() (expo-notifications)
   → useNotificationHandler hook → router.push('/medicine/[id]')
 ```
 
+### Data Export / Import Flow
+```
+Settings → Export data: exportAsJSON() builds a versioned snapshot
+  (exportFormat/exportVersion markers + profile, prescriptions,
+   medicines, schedules, doseRecords) → shared as a JSON file
+Settings → Import data: expo-document-picker picks the JSON file
+  → parseExport() validates it (rejects non-Nusxa files with a friendly error)
+  → importFromJSON() wipes + restores everything inside ONE SQLite
+    transaction (never leaves the DB half-restored)
+  → profile reloaded into the auth store
+```
+
+### Doctor Visit PDF Flow
+```
+doctor-visit.tsx loads active medicines + schedules + profile name
+  → user optionally adds questions for the doctor
+  → generateDoctorVisitPdf() (src/utils/pdf.ts) renders an HTML template
+    via expo-print → local PDF file
+  → expo-sharing presents the native share sheet with the PDF
+  → temp file deleted after sharing
+```
+
 ---
 
 ## Important Architectural Decisions
@@ -283,10 +320,9 @@ schedule.tsx → scheduleDoseNotification() (expo-notifications)
 ### 1. AI Backend: Split by Task Across Three Free-Tier Providers
 Nusxa doesn't use one AI provider — vision and text are split, because no single free model does both well:
 
-- **Vision/OCR** (reading the prescription photo) → **Google Gemini 2.5 Flash**
+- **Vision/OCR** (reading the prescription photo) → **Google Gemini** — the exact model name lives in `GEMINI_MODEL` in `src/constants/config.ts` (currently `gemini-3.6-flash`)
   - Config: `src/constants/config.ts` → `GEMINI_MODEL`, `GEMINI_API_BASE`
-  - Free tier: 1,500 requests/day, 15/min
-  - Note: Gemini 1.5 Flash (the original model this app shipped with) was shut down by Google and returns 404 — if you ever see 404s from Gemini, check `GEMINI_MODEL` hasn't drifted back to an old/retired model name
+  - Note: retired Gemini model names return 404 — if you ever see 404s from Gemini, check `GEMINI_MODEL` hasn't drifted back to an old/retired model name
 - **Chat/explanations** (medicine info, chat companion) → **Nemotron 3 Ultra via OpenRouter** (primary), falling back to **Groq's gpt-oss-120b** (free, ~1,000 req/day) if OpenRouter's free quota (much lower, ~50 req/day) is exhausted
   - Config: `src/constants/config.ts` → `OPENROUTER_API_BASE`, `NEMOTRON_MODEL`, `GROQ_API_BASE`, `GROQ_MODEL`
   - Client: `src/ai/client.ts` — `callOpenAICompatible()` is the shared caller for both (they're both OpenAI-compatible chat endpoints), `callTextModel()` tries OpenRouter first, then Groq
@@ -331,6 +367,32 @@ There are two separate splash moments, easy to mix up:
 2. **Custom animated splash** (`src/components/ui/AnimatedSplash.tsx`) — takes over the instant JS boots. Two separate capsule-half images (`assets/icon-half-navy.png`, `assets/icon-half-white.png`) slide in from opposite corners along the capsule's own diagonal and snap together, then the screen fades into the app. Wired up in `app/_layout.tsx` via `SplashScreen.preventAutoHideAsync()` / `hideAsync()`.
 
 This only renders in a real build (dev client or APK) — Expo Go can't fully replicate custom splash behavior, so don't expect to see it while testing in Expo Go.
+
+### 8. Shared Brand Pill Icon (`PillIcon.tsx`)
+- Every pill/medicine icon in the app renders through `src/components/ui/PillIcon.tsx` — a `react-native-svg` capsule tilted 45°, matching the app logo silhouette (two-tone navy/white)
+- One dynamically-themed component covers both light and dark mode: `color` drives outline/filled half from theme tokens; passing `contrastColor` fills the second half (duotone), omitting it renders a monochrome outline glyph (tab bar, muted empty states)
+- Used in: medicines tab bar icon, onboarding hero, schedule screen headers, and both empty states (`EmptyState` accepts a custom node via its `icon` prop)
+- Never reintroduce `MaterialCommunityIcons name="pill"` — always use `PillIcon`
+
+### 9. Animation Conventions (Reanimated)
+- All animation uses **react-native-reanimated**, never the legacy core `Animated` API
+- Every animation respects `useReducedMotion()` (`src/hooks/useReducedMotion.ts`) — when reduced motion is on, animations are skipped entirely
+- Current animations: `Button` spring press-scale, `DoseItem` status-icon pop on dose state change, `MedicineCard` `FadeInUp` entrance, `Toast` spring slide-in, `Skeleton` shimmer loop
+- Screen transitions are intentionally left to expo-router's native defaults
+
+### 10. Data Export/Import Round-Trip
+- `exportAsJSON()` includes `exportFormat: 'nusxa-export'` + `exportVersion: 1` markers and now also exports `prescriptions`
+- `importFromJSON()` is a full transactional restore: wipes clinical tables then re-inserts in FK-safe order (prescriptions → medicines → schedules → dose records → profile), skipping orphan rows
+- Backward compatible with old exports lacking `prescriptions` (synthesizes placeholder rows)
+- Import is confirmed with an Alert before wiping data, and reports restored counts on success
+
+### 11. Onboarding Gate & Image Aspect Normalization
+- **Onboarding gate** (`app/_layout.tsx`): onboarding shows when `profile.name` OR `profile.onboarding_complete` is missing — deterministic, identical in Expo Go and release APKs, no `__DEV__` gating. Onboarding completion uses `upsertProfileForOnboarding()` (handles upgrade installs where a nameless profile row already exists), and a notification-permission failure can never block profile creation
+- **Aspect ratio** (`app/scan.tsx`): the picker is called WITHOUT a forced `aspect` (Android would hard-crop real prescription content). Manual cropping stays available via `allowsEditing`, and `normalizeToScanAspect()` handles ratio correction as a separate step afterwards. Note: in Expo SDK 54 the `extent` (padding) action of expo-image-manipulator is web-only, so on native the image is kept intact rather than padded — nothing is ever cut off
+
+### 12. Doctor Visit PDF
+- Generated fully on-device with `expo-print` from an HTML template in `src/utils/pdf.ts` (A4, navy letterhead, medicines table, daily schedule table, patient notes, disclaimer), shared via `expo-sharing` as `application/pdf`
+- All patient-provided values are HTML-escaped before templating
 
 ---
 
@@ -407,26 +469,26 @@ Pressing `s` in `npx expo start` toggles Metro to target a dev-client build inst
 
 ## Known Limitations / Things to Improve
 
-### 🆕 NEW: Educational Content Library (Added Today - Aug 25)
+### 🆕 Educational Content Library
 
-**Status**: Database foundation complete ✅ | UI implementation pending 🔶
+**Status**: Database foundation ✅ | UI ✅ (Learn tab shipped)
 
-We just built a complete educational content system for medication literacy:
+A complete educational content system for medication literacy:
 
-- **4 Database Tables** created:
+- **4 Database Tables**:
   1. `education_categories` - Group articles by topic (Blood Pressure, Antibiotics, Painkillers, Vitamins)
   2. `education_content` - Bilingual articles with English & Urdu support
   3. `education_bookmarks` - User favorites for quick access
   4. `education_reading_history` - Track reading progress & completion
 
-- **Sample Data Pre-loaded**:
-  - 4 educational categories ready to use
+- **Sample Data Pre-loaded** (migration v6, idempotent):
+  - 4 educational categories
   - 2 starter articles (ACE inhibitors overview, antibiotic resistance)
   - All content fully bilingual (English + Urdu translations)
 
-- **Database Schema v4** added automatically on app install
-  
-**Next Steps**: Build UI screens, add navigation, populate more medical content
+- **UI**: Learn tab (`app/(tabs)/education.tsx`) + article reader (`app/education/[slug].tsx`) with bookmarks and reading history
+
+**Next Steps**: Populate more medical content
 
 ---
 
@@ -434,13 +496,21 @@ We just built a complete educational content system for medication literacy:
 
 | Item | Status | Notes |
 |------|--------|-------|
+| **Data import (JSON restore)** | ✅ DONE | Full transactional restore via document picker in Settings — export/import now round-trips |
+| **Doctor visit PDF** | ✅ DONE | On-device PDF via expo-print + expo-sharing replaces plain-text share |
+| **Consistent brand pill icon** | ✅ DONE | Shared `PillIcon` SVG replaces all ad-hoc `MaterialCommunityIcons` pill glyphs |
+| **Animations pass (Reanimated)** | ✅ DONE | Button press feedback, dose-status pop, card entrances; Toast/Skeleton converted off legacy Animated; all reduced-motion aware |
+| **Onboarding skipped in APK** | ✅ FIXED | `onboarding_complete` now actually persisted; upsert handles upgrade installs; deterministic gate, no dev-only conditions |
+| **Android hard-crop on gallery pick** | ✅ FIXED | Forced `aspect` removed; manual crop kept; ratio handled post-pick so nothing gets cut off |
+| **Error screen buttons unreachable** | ✅ FIXED | processing.tsx error state scrollable, action buttons side-by-side |
+| **Settings `setProfile` bug** | ✅ FIXED | Was used but never declared (latent crash path during profile ops) |
 | **Profile name editing** | ✅ FIXED | Added editable input with pencil icon in Settings |
 | **Medicine reminder toggle** | ✅ FIXED | No more race conditions, saves properly to database |
 | **Reduced motion toggle** | ✅ FIXED | Immediate save without setTimeout pattern |
 | **Language switching** | ✅ IMPROVED | Enhanced RTL updates and force UI refresh |
 | **Emergency card data loss** | ✅ FIXED | Confirmation before discard, auto-sync on profile update |
-| **AI model 404 error** | ✅ FIXED | Changed from gemini-2.5-flash to gemini-1.5-flash |
-| **Settings persistence** | ✅ PARTIAL | Most toggles now save (language, elderly_mode, reduced_motion) |
+| **AI model 404 error** | ✅ FIXED | Model name managed centrally via `GEMINI_MODEL` in config.ts |
+| **Settings persistence** | ✅ DONE | Language, elderly_mode, reduced_motion, notifications_enabled, theme_preference all persist |
 
 ---
 
@@ -458,7 +528,7 @@ We just built a complete educational content system for medication literacy:
 
 | Feature | Priority | Why Important | Effort | Implementation Notes |
 |---------|----------|---------------|--------|---------------------|
-| **App biometric lock** | 🔴 CRITICAL | Medical privacy protection, HIPAA consideration | Low-Medium | expo-biometrics package + PIN fallback. Essential for compliance. |
+| **App biometric lock** | ✅ DONE | — | — | `BiometricLock.tsx` ships with PIN; swap in `expo-local-authentication` for real biometrics |
 | **Enhanced elderly mode redesign** | 🔴 CRITICAL | Real accessibility improvement (target audience!) | Medium-High | Larger touch targets (>48dp), simplified navigation flow, higher contrast colors, icon simplification. NOT just larger fonts. |
 | **Full theme/settings persistence** | 🟠 HIGH | Prevent settings reset confusion | Low-Medium | Add DB columns: `notifications_enabled`, `reduced_motion`, `theme_preference`. Already mostly done, needs final polish. |
 | **Tablet layout optimization** | 🟢 LOW | Expand user base to tablets | Medium | Responsive layouts using Flexbox. Test on various screen sizes. |
@@ -467,8 +537,8 @@ We just built a complete educational content system for medication literacy:
 | **Family caregiver view** | 🟢 LOW | Share medication schedule with family | Medium | Role-based permissions. Family member can see schedules, edit emergency info. |
 | **Pharmacy integration** | 🟢 LOW | Direct refill requests to pharmacies | High | Integration with local pharmacy APIs. Complex business requirements. |
 | **Adherence analytics dashboard** | 🟡 MEDIUM | Better insights into medication patterns | Medium | Charts showing trends, missed doses patterns, correlation with health events. |
-| **Medicine interaction checker** | 🟠 HIGH | Safety feature | Low-Medium | Check if multiple medicines conflict. Use medical reference databases. |
-| **Medication education library** | 🟡 MEDIUM | Help users understand their medications | Medium | Database schema complete! Now building UI screens and navigation. | ✨ IN PROGRESS
+| **Medicine interaction checker** | ✅ DONE | — | — | 12+ rules in `src/constants/medical.ts`, `checkMedicineInteraction()` / `findAllInteractions()` |
+| **Medication education library** | ✅ DONE | — | — | Schema v4–v6 + UI (Learn tab, article reader, bookmarks, history) all shipped |
 | **Appointment reminders** | 🟢 LOW | Reminder for doctor visits | Low | Separate from medicine reminders. Calendar integration. |
 
 ---
@@ -525,7 +595,7 @@ The core medication tracking functionality works flawlessly! The remaining gaps 
 
 ### Database migration errors
 - Migrations are versioned in `src/db/migrations.ts`
-- Current schema version: **2**
+- Current schema version: **6** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data)
 - If you get migration errors, delete the app data and restart (or increment `SCHEMA_VERSION` in schema.ts and add a new migration)
 
 ### TypeScript errors after pulling changes
@@ -555,6 +625,9 @@ The `.env` file is gitignored. Users should enter API keys through the Settings 
 | App name, icons, splash | `app.json` |
 | Tab bar labels/icons | `app/(tabs)/_layout.tsx` |
 | Home screen layout | `app/(tabs)/index.tsx` |
+| Doctor visit PDF template | `src/utils/pdf.ts` |
+| Brand pill icon | `src/components/ui/PillIcon.tsx` |
+| Data export/import | `src/utils/export.ts` |
 | AI models/API URLs (Gemini, OpenRouter, Groq) | `src/constants/config.ts` |
 | AI system prompts | `src/ai/prompts.ts` |
 | Animated splash (post-JS) | `src/components/ui/AnimatedSplash.tsx` |
@@ -569,7 +642,32 @@ The `.env` file is gitignored. Users should enter API keys through the Settings 
 
 ---
 
-## 🎉 LATEST SESSION CHANGES - AUGUST 25, 2026
+## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
+
+A seven-issue hardening pass. Nothing Gemini/API-related was touched.
+
+### ✅ What changed
+
+1. **Data Import** — Settings now has a real import: document picker → validate → transactional SQLite restore (`importFromJSON`). Export now includes prescriptions and format markers, so export/import fully round-trips.
+2. **Doctor Visit PDF** — `handleShare()` no longer shares plain text. `src/utils/pdf.ts` renders a styled A4 report (medicines table, daily schedule, patient notes, disclaimer) via `expo-print`, shared with `expo-sharing` as a real PDF.
+3. **Brand pill icon** — new shared `src/components/ui/PillIcon.tsx` (react-native-svg, two-tone capsule matching the logo). Replaced all `MaterialCommunityIcons "pill"` usages: tab bar, onboarding, schedule headers, both empty states. One dynamically-themed component — no separate light/dark variants needed.
+4. **Animations pass** — Reanimated everywhere, reduced-motion aware: Button press-scale, DoseItem status pop, MedicineCard entrance; Toast & Skeleton converted off the legacy Animated API.
+5. **Onboarding in APK** — gate now depends purely on `profile.name || onboarding_complete` in SQLite; `updateProfile` actually persists the flag now (it was silently dropped before); upsert handles upgrade installs; DB open retries once.
+6. **Image aspect ratio** — forced `aspect` removed from the picker (Android hard-crop eliminated), manual crop kept via `allowsEditing`, ratio handled post-pick by `normalizeToScanAspect()` (SDK 54 caveat: native padding unsupported, image kept intact instead — nothing cut off).
+7. **Error screen** — processing.tsx error state is now scrollable with side-by-side Try again / Go back buttons.
+
+### 🗄️ DATABASE VERSION HISTORY
+
+- v1: Initial schema (profiles, prescriptions, medicines, schedules, doses)
+- v2: Added language column to profile
+- v3: Added elderly_mode, reduced_motion settings
+- v4: Education library tables
+- v5: Schema consistency updates
+- v6: Education library seed data (idempotent)
+
+---
+
+## Session Changelog - August 25, 2026
 
 This README documents the complete implementation of **4 MAJOR FEATURES** built in a single session without stopping or asking questions!
 
@@ -683,4 +781,4 @@ git commit -m "feat: Add Education Library, Analytics Dashboard, and Medicine In
 
 ---
 
-**Version Status: PRODUCTION-READY** 🎉
+**Version Status: v1.0.0 — production-ready, latest hardening pass applied Aug 26**

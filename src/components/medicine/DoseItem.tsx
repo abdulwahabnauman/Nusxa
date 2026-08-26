@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { formatTime12h } from '../../utils/date';
 import type { DoseStatus } from '../../types/models';
 
@@ -32,6 +34,25 @@ export function DoseItem({
   onSkip,
 }: DoseItemProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const reducedMotion = useReducedMotion();
+
+  // Pop the status icon when the dose transitions out of "pending"
+  const prevStatus = useRef(status);
+  const iconScale = useSharedValue(1);
+  useEffect(() => {
+    if (prevStatus.current !== status) {
+      prevStatus.current = status;
+      if (!reducedMotion) {
+        iconScale.value = withSequence(
+          withSpring(1.4, { damping: 9, stiffness: 260 }),
+          withSpring(1, { damping: 12, stiffness: 260 })
+        );
+      }
+    }
+  }, [status, reducedMotion, iconScale]);
+  const iconStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: iconScale.value }],
+  }));
 
   const statusColor =
     status === 'taken' ? colors.success
@@ -42,7 +63,9 @@ export function DoseItem({
   return (
     <View style={[styles.container, { borderBottomColor: colors.border.default }]}>
       <View style={styles.left}>
-        <MaterialCommunityIcons name={STATUS_ICONS[status]} size={22} color={statusColor} />
+        <Animated.View style={iconStyle}>
+          <MaterialCommunityIcons name={STATUS_ICONS[status]} size={22} color={statusColor} />
+        </Animated.View>
         <View style={{ marginLeft: 12, flex: 1 }}>
           <Text style={[typography.body.base, { color: colors.text.primary }]}>
             {formatTime12h(time)}

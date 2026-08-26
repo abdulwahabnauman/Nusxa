@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Animated, StyleSheet, ViewStyle } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface SkeletonProps {
   width?: number | string;
@@ -16,26 +18,22 @@ export function Skeleton({
   style,
 }: SkeletonProps) {
   const { colors, borderRadius } = useTheme();
-  const opacity = useRef(new Animated.Value(0.3)).current;
+  const reducedMotion = useReducedMotion();
+  const opacity = useSharedValue(reducedMotion ? 0.7 : 0.3);
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(opacity, {
-          toValue: 0.7,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: 800,
-          useNativeDriver: true,
-        }),
-      ])
+    if (reducedMotion) return;
+    // Gentle shimmer loop while content loads
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, { duration: 800 }),
+        withTiming(0.3, { duration: 800 })
+      ),
+      -1
     );
-    animation.start();
-    return () => animation.stop();
-  }, [opacity]);
+  }, [reducedMotion, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
     <Animated.View
@@ -45,8 +43,8 @@ export function Skeleton({
           height,
           backgroundColor: colors.background.subtle,
           borderRadius: br ?? borderRadius.md,
-          opacity,
         },
+        animatedStyle,
         style,
       ]}
       accessibilityLabel="Loading"

@@ -11,11 +11,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PillIcon } from '../src/components/ui/PillIcon';
 import * as Notifications from 'expo-notifications';
 import { useTheme } from '../src/theme/provider';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useThemeStore } from '../src/stores/theme-store';
-import { createProfile, completeOnboarding } from '../src/db/repositories/profile';
+import { upsertProfileForOnboarding } from '../src/db/repositories/profile';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { useI18n } from '../src/i18n';
@@ -47,36 +48,38 @@ export default function OnboardingScreen() {
   const handlePermissions = async () => {
     setLoading(true);
     try {
-      // Request notification permission first
-      const permResult = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-          allowAnnouncements: true,
-        },
-        android: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-          allowVibrate: true,
-          allowWarning: true,
-          importance: Notifications.AndroidImportance.HIGH,
-        },
-        web: { vibrate: false },
-      });
+      // Request notification permission first. A failure here (denied,
+      // unavailable on some devices) must never block profile creation —
+      // reminders can be enabled later from Settings.
+      try {
+        const permResult = await Notifications.requestPermissionsAsync({
+          ios: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowAnnouncements: true,
+          },
+          android: {
+            allowAlert: true,
+            allowBadge: true,
+            allowSound: true,
+            allowVibrate: true,
+            allowWarning: true,
+            importance: Notifications.AndroidImportance.HIGH,
+          },
+          web: { vibrate: false },
+        });
 
-      console.log('Notification permission granted:', permResult.granted);
+        console.log('Notification permission granted:', permResult.granted);
+      } catch (permError) {
+        console.warn('Notification permission request failed, continuing:', permError);
+      }
 
-      // Only create profile after successful permission request
-      const profile = await createProfile({ 
-        name: name.trim(),
-        language: 'en' // Default to English for now
-      });
-      
-      await completeOnboarding();
-      setProfile({ ...profile, onboarding_complete: true });
-      
+      // Create or update the profile (upsert — a row may already exist on
+      // upgrade installs), then mark onboarding complete.
+      const profile = await upsertProfileForOnboarding(name.trim(), 'en');
+      setProfile(profile);
+
       // Navigate to main tabs after successful setup
       router.replace('/(tabs)/index');
     } catch (error) {
@@ -103,10 +106,10 @@ export default function OnboardingScreen() {
           {step === 'welcome' && (
             <View style={styles.stepContainer}>
               <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
-                <MaterialCommunityIcons
-                  name="pill"
+                <PillIcon
                   size={56}
                   color={colors.accent.primary}
+                  contrastColor={colors.accent.subtle}
                 />
               </View>
               <Text style={[typography.heading.h1, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>

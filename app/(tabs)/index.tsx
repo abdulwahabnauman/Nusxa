@@ -16,6 +16,7 @@ import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { PillIcon } from '../../src/components/ui/PillIcon';
 import { ScheduleTimeline } from '../../src/components/medicine/ScheduleTimeline';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
@@ -212,7 +213,7 @@ export default function HomeScreen() {
               </Card>
             ) : (
               <EmptyState
-                icon="pill"
+                icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
                 title="No medicines yet"
                 description="Scan a prescription to get started with your medication schedule."
                 actionLabel="Scan prescription"

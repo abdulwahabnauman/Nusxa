@@ -100,6 +100,7 @@ export const ur: TranslationKeys = {
     urdu: 'اردو',
     data: 'ڈیٹا',
     exportData: 'ڈیٹا ایکسپورٹ (JSON)',
+    importData: 'ڈیٹا امپورٹ (JSON)',
     deleteAllData: 'تمام ڈیٹا حذف کریں',
     about: 'نکسا v1.0.0',
     aboutDesc: 'AI دوا ساتھی',

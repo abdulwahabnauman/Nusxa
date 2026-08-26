@@ -13,10 +13,11 @@ import {
 } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../src/theme/provider';
-import { useI18n } from '../../src/i18n';
-import { Card } from '../../src/components/ui/Card';
-import { getDatabase } from '../../src/db/database';
+import { useRouter } from 'expo-router';
+import { useTheme } from '../src/theme/provider';
+import { useI18n } from '../src/i18n';
+import { Card } from '../src/components/ui/Card';
+import { getDatabase } from '../src/db/database';
 
 interface AdherenceData {
   date: string;
@@ -38,6 +39,7 @@ type Period = '7d' | '30d' | 'all';
 export default function AnalyticsScreen() {
   const { colors, typography: typ, spacing } = useTheme();
   const { t } = useI18n();
+  const router = useRouter();
 
   const [loading, setLoading] = useState(true);
   const [adherenceData, setAdherenceData] = useState<AdherenceData[]>([]);
@@ -243,8 +245,19 @@ export default function AnalyticsScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.background.primary }}>
       <View style={{ paddingTop: spacing.lg + spacing.xs, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
-        <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.analytics.title}</Text>
-        <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.analytics.subtitle}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ marginRight: spacing.sm, padding: 4 }}
+            accessibilityLabel="Go back"
+          >
+            <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.analytics.title}</Text>
+            <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.analytics.subtitle}</Text>
+          </View>
+        </View>
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl + 20 }}>

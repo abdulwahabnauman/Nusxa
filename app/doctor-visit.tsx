@@ -1,33 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { EmptyState } from '../src/components/ui/EmptyState';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
+import { getActiveSchedules } from '../src/db/repositories/schedule';
 import { getProfile } from '../src/db/repositories/profile';
-import { generateDoctorVisitReport } from '../src/utils/export';
-import type { Medicine } from '../src/types/models';
+import { generateDoctorVisitPdf } from '../src/utils/pdf';
+import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const [questions, setQuestions] = useState('');
   const [profileName, setProfileName] = useState('Patient');
 
   useEffect(() => {
     async function load() {
       try {
-        const [meds, profile] = await Promise.all([
+        const [meds, activeSchedules, profile] = await Promise.all([
           getActiveMedicines(),
+          getActiveSchedules(),
           getProfile(),
         ]);
         setMedicines(meds);
+        setSchedules(activeSchedules);
         if (profile?.name) setProfileName(profile.name);
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -39,19 +46,30 @@ export default function DoctorVisitScreen() {
   }, []);
 
   const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    let pdfUri: string | null = null;
     try {
-      const report = generateDoctorVisitReport({
+      // Generate a clean PDF on-device, then hand it to the native share sheet
+      pdfUri = await generateDoctorVisitPdf({
         profileName,
         medicines,
-        doseRecords: [],
+        schedules,
         notes: questions || undefined,
       });
-      await Share.share({
-        message: report,
-        title: 'Doctor Visit Report — Nusxa',
+      await Sharing.shareAsync(pdfUri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Share doctor visit report',
+        UTI: 'com.adobe.pdf',
       });
     } catch {
-      Alert.alert('Error', 'Failed to generate report.');
+      Alert.alert('Error', 'Failed to generate the PDF report.');
+    } finally {
+      // The share sheet copies the file out, so the temp PDF can go afterwards
+      if (pdfUri) {
+        try { await FileSystem.deleteAsync(pdfUri, { idempotent: true }); } catch {}
+      }
+      setSharing(false);
     }
   };
 
@@ -143,9 +161,10 @@ export default function DoctorVisitScreen() {
             {/* Share */}
             <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
               <Button
-                title="Share report"
+                title={sharing ? 'Preparing PDF…' : 'Share PDF report'}
                 onPress={handleShare}
-                icon={<MaterialCommunityIcons name="share-variant" size={20} color="#FFFFFF" />}
+                loading={sharing}
+                icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color="#FFFFFF" />}
                 size="lg"
               />
             </View>

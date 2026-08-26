@@ -14,6 +14,7 @@ import { useTheme } from '../../src/theme/provider';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { PillIcon } from '../../src/components/ui/PillIcon';
 import { MedicineCard } from '../../src/components/medicine/MedicineCard';
 import { getActiveMedicines } from '../../src/db/repositories/medicine';
 import { getSchedulesByMedicine } from '../../src/db/repositories/schedule';
@@ -83,7 +84,7 @@ export default function MedicinesScreen() {
         <View style={[styles.content, { paddingHorizontal: spacing.base }]}>
           {medicines.length === 0 ? (
             <EmptyState
-              icon="pill"
+              icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
               title="No active medicines"
               description="When you verify a prescription, your medicines will appear here with their schedules."
               actionLabel="Scan prescription"

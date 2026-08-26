@@ -8,7 +8,11 @@ import {
   TextStyle,
   AccessibilityRole,
 } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 type ButtonSize = 'sm' | 'md' | 'lg';
@@ -43,6 +47,19 @@ export function Button({
   largeTouchTarget = false,
 }: ButtonProps) {
   const { colors, typography, borderRadius, spacing } = useTheme();
+  const reducedMotion = useReducedMotion();
+
+  // Press feedback: a quick spring scale-down on touch
+  const scale = useSharedValue(1);
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
+  const handlePressIn = () => {
+    if (!reducedMotion) scale.value = withSpring(0.96, { damping: 18, stiffness: 320 });
+  };
+  const handlePressOut = () => {
+    scale.value = withSpring(1, { damping: 18, stiffness: 320 });
+  };
 
   const containerStyles: ViewStyle[] = [
     styles.base,
@@ -103,9 +120,11 @@ export function Button({
   ];
 
   return (
-    <TouchableOpacity
-      style={containerStyles}
+    <AnimatedTouchable
+      style={[containerStyles, animatedStyle]}
       onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
       disabled={disabled || loading}
       activeOpacity={0.7}
       accessibilityLabel={accessibilityLabel ?? title}
@@ -129,7 +148,7 @@ export function Button({
           </Text>
         </React.Fragment>
       )}
-    </TouchableOpacity>
+    </AnimatedTouchable>
   );
 }
 

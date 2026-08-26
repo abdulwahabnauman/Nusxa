@@ -103,6 +103,7 @@ export const en = {
     urdu: 'اردو',
     data: 'Data',
     exportData: 'Export data (JSON)',
+    importData: 'Import data (JSON)',
     deleteAllData: 'Delete all data',
     about: 'Nusxa v1.0.0',
     aboutDesc: 'AI Medication Companion',

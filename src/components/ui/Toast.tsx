@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useEffect } from 'react';
+import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 
@@ -28,42 +29,26 @@ export function Toast({
   duration = 4000,
 }: ToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const translateY = useRef(new Animated.Value(-100)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const translateY = useSharedValue(-100);
+  const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          useNativeDriver: true,
-          tension: 60,
-          friction: 8,
-        }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      translateY.value = withSpring(0, { damping: 14, stiffness: 180 });
+      opacity.value = withTiming(1, { duration: 200 });
 
       const timer = setTimeout(onDismiss, duration);
       return () => clearTimeout(timer);
     } else {
-      Animated.parallel([
-        Animated.timing(translateY, {
-          toValue: -100,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-        Animated.timing(opacity, {
-          toValue: 0,
-          duration: 200,
-          useNativeDriver: true,
-        }),
-      ]).start();
+      translateY.value = withTiming(-100, { duration: 200 });
+      opacity.value = withTiming(0, { duration: 200 });
     }
   }, [visible, duration, onDismiss, translateY, opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: translateY.value }],
+    opacity: opacity.value,
+  }));
 
   const colorMap: Record<ToastType, string> = {
     success: colors.success,
@@ -83,9 +68,8 @@ export function Toast({
           borderColor: colors.border.default,
           borderRadius: borderRadius.md,
           padding: spacing.base,
-          transform: [{ translateY }],
-          opacity,
         },
+        animatedStyle,
       ]}
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"

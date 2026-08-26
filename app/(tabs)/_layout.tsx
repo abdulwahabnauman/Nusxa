@@ -2,6 +2,7 @@ import React from 'react';
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PillIcon } from '../../src/components/ui/PillIcon';
 import { useTheme } from '../../src/theme/provider';
 import { useTranslation } from '../../src/i18n';
 import { useSettingsStore } from '../../src/stores/settings-store';
@@ -70,7 +71,7 @@ export default function TabLayout() {
         options={{
           title: t.nav.medicines,
           tabBarIcon: ({ color, size }) => (
-            <MaterialCommunityIcons name="pill" size={size} color={color} />
+            <PillIcon size={size} color={color} />
           ),
         }}
       />

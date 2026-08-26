@@ -6,11 +6,13 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { CameraView as ExpoCameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
@@ -93,21 +95,87 @@ export default function ScanScreen() {
     }
   };
 
+  /**
+   * Normalize a picked image toward the scan aspect ratio (3:4 portrait)
+   * WITHOUT ever cutting content away.
+   *
+   * Aspect correction is done here — after the pick — instead of via the
+   * OS crop UI, because forcing `aspect` in the picker hard-crops the photo
+   * on Android (slicing off real prescription content) while iOS pads with
+   * white instead. Both platforms now behave the same safe way: the user
+   * can manually adjust/crop via `allowsEditing`, and whatever survives is
+   * kept intact.
+   *
+   * Note: expo-image-manipulator's `extent` (white-background padding)
+   * action is only implemented for web in SDK 54 — there is no native
+   * padding action on iOS/Android. On web we pad to exactly 3:4; on native
+   * we keep the image fully intact instead (the preview and the AI pipeline
+   * accept any ratio, so nothing downstream depends on an exact 3:4).
+   */
+  const normalizeToScanAspect = async (uri: string): Promise<string> => {
+    try {
+      // A no-op manipulation returns the image's true pixel dimensions and
+      // bakes EXIF orientation into the saved output.
+      const info = await ImageManipulator.manipulateAsync(uri, [], {
+        format: ImageManipulator.SaveFormat.JPEG,
+        compress: 0.9,
+      });
+      const { width, height } = info;
+      const target = 3 / 4;
+      const current = width / height;
+
+      // Close enough to 3:4 — nothing to correct
+      if (Math.abs(current - target) < 0.02) return info.uri;
+
+      if (Platform.OS === 'web') {
+        // Pad with white to reach exactly 3:4 without cropping
+        const canvasWidth = current > target ? width : Math.round(height * target);
+        const canvasHeight = current > target ? Math.round(width / target) : height;
+        const originX = Math.round((canvasWidth - width) / 2);
+        const originY = Math.round((canvasHeight - height) / 2);
+        const padded = await ImageManipulator.manipulateAsync(
+          info.uri,
+          [{
+            extent: {
+              width: canvasWidth,
+              height: canvasHeight,
+              originX,
+              originY,
+              backgroundColor: '#FFFFFF',
+            },
+          }],
+          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 }
+        );
+        return padded.uri;
+      }
+
+      // Native: padding action unavailable — never crop, keep every pixel
+      return info.uri;
+    } catch (error) {
+      console.warn('Aspect normalization failed, using original image:', error);
+      return uri;
+    }
+  };
+
   const handlePickImage = async () => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
+        // Manual crop/adjust stays available, but we do NOT pass `aspect`:
+        // forcing a ratio through the OS crop UI hard-crops content on
+        // Android while iOS pads instead. Aspect correction happens after
+        // the pick, in normalizeToScanAspect, so nothing is ever cut off.
         allowsEditing: true,
         quality: 0.8,
-        aspect: [3, 4],
       });
       if (!result.canceled && result.assets[0]?.uri) {
-        const persistentUri = await persistImage(result.assets[0].uri);
+        const normalizedUri = await normalizeToScanAspect(result.assets[0].uri);
+        const persistentUri = await persistImage(normalizedUri);
         if (persistentUri) {
           setCapturedImage(persistentUri);
         } else {
           // Fallback: use the original URI if copy fails
-          setCapturedImage(result.assets[0].uri);
+          setCapturedImage(normalizedUri);
         }
       }
     } catch (error) {

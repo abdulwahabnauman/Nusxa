@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { formatTime12h } from '../../utils/date';
@@ -33,12 +35,14 @@ export function MedicineCard({
   onPress,
 }: MedicineCardProps) {
   const { colors, typography, spacing, mode } = useTheme();
+  const reducedMotion = useReducedMotion();
   const catColor = mode === 'dark'
     ? categoryColors.dark[category as keyof typeof categoryColors.dark] ?? categoryColors.dark.default
     : categoryColors.light[category as keyof typeof categoryColors.light] ?? categoryColors.light.default;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+    <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(350).springify()}>
+      <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
       <Card style={{ borderLeftWidth: 3, borderLeftColor: catColor }}>
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
@@ -87,8 +91,9 @@ export function MedicineCard({
             </Text>
           </View>
         )}
-      </Card>
-    </TouchableOpacity>
+        </Card>
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 

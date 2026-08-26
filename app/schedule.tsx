@@ -9,6 +9,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PillIcon } from '../src/components/ui/PillIcon';
 import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
@@ -215,7 +216,7 @@ export default function ScheduleScreen() {
           <View key={medIdx} style={[styles.medicineSchedule, { paddingHorizontal: spacing.base }]}>
             <Card>
               <View style={styles.medHeader}>
-                <MaterialCommunityIcons name="pill" size={20} color={colors.accent.primary} />
+                <PillIcon size={20} color={colors.accent.primary} contrastColor={colors.background.primary} />
                 <View style={{ marginLeft: 8, flex: 1 }}>
                   <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
                     {schedule.medicineName}

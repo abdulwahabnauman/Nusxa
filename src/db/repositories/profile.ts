@@ -105,6 +105,10 @@ export async function updateProfile(
     fields.push('language = ?');
     values.push(data.language);
   }
+  if (data.onboarding_complete !== undefined) {
+    fields.push('onboarding_complete = ?');
+    values.push(data.onboarding_complete ? 1 : 0);
+  }
   if (data.notifications_enabled !== undefined) {
     fields.push('notifications_enabled = ?');
     values.push(data.notifications_enabled ? 1 : 0);
@@ -133,6 +137,26 @@ export async function completeOnboarding(): Promise<void> {
     'UPDATE profile SET onboarding_complete = 1, updated_at = ? WHERE id = 1;',
     [new Date().toISOString()]
   );
+}
+
+/**
+ * Create-or-update the profile at the end of onboarding.
+ * A profile row can already exist (upgrade installs keep the SQLite file,
+ * and a legacy bug could leave a nameless row behind), in which case a plain
+ * INSERT would fail on the `id = 1` uniqueness constraint and trap the user
+ * on the onboarding screen forever.
+ */
+export async function upsertProfileForOnboarding(name: string, language: string): Promise<Profile> {
+  const existing = await getProfile();
+  if (existing) {
+    await updateProfile({ name, language, onboarding_complete: true });
+    const profile = await getProfile();
+    if (!profile) throw new Error('Failed to update profile');
+    return profile;
+  }
+  const profile = await createProfile({ name, language });
+  await completeOnboarding();
+  return { ...profile, onboarding_complete: true };
 }
 
 export async function deleteProfile(): Promise<void> {

@@ -17,6 +17,7 @@ import { configureNotifications } from '../src/utils/notifications';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
+import type { Profile } from '../src/types/models';
 
 // keep the native splash up until we've swapped over to our own animated one
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -62,45 +63,53 @@ function AppContent() {
         try {
           await openDatabase();
         } catch (dbError) {
-          console.error('[Init] Database failed, app will run offline:', dbError);
-          // Don't throw - allow app to continue even without DB
+          console.error('[Init] Database failed, retrying once:', dbError);
+          try {
+            await openDatabase();
+          } catch (secondError) {
+            console.error('[Init] Database failed again, app will run offline:', secondError);
+          }
         }
         
-        const existingProfile = await getProfile();
+        let existingProfile: Profile | null = null;
+        try {
+          existingProfile = await getProfile();
+        } catch (profileError) {
+          console.error('[Init] Could not read profile:', profileError);
+        }
         
         // Check if we have a profile record at all
         if (!existingProfile) {
           // New user - no profile exists, show onboarding
           console.log('[Init] No profile found, showing onboarding');
-          setDbReady(true);
-          setLoaded(true);
           return;
         }
         
-        // Profile exists but might not be complete
+        // Onboarding counts as complete ONLY when the profile has both a name
+        // and the completion flag. Anything else forces the setup flow again —
+        // this keeps the gate deterministic across Expo Go, dev clients and
+        // release APKs (which retain the SQLite file across upgrade installs).
         const needsOnboarding = !existingProfile.name || !existingProfile.onboarding_complete;
         
-        if (needsOnboarding && existingProfile) {
-          // Reset onboarding flag to ensure user goes through setup flow
-          console.log('[Init] Missing name or incomplete onboarding - resetting for fresh start');
+        if (needsOnboarding) {
+          console.log('[Init] Missing name or incomplete onboarding - showing onboarding');
           try {
             await updateProfile({ onboarding_complete: false });
-            existingProfile.onboarding_complete = false;
           } catch (error) {
             console.error('[Init] Failed to reset onboarding flag:', error);
           }
+          // Leave the auth-store profile null so the onboarding screen shows
+          return;
         }
         
-        if (existingProfile && !needsOnboarding) {
-          setProfile(existingProfile);
-          // Sync language preference from DB to settings store
-          if (existingProfile.language) {
-            syncLanguage(existingProfile.language as 'en' | 'ur');
-          }
-          // Sync elderly mode from DB
-          if (existingProfile.elderly_mode !== undefined) {
-            syncElderlyMode(!!existingProfile.elderly_mode);
-          }
+        setProfile(existingProfile);
+        // Sync language preference from DB to settings store
+        if (existingProfile.language) {
+          syncLanguage(existingProfile.language as 'en' | 'ur');
+        }
+        // Sync elderly mode from DB
+        if (existingProfile.elderly_mode !== undefined) {
+          syncElderlyMode(!!existingProfile.elderly_mode);
         }
       } catch (error) {
         console.error('[Init] Fatal initialization error:', error);

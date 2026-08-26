@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, Share, TextInput, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../../src/theme/provider';
 import { useThemeStore } from '../../src/stores/theme-store';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
-import { deleteProfile, updateProfile } from '../../src/db/repositories/profile';
-import { exportAsJSON } from '../../src/utils/export';
+import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
+import { exportAsJSON, importFromJSON } from '../../src/utils/export';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { useI18n } from '../../src/i18n';
 
@@ -23,6 +25,7 @@ export default function SettingsScreen() {
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const profile = useAuthStore((s) => s.profile);
+  const setProfile = useAuthStore((s) => s.setProfile);
   const { t, language, setLanguage } = useI18n();
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
@@ -34,6 +37,7 @@ export default function SettingsScreen() {
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     async function checkKey() {
@@ -61,6 +65,48 @@ export default function SettingsScreen() {
           try { await deleteProfile(); }
           catch (err) { Alert.alert('Error', 'Failed to delete data. Please try again.'); }
         }}
+      ]
+    );
+  };
+
+  const handleImportData = () => {
+    Alert.alert(
+      'Import data',
+      'Importing restores a previously exported JSON file and REPLACES all current data (profile, prescriptions, medicines, schedules, dose records). Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Choose file',
+          onPress: async () => {
+            try {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/json', 'text/plain'],
+                copyToCacheDirectory: true,
+              });
+              if (result.canceled || !result.assets?.[0]) return;
+
+              setImporting(true);
+              const raw = await FileSystem.readAsStringAsync(result.assets[0].uri);
+              const counts = await importFromJSON(raw);
+
+              // Reflect the restored profile in the app state
+              try {
+                const restored = await getProfile();
+                if (restored) setProfile(restored);
+              } catch { /* profile section refreshes on next load */ }
+
+              Alert.alert(
+                'Import complete',
+                `Restored ${counts.medicines} medicine${counts.medicines !== 1 ? 's' : ''}, ${counts.schedules} schedule${counts.schedules !== 1 ? 's' : ''} and ${counts.doseRecords} dose record${counts.doseRecords !== 1 ? 's' : ''}.`
+              );
+            } catch (err) {
+              const message = err instanceof Error ? err.message : 'The file could not be imported.';
+              Alert.alert('Import failed', message);
+            } finally {
+              setImporting(false);
+            }
+          },
+        },
       ]
     );
   };
@@ -275,6 +321,21 @@ export default function SettingsScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="download-outline" size={20} color={colors.text.primary} />
                 <Text style={[typography.body.base, { color: colors.text.primary, marginLeft: 8 }]}>{t.settings.exportData}</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+            <TouchableOpacity
+              style={styles.row}
+              onPress={handleImportData}
+              disabled={importing}
+              accessibilityLabel="Import data from JSON"
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="upload-outline" size={20} color={colors.text.primary} />
+                <Text style={[typography.body.base, { color: colors.text.primary, marginLeft: 8 }]}>
+                  {importing ? t.common.loading : t.settings.importData}
+                </Text>
               </View>
               <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
             </TouchableOpacity>
