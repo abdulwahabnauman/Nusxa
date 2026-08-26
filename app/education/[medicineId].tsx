@@ -12,12 +12,13 @@ import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'rea
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
+import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { getMedicine, updateMedicine } from '../../src/db/repositories/medicine';
-import { chatCompletion } from '../../src/ai/client';
 import { resolveTextProviderKeys } from '../../src/utils/secureStorage';
 import { MEDICINE_INFO_SYSTEM_PROMPT, buildMedicineInfoRequest } from '../../src/ai/prompts';
 import type { Medicine } from '../../src/types/models';
@@ -43,6 +44,7 @@ export default function MedicineEducationScreen() {
   const { t, language, isRTL } = useI18n();
   const router = useRouter();
   const { medicineId } = useLocalSearchParams<{ medicineId: string }>();
+  const reducedMotion = useReducedMotion();
 
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [loading, setLoading] = useState(true);
@@ -87,6 +89,10 @@ export default function MedicineEducationScreen() {
       try {
         const keys = await resolveTextProviderKeys();
         if (!keys.openRouterKey && !keys.groqKey) throw new Error('No API key configured');
+
+        // Lazy-load the AI client so the education screen's first paint
+        // never pays for the network stack on startup.
+        const { chatCompletion } = require('../../src/ai/client') as typeof import('../../src/ai/client');
 
         const raw = await chatCompletion(
           MEDICINE_INFO_SYSTEM_PROMPT,
@@ -158,6 +164,11 @@ export default function MedicineEducationScreen() {
   const warnings =
     isUr && (medicine.warnings_ur?.length ?? 0) > 0 ? medicine.warnings_ur ?? [] : medicine.warnings;
 
+  // Staggered zoom-in entrance for each section
+  let enterIdx = 0;
+  const enter = () =>
+    reducedMotion ? undefined : FadeInUp.duration(280).delay(enterIdx++ * 70).springify();
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
       {/* Header */}
@@ -215,27 +226,29 @@ export default function MedicineEducationScreen() {
       >
         {/* AI gap-fill status */}
         {enriching && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Animated.View entering={enter()} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <ActivityIndicator size="small" color={colors.accent.primary} />
             <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
               {t.education.loadingExtra}
             </Text>
-          </View>
+          </Animated.View>
         )}
         {enrichFailed && !enriching && (
-          <Card style={{ backgroundColor: colors.background.subtle }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <MaterialCommunityIcons name="information-outline" size={18} color={colors.text.secondary} />
-              <Text style={[typ.body.sm, { color: colors.text.secondary, marginLeft: spacing.sm, flex: 1 }]}>
-                {t.education.aiFailed}
-              </Text>
-            </View>
-          </Card>
+          <Animated.View entering={enter()}>
+            <Card style={{ backgroundColor: colors.background.subtle }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="information-outline" size={18} color={colors.text.secondary} />
+                <Text style={[typ.body.sm, { color: colors.text.secondary, marginLeft: spacing.sm, flex: 1 }]}>
+                  {t.education.aiFailed}
+                </Text>
+              </View>
+            </Card>
+          </Animated.View>
         )}
 
         {/* Purpose */}
         {!!purpose && (
-          <View>
+          <Animated.View entering={enter()}>
             <Text style={[typ.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.education.purpose}
             </Text>
@@ -244,12 +257,12 @@ export default function MedicineEducationScreen() {
                 {purpose}
               </Text>
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Side effects */}
         {sideEffects.length > 0 && (
-          <View>
+          <Animated.View entering={enter()}>
             <Text style={[typ.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.education.sideEffects}
             </Text>
@@ -263,12 +276,12 @@ export default function MedicineEducationScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Food interactions */}
         {foodInteractions.length > 0 && (
-          <View>
+          <Animated.View entering={enter()}>
             <Text style={[typ.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.education.foodInteractions}
             </Text>
@@ -282,12 +295,12 @@ export default function MedicineEducationScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Storage */}
         {!!storage && (
-          <View>
+          <Animated.View entering={enter()}>
             <Text style={[typ.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.education.storage}
             </Text>
@@ -299,12 +312,12 @@ export default function MedicineEducationScreen() {
                 </Text>
               </View>
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Warnings */}
         {warnings.length > 0 && (
-          <View>
+          <Animated.View entering={enter()}>
             <Text style={[typ.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.education.warnings}
             </Text>
@@ -318,13 +331,15 @@ export default function MedicineEducationScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Disclaimer */}
-        <Text style={[typ.body.xs, { color: colors.text.disabled, textAlign: 'center' }]}>
-          {t.education.disclaimer}
-        </Text>
+        <Animated.View entering={enter()}>
+          <Text style={[typ.body.xs, { color: colors.text.disabled, textAlign: 'center' }]}>
+            {t.education.disclaimer}
+          </Text>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

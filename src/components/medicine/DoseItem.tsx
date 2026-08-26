@@ -57,9 +57,10 @@ export function DoseItem({
     .replace('{start}', nf(rangeStart))
     .replace('{end}', nf(rangeEnd));
 
-  // Pop the status icon when the dose transitions out of "pending"
+  // Pop the status icon and morph in a fill ring when the dose leaves "pending"
   const prevStatus = useRef(status);
   const iconScale = useSharedValue(1);
+  const fillScale = useSharedValue(status === 'pending' ? 0 : 1);
   useEffect(() => {
     if (prevStatus.current !== status) {
       prevStatus.current = status;
@@ -70,10 +71,19 @@ export function DoseItem({
           withSpring(1, { damping: 17, stiffness: 520 })
         );
       }
+      if (status !== 'pending') {
+        fillScale.value = reducedMotion ? 1 : withSpring(1, { damping: 16, stiffness: 420 });
+      } else {
+        fillScale.value = 0;
+      }
     }
-  }, [status, reducedMotion, iconScale]);
+  }, [status, reducedMotion, iconScale, fillScale]);
   const iconStyle = useAnimatedStyle(() => ({
     transform: [{ scale: iconScale.value }],
+  }));
+  const fillStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: fillScale.value }],
+    opacity: fillScale.value,
   }));
 
   // Swipe right = taken (pending doses only)
@@ -130,10 +140,28 @@ export function DoseItem({
 
       <GestureDetector gesture={swipeGesture}>
         <Animated.View style={[styles.container, { backgroundColor: colors.background.surface }, rowStyle]}>
-      <View style={styles.left}>
-        <Animated.View style={iconStyle}>
-          <MaterialCommunityIcons name={STATUS_ICONS[status]} size={22} color={statusColor} />
-        </Animated.View>
+      <View
+        style={styles.left}
+        accessibilityLabel={`${medicineName}${dosage ? ` ${dosage}` : ''}, ${timeLabel}, ${status}`}
+      >
+        <View style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: 'absolute',
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: statusColor + '2E',
+              },
+              fillStyle,
+            ]}
+          />
+          <Animated.View style={iconStyle}>
+            <MaterialCommunityIcons name={STATUS_ICONS[status]} size={22} color={statusColor} />
+          </Animated.View>
+        </View>
         <View style={{ marginLeft: 12, flex: 1 }}>
           <Text style={[typography.body.base, { color: colors.text.primary }]}>
             {timeLabel}

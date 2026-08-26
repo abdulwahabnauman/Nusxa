@@ -12,6 +12,7 @@ import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { PillIcon } from '../../src/components/ui/PillIcon';
+import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { strengthColor } from '../../src/theme/tokens';
 import { getMedicine, deleteMedicine } from '../../src/db/repositories/medicine';
 import { getSchedulesByMedicine, deactivateSchedulesByMedicine } from '../../src/db/repositories/schedule';
@@ -55,10 +56,25 @@ export default function MedicineDetailScreen() {
   if (!medicine) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-        <View style={styles.centered}>
-          <Text style={[typography.body.base, { color: colors.text.secondary }]}>
-            Loading medicine details...
-          </Text>
+        <View style={{ padding: spacing.base, paddingTop: spacing.md, gap: spacing.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View
+              style={{
+                width: 49,
+                height: 49,
+                borderRadius: 25,
+                backgroundColor: colors.background.subtle,
+                marginRight: 12,
+              }}
+            />
+            <View style={{ flex: 1 }}>
+              <View style={{ height: 20, borderRadius: 6, backgroundColor: colors.background.subtle, width: '60%' }} />
+              <View style={{ height: 14, borderRadius: 6, backgroundColor: colors.background.subtle, width: '35%', marginTop: 8 }} />
+            </View>
+          </View>
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
         </View>
       </SafeAreaView>
     );
