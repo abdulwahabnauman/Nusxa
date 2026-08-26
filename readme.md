@@ -705,6 +705,15 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Medicine cards** now show a prominent badge when inventory is thin: warning-colored "N days left — refill soon" at ≤7 days, red at ≤3 days, and "Out of stock — refill now" at zero. Comfortable stock keeps the quiet "~N days remaining" line.
 - **Medicines tab** gains a summary banner up top: "2 medicines are running low — plan a refill soon." (derived from the existing `remaining_quantity` + frequency estimate).
 
+### ✅ Chunk 10 — Time-of-day grouping
+
+- Home's timeline now groups doses under **Morning (05–12) / Afternoon (12–17) / Night (17–05)** section headers with sun/moon icons (`ScheduleTimeline`, `groupByTimeOfDay` prop, on by default).
+
+### ✅ Chunk 11 — Haptics + streak celebrations
+
+- **`src/utils/haptics.ts`**: light impact haptic when logging a dose; success double-tap pattern for milestones (all failures swallowed — never breaks an action).
+- **`src/components/ui/Celebration.tsx`**: auto-dismissing celebration overlay (spring-in card, wiggling party icon, reduced-motion aware). Fires when the streak hits **7 or 30 days**, or when the **last pending dose of the day is handled**.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026

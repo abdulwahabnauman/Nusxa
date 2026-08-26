@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,6 +20,7 @@ import { PillIcon } from '../../src/components/ui/PillIcon';
 import { ScheduleTimeline } from '../../src/components/medicine/ScheduleTimeline';
 import { NextDoseHero } from '../../src/components/medicine/NextDoseHero';
 import { useUndoToast } from '../../src/components/ui/UndoToast';
+import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
@@ -27,6 +28,7 @@ import { getTodayRange, getLast7Days, getTodayISO } from '../../src/utils/date';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
+import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
 import type { TodayScheduleItem } from '../../src/types/models';
 
 export default function HomeScreen() {
@@ -38,7 +40,32 @@ export default function HomeScreen() {
   const [adherence, setAdherence] = useState(0);
   const [streak, setStreak] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; percentage: number }[]>([]);
+  const [celebration, setCelebration] = useState<{ title: string; subtitle: string } | null>(null);
   const { showUndoToast, undoToastElement } = useUndoToast();
+
+  // Celebrate streak milestones (7/30 days) and finishing every dose of the day
+  const prevStreakRef = useRef<number | null>(null);
+  const prevAllDoneRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    const allDone = todayItems.length > 0 && todayItems.every((item) => item.status !== 'pending');
+    if (prevStreakRef.current !== null) {
+      if ((streak === 7 || streak === 30) && streak > prevStreakRef.current) {
+        milestoneHaptic();
+        setCelebration({
+          title: `${streak}-day streak!`,
+          subtitle: streak === 7 ? 'One full week of showing up. Excellent!' : 'One full month — outstanding dedication!',
+        });
+      } else if (allDone && prevAllDoneRef.current === false) {
+        milestoneHaptic();
+        setCelebration({
+          title: 'All done for today',
+          subtitle: 'Every dose handled. See you tomorrow!',
+        });
+      }
+    }
+    prevStreakRef.current = streak;
+    prevAllDoneRef.current = allDone;
+  }, [streak, todayItems]);
 
   const loadData = useCallback(async () => {
     try {
@@ -120,6 +147,7 @@ export default function HomeScreen() {
       const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
       const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
+      doseHaptic();
       // Decrement inventory
       try {
         const med = await getMedicine(medicineId);
@@ -157,6 +185,7 @@ export default function HomeScreen() {
       const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
       const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'skipped');
+      doseHaptic();
       await loadData();
 
       showUndoToast('Dose skipped', async () => {
@@ -328,6 +357,13 @@ export default function HomeScreen() {
         </View>
       </ScrollView>
       {undoToastElement}
+      {celebration && (
+        <Celebration
+          title={celebration.title}
+          subtitle={celebration.subtitle}
+          onDismiss={() => setCelebration(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
