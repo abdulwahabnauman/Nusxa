@@ -674,6 +674,12 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **User feedback**: the processing/schedule confirmations now say "Already in your list — refreshed" when everything matched, with exact added/updated counts.
 - Note: duplicates created *before* this fix remain in the DB and can be removed from Medicines → delete.
 
+### ✅ Chunk 4 — Bookmarks now have a home
+
+- **Bookmarks button in the Learn tab header**: a bookmark icon next to the "Education Library" title toggles a dedicated **Bookmarks view** listing every saved article (newest first); tapping any opens it in the reader.
+- The list **refreshes every time the tab gains focus**, so adding/removing a bookmark from inside an article is reflected immediately.
+- Empty state guides users to bookmark articles from the reader; fully bilingual (EN/UR).
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026

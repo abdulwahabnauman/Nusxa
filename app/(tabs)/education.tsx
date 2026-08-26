@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
@@ -21,9 +21,13 @@ import {
   getCategories,
   getContentByCategory,
   getAllContent,
+  getBookmarks,
   type EducationCategoryDisplay,
   type EducationContent,
 } from '../../src/db/repositories/education';
+
+/** Local single-user identifier for bookmarks/reading history */
+const LOCAL_USER_ID = 'local-user';
 
 type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
 
@@ -41,6 +45,8 @@ export default function EducationScreen() {
   const [categories, setCategories] = useState<EducationCategoryDisplay[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<number | null>(null);
   const [articles, setArticles] = useState<EducationContent[]>([]);
+  const [showBookmarks, setShowBookmarks] = useState(false);
+  const [bookmarked, setBookmarked] = useState<EducationContent[]>([]);
 
   // Load categories (re-run when language changes)
   useEffect(() => {
@@ -73,12 +79,89 @@ export default function EducationScreen() {
     loadArticles();
   }, [selectedCategory, language]);
 
+  // Load bookmarks whenever the tab gains focus (they may change on article screens)
+  useFocusEffect(
+    useCallback(() => {
+      async function loadBookmarks() {
+        try {
+          const data = await getBookmarks(LOCAL_USER_ID);
+          setBookmarked(data);
+        } catch (error) {
+          console.error('Failed to load bookmarks:', error);
+          setBookmarked([]);
+        }
+      }
+      loadBookmarks();
+    }, []),
+  );
+
   const handleSelectCategory = useCallback((categoryId: number) => {
+    setShowBookmarks(false);
     setSelectedCategory((current) => (current === categoryId ? null : categoryId));
   }, []);
 
   const handleReadArticle = (slug: string) => {
     router.push(`/education/${slug}`);
+  };
+
+  const renderArticleCard = (article: EducationContent) => {
+    const title = language === 'ur'
+      ? article.title_ur || article.title_en
+      : article.title_en;
+    const summary = language === 'ur'
+      ? article.summary_ur || article.summary_en
+      : article.summary_en;
+
+    return (
+      <TouchableOpacity
+        key={article.id}
+        style={{
+          borderRadius: 12,
+          borderWidth: 1,
+          backgroundColor: colors.background.subtle,
+          borderColor: colors.border.default,
+          padding: spacing.md,
+        }}
+        onPress={() => handleReadArticle(article.slug)}
+        activeOpacity={0.8}
+      >
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View style={{ flex: 1, marginRight: spacing.sm }}>
+            <Text style={[typ.label.base, { color: colors.text.primary, marginBottom: spacing.xs }]}>
+              {title}
+            </Text>
+
+            {!!summary && (
+              <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
+                {summary}
+              </Text>
+            )}
+          </View>
+
+          <MaterialCommunityIcons
+            name="chevron-right"
+            size={20}
+            color={colors.text.disabled}
+          />
+        </View>
+
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.sm }}>
+          <MaterialCommunityIcons name="clock-outline" size={14} color={colors.text.disabled} />
+          <Text style={[typ.body.xs, { color: colors.text.disabled }]}>
+            {article.read_time_minutes} {t.education.min}
+          </Text>
+
+          {article.view_count > 0 && (
+            <>
+              <MaterialCommunityIcons name="eye-outline" size={14} color={colors.text.disabled} />
+              <Text style={[typ.body.xs, { color: colors.text.disabled }]}>
+                {article.view_count} {t.education.views}
+              </Text>
+            </>
+          )}
+        </View>
+      </TouchableOpacity>
+    );
   };
 
   if (loading) {
@@ -91,15 +174,63 @@ export default function EducationScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
-      <View style={{ paddingTop: spacing.md, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
-        <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.education.title}</Text>
-        <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.education.subtitle}</Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', paddingTop: spacing.md, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
+        <View style={{ flex: 1 }}>
+          <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.education.title}</Text>
+          <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.education.subtitle}</Text>
+        </View>
+
+        <TouchableOpacity
+          onPress={() => {
+            setShowBookmarks((current) => !current);
+            setSelectedCategory(null);
+          }}
+          accessibilityLabel={t.education.bookmarks}
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 20,
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: showBookmarks ? colors.accent.primary : colors.background.subtle,
+            borderWidth: 1,
+            borderColor: showBookmarks ? colors.accent.primary : colors.border.default,
+          }}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name={showBookmarks ? 'bookmark' : 'bookmark-outline'}
+            size={20}
+            color={showBookmarks ? '#FFFFFF' : colors.text.primary}
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: spacing.xl + 20 }}
       >
+        {showBookmarks ? (
+          /* Bookmarked articles */
+          <View style={{ paddingVertical: spacing.md }}>
+            <Text style={[typ.label.base, { color: colors.text.secondary, paddingHorizontal: spacing.base }]}>
+              {t.education.bookmarks}
+            </Text>
+
+            {bookmarked.length > 0 ? (
+              <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.base, gap: spacing.sm }}>
+                {bookmarked.map(renderArticleCard)}
+              </View>
+            ) : (
+              <EmptyState
+                icon="bookmark-outline"
+                title={t.education.noBookmarks}
+                description={t.education.noBookmarksMessage}
+              />
+            )}
+          </View>
+        ) : (
+          <>
         {/* Category chips */}
         <View style={{ paddingVertical: spacing.md }}>
           <Text style={[typ.label.base, { color: colors.text.secondary, paddingHorizontal: spacing.base }]}>
@@ -170,65 +301,7 @@ export default function EducationScreen() {
 
           {articles.length > 0 ? (
             <View style={{ marginTop: spacing.sm, paddingHorizontal: spacing.base, gap: spacing.sm }}>
-              {articles.map((article) => {
-                const title = language === 'ur'
-                  ? article.title_ur || article.title_en
-                  : article.title_en;
-                const summary = language === 'ur'
-                  ? article.summary_ur || article.summary_en
-                  : article.summary_en;
-
-                return (
-                  <TouchableOpacity
-                    key={article.id}
-                    style={{
-                      borderRadius: 12,
-                      borderWidth: 1,
-                      backgroundColor: colors.background.subtle,
-                      borderColor: colors.border.default,
-                      padding: spacing.md,
-                    }}
-                    onPress={() => handleReadArticle(article.slug)}
-                    activeOpacity={0.8}
-                  >
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <View style={{ flex: 1, marginRight: spacing.sm }}>
-                        <Text style={[typ.label.base, { color: colors.text.primary, marginBottom: spacing.xs }]}>
-                          {title}
-                        </Text>
-
-                        {!!summary && (
-                          <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
-                            {summary}
-                          </Text>
-                        )}
-                      </View>
-
-                      <MaterialCommunityIcons
-                        name="chevron-right"
-                        size={20}
-                        color={colors.text.disabled}
-                      />
-                    </View>
-
-                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: spacing.md, gap: spacing.sm }}>
-                      <MaterialCommunityIcons name="clock-outline" size={14} color={colors.text.disabled} />
-                      <Text style={[typ.body.xs, { color: colors.text.disabled }]}>
-                        {article.read_time_minutes} {t.education.min}
-                      </Text>
-
-                      {article.view_count > 0 && (
-                        <>
-                          <MaterialCommunityIcons name="eye-outline" size={14} color={colors.text.disabled} />
-                          <Text style={[typ.body.xs, { color: colors.text.disabled }]}>
-                            {article.view_count} {t.education.views}
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+              {articles.map(renderArticleCard)}
             </View>
           ) : (
             <EmptyState
@@ -238,6 +311,8 @@ export default function EducationScreen() {
             />
           )}
         </View>
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
