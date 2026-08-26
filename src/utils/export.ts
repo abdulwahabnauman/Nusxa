@@ -110,8 +110,8 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       if (!id || prescriptionIds.has(id)) continue;
       prescriptionIds.add(id);
       await db.runAsync(
-        `INSERT INTO prescriptions (id, doctor_name, hospital, date, follow_up_date, source_image_uri, verification_status, overall_confidence, patient_notes, treatment_status, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO prescriptions (id, doctor_name, hospital, date, follow_up_date, source_image_uri, verification_status, overall_confidence, patient_notes, patient_name, treatment_status, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           id,
           asString(p.doctor_name),
@@ -122,6 +122,7 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
           asString(p.verification_status) ?? 'verified',
           asNumber(p.overall_confidence) ?? 1,
           asString(p.patient_notes),
+          asString((p as Record<string, unknown>).patient_name),
           asString(p.treatment_status) ?? 'active',
           asString(p.created_at) ?? now,
           asString(p.updated_at) ?? now,

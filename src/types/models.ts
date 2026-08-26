@@ -21,6 +21,8 @@ export interface Profile {
   snooze_minutes?: number;
   high_contrast?: boolean;
   theme_preference?: 'system' | 'light' | 'dark';
+  /** Patient filter on the home screen ('ALL' = everyone, null = default owner) */
+  active_patient?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +37,8 @@ export interface Prescription {
   verification_status: VerificationStatus;
   overall_confidence: number;
   patient_notes: string | null;
+  /** Patient this prescription belongs to (null = the app's default owner) */
+  patient_name: string | null;
   treatment_status: TreatmentStatus;
   created_at: string;
   updated_at: string;

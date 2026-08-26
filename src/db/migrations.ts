@@ -296,6 +296,31 @@ const migration_v12: Migration = {
   },
 };
 
+/**
+ * Version 13: Multi-patient support.
+ * A phone can track medicines for several people: each prescription records
+ * which patient it belongs to (`patient_name`), and the profile remembers
+ * which patient the home screen is currently filtered to (`active_patient`,
+ * 'ALL' to see everyone, null/empty for the default owner).
+ */
+const migration_v13: Migration = {
+  version: 13,
+  up: async (db) => {
+    const columns = [
+      'ALTER TABLE prescriptions ADD COLUMN patient_name TEXT;',
+      'ALTER TABLE profile ADD COLUMN active_patient TEXT;',
+    ];
+    for (const sql of columns) {
+      try {
+        await db.execAsync(sql);
+      } catch {
+        // Column already exists — nothing to do
+      }
+    }
+    await db.runAsync('UPDATE schema_version SET version = 13;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -309,6 +334,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v10,
   migration_v11,
   migration_v12,
+  migration_v13,
 ];
 
 /** Run pending migrations */
@@ -334,4 +360,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 12;
+export const CURRENT_SCHEMA_VERSION = 13;

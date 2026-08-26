@@ -32,6 +32,12 @@ const AnimatedImage = createAnimatedComponent(Image);
 const MIN_ZOOM = 1;
 const MAX_ZOOM = 4;
 
+// Focus-box (scan frame) geometry — must stay in sync with styles.scanFrame
+// and styles.overlayMiddle. The frame is centered in the camera view, which
+// lets captures be cropped to exactly this box without any measurement.
+const SCAN_FRAME_WIDTH = 280;
+const SCAN_FRAME_HEIGHT = 320;
+
 export default function ScanScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
@@ -41,6 +47,9 @@ export default function ScanScreen() {
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null);
   const cameraRef = useRef<ExpoCameraView>(null);
+  // Live camera view size — maps the centered focus box onto the captured
+  // photo's pixel dimensions so everything outside the box is discarded.
+  const cameraContainerLayout = useRef<{ width: number; height: number } | null>(null);
 
   // ---- In-app crop state -------------------------------------------------
   // The OS crop UI (allowsEditing) can't be restyled and its CROP button is
@@ -175,9 +184,43 @@ export default function ScanScreen() {
         skipProcessing: false,
       });
       if (photo?.uri) {
-        const persistentUri = await persistImage(photo.uri);
+        // Camera shots are cropped to the focus box: everything outside the
+        // guide frame is discarded. Any failure keeps the full photo so a
+        // capture is never lost.
+        let uri = photo.uri;
+        const container = cameraContainerLayout.current;
+        if (
+          container &&
+          container.width > SCAN_FRAME_WIDTH &&
+          container.height > SCAN_FRAME_HEIGHT
+        ) {
+          try {
+            const dims = await getImageDims(photo.uri);
+            if (dims) {
+              const frameX = (container.width - SCAN_FRAME_WIDTH) / 2;
+              const frameY = (container.height - SCAN_FRAME_HEIGHT) / 2;
+              let originX = Math.round((frameX / container.width) * dims.width);
+              let originY = Math.round((frameY / container.height) * dims.height);
+              let width = Math.round((SCAN_FRAME_WIDTH / container.width) * dims.width);
+              let height = Math.round((SCAN_FRAME_HEIGHT / container.height) * dims.height);
+              originX = Math.min(Math.max(originX, 0), dims.width - 1);
+              originY = Math.min(Math.max(originY, 0), dims.height - 1);
+              width = Math.min(Math.max(width, 32), dims.width - originX);
+              height = Math.min(Math.max(height, 32), dims.height - originY);
+              const cropped = await ImageManipulator.manipulateAsync(
+                photo.uri,
+                [{ crop: { originX, originY, width, height } }],
+                { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 },
+              );
+              uri = cropped.uri;
+            }
+          } catch (cropError) {
+            console.warn('Focus-box crop failed, keeping the full photo:', cropError);
+          }
+        }
+        const persistentUri = await persistImage(uri);
         setImageDims(null);
-        setCapturedImage(persistentUri ?? photo.uri);
+        setCapturedImage(persistentUri ?? uri);
         setCameraActive(false);
       }
     } catch (error) {
@@ -506,7 +549,15 @@ export default function ScanScreen() {
   // Camera active
   if (cameraActive && permission?.granted) {
     return (
-      <View style={styles.cameraContainer}>
+      <View
+        style={styles.cameraContainer}
+        onLayout={(e) => {
+          cameraContainerLayout.current = {
+            width: e.nativeEvent.layout.width,
+            height: e.nativeEvent.layout.height,
+          };
+        }}
+      >
         {/* CameraView doesn't accept children — overlays are absolutely-positioned siblings */}
         <ExpoCameraView
           ref={cameraRef}
@@ -633,15 +684,15 @@ const styles = StyleSheet.create({
   },
   overlayMiddle: {
     flexDirection: 'row',
-    height: 320,
+    height: SCAN_FRAME_HEIGHT,
   },
   overlaySide: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   scanFrame: {
-    width: 280,
-    height: 320,
+    width: SCAN_FRAME_WIDTH,
+    height: SCAN_FRAME_HEIGHT,
     borderWidth: 2,
     borderRadius: 12,
     justifyContent: 'flex-end',

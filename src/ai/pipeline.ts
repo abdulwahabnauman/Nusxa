@@ -35,6 +35,10 @@ function parseOCRResponse(raw: string): PrescriptionJSON {
         follow_up_date: parsed.prescription?.follow_up_date ?? null,
         source_image_id: null,
         verification_status: 'pending',
+        patient_name:
+          typeof parsed.prescription?.patient_name === 'string' && parsed.prescription.patient_name.trim()
+            ? parsed.prescription.patient_name.trim()
+            : null,
       },
       medicines: (parsed.medicines ?? []).map((m: Record<string, unknown>) => ({
         name: m.name ?? null,

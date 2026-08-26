@@ -19,6 +19,13 @@ function parseProfile(row: Record<string, unknown>): Profile {
     notifications_enabled: (row.notifications_enabled as number) === 1,
     reduced_motion: (row.reduced_motion as number) === 1,
     eastern_numerals: (row.eastern_numerals as number) === 1,
+    snooze_minutes: typeof row.snooze_minutes === 'number' ? row.snooze_minutes : 10,
+    high_contrast: (row.high_contrast as number) === 1,
+    theme_preference:
+      row.theme_preference === 'light' || row.theme_preference === 'dark'
+        ? row.theme_preference
+        : 'system',
+    active_patient: (row.active_patient as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -122,6 +129,22 @@ export async function updateProfile(
   if (data.eastern_numerals !== undefined) {
     fields.push('eastern_numerals = ?');
     values.push(data.eastern_numerals ? 1 : 0);
+  }
+  if (data.snooze_minutes !== undefined) {
+    fields.push('snooze_minutes = ?');
+    values.push(data.snooze_minutes);
+  }
+  if (data.high_contrast !== undefined) {
+    fields.push('high_contrast = ?');
+    values.push(data.high_contrast ? 1 : 0);
+  }
+  if (data.theme_preference !== undefined) {
+    fields.push('theme_preference = ?');
+    values.push(data.theme_preference);
+  }
+  if (data.active_patient !== undefined) {
+    fields.push('active_patient = ?');
+    values.push(data.active_patient);
   }
 
   fields.push('updated_at = ?');

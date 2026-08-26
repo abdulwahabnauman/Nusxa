@@ -7,6 +7,8 @@ export interface PrescriptionJSON {
     follow_up_date: string | null;
     source_image_id: string | null;
     verification_status: 'pending' | 'verified' | 'rejected';
+    /** Patient the prescription was written for (null when not visible) */
+    patient_name: string | null;
   };
   medicines: MedicineJSON[];
   patient_notes: string | null;

@@ -10,6 +10,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -68,6 +69,10 @@ export default function ChatScreen() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  // Whether the on-screen keyboard is up — drives the input bar padding so
+  // the text being typed is never hidden behind the keyboard (edge-to-edge
+  // Android ignores adjustResize, so we handle it ourselves on both OSes).
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
   // Word-by-word reveal of the latest assistant answer
   const [reveal, setReveal] = useState<{ id: string; count: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
@@ -98,6 +103,28 @@ export default function ChatScreen() {
       saveChatHistory(messages);
     }
   }, [messages]);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true),
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false),
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
+
+  // Keep the latest message (and what's being typed) in view above the keyboard
+  useEffect(() => {
+    if (!keyboardVisible) return;
+    const timer = setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 80);
+    return () => clearTimeout(timer);
+  }, [keyboardVisible]);
 
   const systemPrompt = useMemo(
     () => `${CHAT_SYSTEM_PROMPT}\n\n${buildChatContext(medicines)}`,
@@ -215,7 +242,7 @@ export default function ChatScreen() {
       edges={['top', 'left', 'right']}
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={styles.inner}
         keyboardVerticalOffset={0}
       >
@@ -248,6 +275,8 @@ export default function ChatScreen() {
           ref={scrollViewRef}
           style={styles.messagesContainer}
           contentContainerStyle={{ padding: spacing.base, gap: spacing.md }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           onContentSizeChange={() => scrollViewRef.current?.scrollToEnd({ animated: true })}
         >
           {messages.length === 0 && (
@@ -320,7 +349,7 @@ export default function ChatScreen() {
         </ScrollView>
 
         {/* Input */}
-        <View style={[styles.inputContainer, { borderTopColor: colors.border.default, backgroundColor: colors.background.surface, paddingHorizontal: spacing.base, paddingVertical: spacing.sm, paddingBottom: Math.max(spacing.sm, insets.bottom) }]}>
+        <View style={[styles.inputContainer, { borderTopColor: colors.border.default, backgroundColor: colors.background.surface, paddingHorizontal: spacing.base, paddingVertical: spacing.sm, paddingBottom: keyboardVisible ? spacing.sm : Math.max(spacing.sm, insets.bottom) }]}>
           <TextInput
             style={[
               styles.textInput,

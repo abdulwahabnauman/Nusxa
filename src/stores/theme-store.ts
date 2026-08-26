@@ -9,6 +9,8 @@ interface ThemeState {
   setPreference: (pref: ThemeMode | 'system') => void;
   setElderlyMode: (enabled: boolean) => void;
   setHighContrast: (enabled: boolean) => void;
+  /** Apply the persisted preference on startup without writing back to the DB */
+  restorePreference: (pref: ThemeMode | 'system') => void;
   loadFromDatabase: () => Promise<void>;
 }
 
@@ -18,6 +20,7 @@ const saveThemeToDatabase = async (state: ThemeState) => {
     await updateProfile({
       elderly_mode: state.elderlyMode,
       high_contrast: state.highContrast,
+      theme_preference: state.preference,
     });
   } catch (error) {
     console.error('Failed to save theme settings to database:', error);
@@ -32,8 +35,7 @@ const loadThemeFromDatabase = async (): Promise<{ preference: ThemeMode | 'syste
       return {
         elderlyMode: profile.elderly_mode,
         highContrast: !!profile.high_contrast,
-        // Note: theme_preference column exists but we'll use system default for now
-        preference: 'system' as ThemeMode | 'system',
+        preference: profile.theme_preference ?? 'system',
       };
     }
   } catch (error) {
@@ -54,7 +56,12 @@ export const useThemeStore = create<ThemeState>((set) => {
 
     setPreference: (preference: ThemeMode | 'system') => {
       set({ preference });
-      // Theme preference will be saved when we add it to the profile table
+      const state = useThemeStore.getState();
+      saveThemeToDatabase(state);
+    },
+
+    restorePreference: (preference: ThemeMode | 'system') => {
+      set({ preference });
     },
 
     setElderlyMode: (elderlyMode: boolean) => {

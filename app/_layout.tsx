@@ -57,6 +57,7 @@ function AppContent() {
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
   const syncElderlyMode = useThemeStore((s) => s.setElderlyMode);
   const syncHighContrast = useThemeStore((s) => s.setHighContrast);
+  const restoreThemePreference = useThemeStore((s) => s.restorePreference);
   // Live layout direction — driven from JS so language switches flip the UI
   // instantly in both directions without needing an app restart.
   const language = useSettingsStore((s) => s.language);
@@ -151,6 +152,10 @@ function AppContent() {
         // Sync high-contrast mode from DB
         if (existingProfile.high_contrast !== undefined) {
           syncHighContrast(!!existingProfile.high_contrast);
+        }
+        // Sync theme preference (light/dark/system) from DB
+        if (existingProfile.theme_preference) {
+          restoreThemePreference(existingProfile.theme_preference);
         }
 
         // Reconcile throttled refill reminders with current inventory
