@@ -63,7 +63,11 @@ export function MedicineCard({
     : categoryColors.light[category as keyof typeof categoryColors.light] ?? categoryColors.light.default;
 
   return (
-    <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(350).springify()} style={pressStyle}>
+    // The entering (layout) animation and the press-scale transform must
+    // live on separate animated views — Reanimated warns when a layout
+    // animation can overwrite a `transform` on the same component.
+    <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(350).springify()}>
+      <Animated.View style={pressStyle}>
       <TouchableOpacity
         onPress={onPress}
         onPressIn={handlePressIn}
@@ -145,6 +149,7 @@ export function MedicineCard({
         )}
         </Card>
       </TouchableOpacity>
+      </Animated.View>
     </Animated.View>
   );
 }
