@@ -56,7 +56,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Language           | TypeScript (strict mode)                |
 | Navigation         | Expo Router v6 (file-based routing)     |
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
-| Database           | expo-sqlite (SQLite, offline-first, schema v6) |
+| Database           | expo-sqlite (SQLite, offline-first, schema v8) |
 | AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
 | AI — Chat/Explain  | Nemotron 3 Ultra via OpenRouter (free, primary), Groq gpt-oss-120b (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
@@ -82,18 +82,18 @@ nusxa/
 │   ├── processing.tsx            # AI pipeline progress screen
 │   ├── review.tsx                # Prescription review + field editing
 │   ├── schedule.tsx              # Schedule confirmation (creates DB records + notifications)
-│   ├── chat.tsx                  # AI chat about medicines
+│   ├── chat.tsx                  # AI chat about medicines (history persisted until cleared)
+│   ├── analytics.tsx             # Adherence analytics dashboard (stack screen, opened from Home)
 │   ├── doctor-visit.tsx          # Doctor visit report — generates & shares an on-device PDF
 │   ├── emergency-card.tsx        # Emergency info card
 │   ├── medicine/
 │   │   └── [id].tsx              # Medicine detail page (dynamic route)
 │   └── (tabs)/                   # Bottom tab navigation
-│       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Learn, Analytics, Settings)
+│       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Learn, Settings)
 │       ├── index.tsx             # Home — today's schedule, adherence ring, streak, weekly chart
 │       ├── medicines.tsx         # Active medicines list with refill estimates
 │       ├── history.tsx           # Prescription history with search, archive, delete
 │       ├── education.tsx         # Education library (browse, bookmarks, reading history)
-│       ├── analytics.tsx         # Adherence analytics dashboard
 │       └── settings.tsx          # Theme, language, API keys, data export/import
 │
 ├── assets/                       # App icons and splash images (all 1024x1024)
@@ -137,7 +137,7 @@ nusxa/
 │   ├── db/                       # SQLite database layer
 │   │   ├── database.ts           # Connection manager (open, get, close)
 │   │   ├── schema.ts             # SQL CREATE statements (v2 schema)
-│   │   ├── migrations.ts         # Migration runner (version-based, currently v6)
+│   │   ├── migrations.ts         # Migration runner (version-based, currently v8)
 │   │   ├── schemas/
 │   │   │   └── education.ts      # Education library SQL schema
 │   │   └── repositories/         # Data access layer (one file per table)
@@ -190,7 +190,7 @@ nusxa/
 
 ---
 
-## Database Schema (v6)
+## Database Schema (v8)
 
 Core schema + settings columns + education library extension:
 
@@ -277,9 +277,12 @@ scan.tsx (camera/gallery)
 ### Daily Dose Tracking Flow
 ```
 Home screen loads active schedules from DB
-  → maps to TodayScheduleItem[] with status from dose_records
-  → "Taken" button: recordDoseTaken() + decrement inventory
-  → "Skip" button: recordDoseSkipped()
+  → maps to TodayScheduleItem[] with status joined from today's dose_records
+    (status = record.status if a record exists, else 'pending')
+  → "Taken"/"Skip" button: upsertDoseStatus() — ONE record per schedule per day;
+    re-tapping updates the existing record instead of inserting duplicates
+  → DoseItem hides action buttons once status ≠ pending (no double-logging)
+  → "Taken" also decrements inventory (best-effort)
   → Stats update: AdherenceRing, StreakCounter, WeeklyChart
 ```
 
@@ -595,7 +598,7 @@ The core medication tracking functionality works flawlessly! The remaining gaps 
 
 ### Database migration errors
 - Migrations are versioned in `src/db/migrations.ts`
-- Current schema version: **6** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data)
+- Current schema version: **8** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data → v7 profile settings backfill → v8 expanded content)
 - If you get migration errors, delete the app data and restart (or increment `SCHEMA_VERSION` in schema.ts and add a new migration)
 
 ### TypeScript errors after pulling changes
@@ -642,6 +645,19 @@ The `.env` file is gitignored. Users should enter API keys through the Settings 
 
 ---
 
+## 🚧 UI/UX IMPROVEMENT BATCH — IN PROGRESS (August 26, 2026)
+
+Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus reported bug fixes. This section is updated after each completed chunk.
+
+### ✅ Chunk 1 — Headers + dose tracking correctness
+
+1. **Lifted headers fixed** — Learn tab ("Education Library"), article reader titles, and the Analytics heading were missing safe-area handling (unlike the other tabs). All three now wrap in `SafeAreaView` + `paddingTop` so headings align with Home/Medicines/History/Settings.
+2. **Taken/Skip infinite-click fixed** — Home now joins today's `dose_records` into each schedule item, so cards immediately show taken/skipped state and the action buttons disappear (they only render for `pending`).
+3. **One dose record per schedule per day** — new `upsertDoseStatus()` in `src/db/repositories/dose.ts`: tapping Taken/Skip (or changing your mind) updates the existing record instead of inserting duplicates that inflated adherence stats.
+4. **Empty "This week" chart fixed** — `getAdherenceStats()` compared full ISO timestamps against date-only bounds, excluding every record. Bounds are now expanded to full-day ranges, so the weekly chart and adherence ring show real data.
+
+---
+
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
 
 A seven-issue hardening pass. Nothing Gemini/API-related was touched.
@@ -664,6 +680,8 @@ A seven-issue hardening pass. Nothing Gemini/API-related was touched.
 - v4: Education library tables
 - v5: Schema consistency updates
 - v6: Education library seed data (idempotent)
+- v7: Profile settings columns backfill (notifications_enabled, theme_preference, elderly_mode, reduced_motion)
+- v8: Expanded education content (5 categories, 12 bilingual articles)
 
 ---
 

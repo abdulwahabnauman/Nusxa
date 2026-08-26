@@ -22,7 +22,7 @@ import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
 import { getTodayRange, getLast7Days, getTodayISO } from '../../src/utils/date';
-import { recordDoseTaken, recordDoseSkipped, getAdherenceStats } from '../../src/db/repositories/dose';
+import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
 import type { TodayScheduleItem } from '../../src/types/models';
@@ -41,13 +41,18 @@ export default function HomeScreen() {
     try {
       const today = getTodayISO();
       const [rangeStart, rangeEnd] = getTodayRange();
-      const schedules = await getActiveSchedules();
+      const [schedules, todayRecords] = await Promise.all([
+        getActiveSchedules(),
+        getTodayDoseRecords(today),
+      ]);
+      const recordBySchedule = new Map(todayRecords.map((r) => [r.schedule_id, r]));
       const items: TodayScheduleItem[] = [];
 
       for (const schedule of schedules) {
         const medicine = await getMedicine(schedule.medicine_id);
         if (!medicine) continue;
 
+        const record = recordBySchedule.get(schedule.id);
         items.push({
           scheduleId: schedule.id,
           medicineId: medicine.id,
@@ -55,8 +60,8 @@ export default function HomeScreen() {
           dosage: medicine.dosage,
           time: schedule.time,
           mealInstruction: schedule.meal_instruction,
-          status: 'pending',
-          doseRecordId: null,
+          status: record ? record.status : 'pending',
+          doseRecordId: record?.id ?? null,
           category: medicine.form ?? 'other',
         });
       }
@@ -110,7 +115,7 @@ export default function HomeScreen() {
   const handleTaken = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
       const today = getTodayISO();
-      await recordDoseTaken(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`);
+      await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
       // Decrement inventory
       try {
         const med = await getMedicine(medicineId);
@@ -127,7 +132,7 @@ export default function HomeScreen() {
   const handleSkip = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
       const today = getTodayISO();
-      await recordDoseSkipped(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`);
+      await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'skipped');
       await loadData();
     } catch {
       Alert.alert('Error', 'Could not record dose. Please try again.');

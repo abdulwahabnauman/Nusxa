@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
@@ -173,11 +174,11 @@ export default function EducationDetailScreen() {
   const blocks = parseHtmlBlocks(body ?? '');
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background.primary }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
       {/* Header */}
       <View
         style={{
-          paddingTop: spacing.lg + spacing.xs,
+          paddingTop: spacing.md,
           paddingHorizontal: spacing.base,
           paddingBottom: spacing.sm,
           backgroundColor: colors.background.surface,
@@ -335,6 +336,6 @@ export default function EducationDetailScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

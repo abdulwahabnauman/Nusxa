@@ -128,6 +128,38 @@ export async function recordDoseTaken(
   });
 }
 
+/**
+ * Record a taken/skipped decision for a schedule slot, one record per day.
+ * Re-tapping Taken/Skip (or undoing) updates the existing record instead of
+ * inserting duplicates that would inflate adherence stats.
+ */
+export async function upsertDoseStatus(
+  scheduleId: string,
+  medicineId: string,
+  scheduledTime: string,
+  status: 'taken' | 'skipped'
+): Promise<DoseRecord> {
+  const db = getDatabase();
+  const day = scheduledTime.slice(0, 10);
+  const existing = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM dose_records WHERE schedule_id = ? AND scheduled_time LIKE ? LIMIT 1;',
+    [scheduleId, `${day}%`]
+  );
+
+  if (existing) {
+    await updateDoseRecord(existing.id, {
+      status,
+      actual_time: new Date().toISOString(),
+    });
+    const updated = await getDoseRecord(existing.id);
+    if (updated) return updated;
+  }
+
+  return status === 'taken'
+    ? recordDoseTaken(scheduleId, medicineId, scheduledTime)
+    : recordDoseSkipped(scheduleId, medicineId, scheduledTime);
+}
+
 export async function recordDoseSkipped(
   scheduleId: string,
   medicineId: string,
@@ -158,11 +190,15 @@ export async function getAdherenceStats(
   endDate: string
 ): Promise<{ total: number; taken: number; skipped: number; missed: number; pending: number }> {
   const db = getDatabase();
+  // Callers usually pass date-only strings while scheduled_time stores full
+  // ISO timestamps — expand the bounds so same-day records are included.
+  const start = startDate.length <= 10 ? `${startDate}T00:00:00` : startDate;
+  const end = endDate.length <= 10 ? `${endDate}T23:59:59` : endDate;
   const rows = await db.getAllAsync<{ status: string; count: number }>(
     `SELECT status, COUNT(*) as count FROM dose_records
      WHERE scheduled_time >= ? AND scheduled_time <= ?
      GROUP BY status;`,
-    [startDate, endDate]
+    [start, end]
   );
 
   const stats = { total: 0, taken: 0, skipped: 0, missed: 0, pending: 0 };

@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
@@ -89,8 +90,8 @@ export default function EducationScreen() {
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background.primary }}>
-      <View style={{ paddingTop: spacing.lg + spacing.xs, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+      <View style={{ paddingTop: spacing.md, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
         <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.education.title}</Text>
         <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.education.subtitle}</Text>
       </View>
@@ -238,6 +239,6 @@ export default function EducationScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }

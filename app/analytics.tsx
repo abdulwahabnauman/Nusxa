@@ -14,6 +14,7 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { Card } from '../src/components/ui/Card';
@@ -243,8 +244,8 @@ export default function AnalyticsScreen() {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background.primary }}>
-      <View style={{ paddingTop: spacing.lg + spacing.xs, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+      <View style={{ paddingTop: spacing.md, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <TouchableOpacity
             onPress={() => router.back()}
@@ -321,6 +322,6 @@ export default function AnalyticsScreen() {
           </View>
         </Card>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
