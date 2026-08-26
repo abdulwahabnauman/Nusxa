@@ -15,6 +15,7 @@ import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';
 import { useThemeStore } from '../src/stores/theme-store';
 import { configureNotifications, syncRefillNotifications } from '../src/utils/notifications';
+import { dedupeActiveMedicines } from '../src/utils/savePrescription';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
@@ -97,6 +98,14 @@ function AppContent() {
           await hydrateSettings();
         } catch (hydrateError) {
           console.error('[Init] Settings hydration failed:', hydrateError);
+        }
+
+        // Remove duplicate medicines left over from re-scans that happened
+        // before fuzzy matching existed (no-op once the list is clean).
+        try {
+          await dedupeActiveMedicines();
+        } catch (dedupeError) {
+          console.error('[Init] Duplicate cleanup failed:', dedupeError);
         }
         
         let existingProfile: Profile | null = null;

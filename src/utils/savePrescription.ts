@@ -5,8 +5,8 @@
  */
 import { PrescriptionJSON } from '../ai/types';
 import { DEFAULT_SCHEDULE_TIMES } from '../constants/medical';
-import { createPrescription, getAllPrescriptions } from '../db/repositories/prescription';
-import { createMedicine, getActiveMedicines, updateMedicine } from '../db/repositories/medicine';
+import { createPrescription, getAllPrescriptions, deletePrescription } from '../db/repositories/prescription';
+import { createMedicine, getActiveMedicines, updateMedicine, deleteMedicine, getMedicinesByPrescription } from '../db/repositories/medicine';
 import { createSchedule, getSchedulesByMedicine, updateSchedule } from '../db/repositories/schedule';
 import { scheduleDoseNotification, cancelNotification } from './notifications';
 import { getTodayISO } from './date';
@@ -28,26 +28,88 @@ const generateId = () =>
 
 const normalize = (s?: string | null) => (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+/** Lowercase, no spaces/punctuation — "500 mg" and "500mg" compare equal */
+const compact = (s?: string | null) => (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+/** Drop parentheticals: "amoxicillin (himiox)" also matches as "amoxicillin" */
+const stripParens = (s: string) => s.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+
+/**
+ * All plausible identity keys for a medicine: its name, generic and brand
+ * names — each both with and without parentheticals. Re-scans rarely
+ * reproduce the exact same name string, so matching considers every variant.
+ */
+function nameVariants(med: {
+  name?: string | null;
+  generic_name?: string | null;
+  brand_name?: string | null;
+}): string[] {
+  const out = new Set<string>();
+  for (const raw of [med.name, med.generic_name, med.brand_name]) {
+    const n = normalize(raw);
+    if (!n) continue;
+    const full = compact(n);
+    if (full.length >= 3) out.add(full);
+    const stripped = compact(stripParens(n));
+    if (stripped.length >= 3) out.add(stripped);
+  }
+  return [...out];
+}
+
+/** Coarse form bucket so "cap"/"capsule" and "tab"/"tablet" compare equal */
+function formKey(form?: string | null): string {
+  const f = (form ?? '').toLowerCase();
+  if (!f) return '';
+  if (f.includes('capsul') || f.includes('cap')) return 'capsule';
+  if (f.includes('tablet') || f.includes('tab')) return 'tablet';
+  if (f.includes('syrup') || f.includes('suspension') || f.includes('solution')) return 'syrup';
+  if (f.includes('inj') || f.includes('ampoule') || f.includes('ampule') || f.includes('vial')) return 'injection';
+  if (f.includes('cream') || f.includes('ointment') || f.includes('gel') || f.includes('lotion')) return 'cream';
+  if (f.includes('drop')) return 'drops';
+  if (f.includes('inhal')) return 'inhaler';
+  if (f.includes('patch')) return 'patch';
+  return compact(f);
+}
+
 /**
  * Match an incoming medicine against the user's active list so re-scanning
- * the same prescription never creates duplicates. Names must match; strength
- * and form must also match whenever both sides know them (so Panadol 500mg
- * and Panadol 1000mg stay separate).
+ * the same prescription never creates duplicates. Matching is fuzzy on
+ * purpose: OCR/AI rarely reproduces the identical name string twice
+ * ("Amoxicillin" vs "Amoxicillin (Himiox)" vs "Himiox"), so name/generic/
+ * brand variants are compared with equality or containment. Strength and
+ * form must still agree whenever both sides know them, so Panadol 500mg
+ * and Panadol 1000mg stay separate medicines.
  */
 function findExistingMatch(
-  med: { name?: string | null; strength?: string | null; form?: string | null },
+  med: {
+    name?: string | null;
+    generic_name?: string | null;
+    brand_name?: string | null;
+    strength?: string | null;
+    form?: string | null;
+  },
   existing: Medicine[]
 ): Medicine | undefined {
-  const name = normalize(med.name);
-  if (!name) return undefined;
+  const incoming = nameVariants(med);
+  if (incoming.length === 0) return undefined;
+  const inStrength = compact(med.strength);
+  const inForm = formKey(med.form);
+
   return existing.find((e) => {
-    if (normalize(e.name) !== name) return false;
-    if (normalize(med.strength) && normalize(e.strength) && normalize(e.strength) !== normalize(med.strength)) {
-      return false;
-    }
-    if (normalize(med.form) && normalize(e.form) && normalize(e.form) !== normalize(med.form)) {
-      return false;
-    }
+    const existingNames = nameVariants(e);
+    const nameMatch = incoming.some((a) =>
+      existingNames.some(
+        (b) =>
+          a === b ||
+          // "amoxicillin" vs "amoxicillintrihydrate": containment counts when
+          // the shorter side is long enough to be meaningful (keeps
+          // "vitamin d" and "vitamin d3" separate)
+          (Math.min(a.length, b.length) >= 10 && (a.includes(b) || b.includes(a)))
+      )
+    );
+    if (!nameMatch) return false;
+    if (inStrength && compact(e.strength) && compact(e.strength) !== inStrength) return false;
+    if (inForm && formKey(e.form) && formKey(e.form) !== inForm) return false;
     return true;
   });
 }
@@ -101,6 +163,51 @@ export async function analyzePrescriptionDuplicates(
     isFullDuplicate: total > 0 && matchedCount === total,
     samePrescriptionOnRecord,
   };
+}
+
+/**
+ * Cleanup for duplicates created before fuzzy matching existed. Walks the
+ * active list oldest-first; any medicine that fuzzy-matches an older kept
+ * one is removed (schedules/dose records cascade-delete, pending
+ * notifications are cancelled first). Prescriptions left with no medicines
+ * are dropped as well. Idempotent — a no-op once the list is clean.
+ */
+export async function dedupeActiveMedicines(): Promise<number> {
+  const active = await getActiveMedicines();
+  const kept: Medicine[] = [];
+  let removed = 0;
+
+  for (const med of active) {
+    const twin = findExistingMatch(med, kept);
+    if (!twin) {
+      kept.push(med);
+      continue;
+    }
+
+    const schedules = await getSchedulesByMedicine(med.id);
+    for (const s of schedules) {
+      if (s.notification_id) {
+        try {
+          await cancelNotification(s.notification_id);
+        } catch {
+          // Notification already gone — nothing to cancel
+        }
+      }
+    }
+
+    const prescriptionId = med.prescription_id;
+    await deleteMedicine(med.id);
+    removed++;
+
+    try {
+      const remaining = await getMedicinesByPrescription(prescriptionId);
+      if (remaining.length === 0) await deletePrescription(prescriptionId);
+    } catch {
+      // Cosmetic cleanup only — never fail the dedupe over it
+    }
+  }
+
+  return removed;
 }
 
 /** Derive sensible default reminder times from each medicine's frequency. */
