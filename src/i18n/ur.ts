@@ -72,6 +72,10 @@ export const ur: TranslationKeys = {
     doseSkippedToast: 'خوراک چھوڑ دی گئی',
     takeAll: 'تمام {n} خوراکیں لیں ({time})',
     takeAllToast: '{n} خوراکیں لی گئی کے طور پر نشان زد',
+    permTitle: 'خوراک کی یاد دہانیاں آن کریں؟',
+    permDesc: 'نکسا ہر خوراک کے وقت آپ کو خبردار کر سکتا ہے۔ آپ کی اجازت تک کچھ نہیں بھیجا جاتا۔',
+    permEnable: 'یاد دہانیاں آن کریں',
+    permLater: 'بعد میں',
   },
   onboarding: {
     welcomeTitle: 'نکسا میں خوش آمدید',

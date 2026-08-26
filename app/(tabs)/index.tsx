@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import * as SecureStore from 'expo-secure-store';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { useAuthStore } from '../../src/stores/auth-store';
@@ -30,11 +32,12 @@ import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRec
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
+import { useSettingsStore } from '../../src/stores/settings-store';
 import { useI18n } from '../../src/i18n';
 import type { TodayScheduleItem } from '../../src/types/models';
 
 export default function HomeScreen() {
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography, spacing, borderRadius } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
@@ -45,6 +48,46 @@ export default function HomeScreen() {
   const [weeklyData, setWeeklyData] = useState<{ day: string; percentage: number }[]>([]);
   const [celebration, setCelebration] = useState<{ title: string; subtitle: string } | null>(null);
   const { showUndoToast, undoToastElement } = useUndoToast();
+
+  // One-time catch-up: installs that skipped onboarding (upgrade installs,
+  // permission auto-grants) never got asked for notifications. If the OS
+  // permission is still "undetermined" and the user hasn't dismissed this
+  // card before, offer it once here instead of silently staying silent.
+  const PERM_PROMPT_KEY = 'nusxa_perm_prompt_dismissed';
+  const [showPermPrompt, setShowPermPrompt] = useState(false);
+  const [permBusy, setPermBusy] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [perm, dismissed] = await Promise.all([
+          Notifications.getPermissionsAsync(),
+          SecureStore.getItemAsync(PERM_PROMPT_KEY).catch(() => null),
+        ]);
+        if (!cancelled && perm.status === 'undetermined' && !dismissed) {
+          setShowPermPrompt(true);
+        }
+      } catch { /* permission checks are best-effort */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleEnableReminders = useCallback(async () => {
+    if (permBusy) return;
+    setPermBusy(true);
+    try {
+      const result = await Notifications.requestPermissionsAsync();
+      useSettingsStore.getState().setNotificationsEnabled(result.granted);
+      await SecureStore.setItemAsync(PERM_PROMPT_KEY, '1').catch(() => {});
+    } catch { /* never block the home screen on permission errors */ }
+    setShowPermPrompt(false);
+    setPermBusy(false);
+  }, [permBusy]);
+
+  const handleDismissPermPrompt = useCallback(async () => {
+    await SecureStore.setItemAsync(PERM_PROMPT_KEY, '1').catch(() => {});
+    setShowPermPrompt(false);
+  }, []);
 
   // Celebrate streak milestones (7/30 days) and finishing every dose of the day
   const prevStreakRef = useRef<number | null>(null);
@@ -327,6 +370,42 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
           />
         </View>
+
+        {/* One-time reminders catch-up (only if never asked by the OS) */}
+        {showPermPrompt && (
+          <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.md }}>
+            <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.border.default }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <MaterialCommunityIcons name="bell-ring-outline" size={22} color={colors.accent.primary} />
+                <View style={{ flex: 1, marginStart: spacing.sm }}>
+                  <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                    {t.home.permTitle}
+                  </Text>
+                  <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                    {t.home.permDesc}
+                  </Text>
+                  <View style={{ flexDirection: 'row', marginTop: spacing.sm, gap: spacing.sm }}>
+                    <TouchableOpacity
+                      onPress={handleEnableReminders}
+                      disabled={permBusy}
+                      style={{ backgroundColor: colors.accent.primary, borderRadius: borderRadius.md, paddingVertical: 8, paddingHorizontal: 14 }}
+                      accessibilityLabel={t.home.permEnable}
+                    >
+                      <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.home.permEnable}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleDismissPermPrompt}
+                      style={{ borderRadius: borderRadius.md, paddingVertical: 8, paddingHorizontal: 14 }}
+                      accessibilityLabel={t.home.permLater}
+                    >
+                      <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.home.permLater}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </Card>
+          </View>
+        )}
 
         {/* Next dose hero */}
         {hasSchedule && (

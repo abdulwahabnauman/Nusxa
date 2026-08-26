@@ -73,6 +73,10 @@ export const en = {
     doseSkippedToast: 'Dose skipped',
     takeAll: 'Take all {n} doses ({time})',
     takeAllToast: '{n} doses marked as taken',
+    permTitle: 'Turn on dose reminders?',
+    permDesc: 'Nusxa can alert you at every dose time. Nothing is sent until you allow it.',
+    permEnable: 'Enable reminders',
+    permLater: 'Maybe later',
   },
   // Onboarding
   onboarding: {
