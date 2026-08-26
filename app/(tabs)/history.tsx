@@ -7,7 +7,6 @@ import {
   RefreshControl,
   TextInput,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,14 +15,20 @@ import { useTheme } from '../../src/theme/provider';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { useUndoToast } from '../../src/components/ui/UndoToast';
 import {
   getAllPrescriptions,
   searchPrescriptions,
   deletePrescription,
   archivePrescription,
+  getPrescription,
+  createPrescription,
+  updatePrescription,
 } from '../../src/db/repositories/prescription';
-import { getMedicinesByPrescription } from '../../src/db/repositories/medicine';
-import type { Prescription } from '../../src/types/models';
+import { getMedicinesByPrescription, createMedicine } from '../../src/db/repositories/medicine';
+import { getSchedulesByMedicine, createSchedule } from '../../src/db/repositories/schedule';
+import { getDoseRecordsByMedicine, createDoseRecord } from '../../src/db/repositories/dose';
+import type { Prescription, Medicine, Schedule, DoseRecord } from '../../src/types/models';
 
 interface PrescriptionItem extends Prescription {
   medicineCount: number;
@@ -35,6 +40,7 @@ export default function HistoryScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
+  const { showUndoToast, undoToastElement } = useUndoToast();
 
   const loadPrescriptions = useCallback(async () => {
     try {
@@ -66,39 +72,57 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, [loadPrescriptions]);
 
-  const handleArchive = (id: string) => {
-    Alert.alert(
-      'Archive prescription',
-      'This will hide the prescription from your active list. You can still view it in history.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          onPress: async () => {
-            await archivePrescription(id);
-            await loadPrescriptions();
-          },
-        },
-      ]
-    );
+  const handleArchive = async (rx: PrescriptionItem) => {
+    const prevStatus = rx.treatment_status;
+    try {
+      await archivePrescription(rx.id);
+      await loadPrescriptions();
+      showUndoToast('Prescription archived', async () => {
+        try {
+          await updatePrescription(rx.id, { treatment_status: prevStatus });
+          await loadPrescriptions();
+        } catch { /* undo is best-effort */ }
+      });
+    } catch { /* action failed silently */ }
   };
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete prescription',
-      'This will permanently delete this prescription and all associated medicines and schedules. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deletePrescription(id);
-            await loadPrescriptions();
-          },
-        },
-      ]
-    );
+  const handleDelete = async (rx: PrescriptionItem) => {
+    try {
+      // Snapshot everything the cascade delete will remove so Undo can restore it
+      const medicines = await getMedicinesByPrescription(rx.id);
+      const scheduleSnapshot: Schedule[] = [];
+      const doseSnapshot: DoseRecord[] = [];
+      for (const med of medicines) {
+        scheduleSnapshot.push(...await getSchedulesByMedicine(med.id));
+        doseSnapshot.push(...await getDoseRecordsByMedicine(med.id));
+      }
+      const rxSnapshot = await getPrescription(rx.id);
+
+      await deletePrescription(rx.id);
+      await loadPrescriptions();
+
+      showUndoToast('Prescription deleted', async () => {
+        try {
+          if (rxSnapshot) {
+            const { created_at: _c, updated_at: _u, ...rxData } = rxSnapshot;
+            await createPrescription(rxData);
+          }
+          for (const med of medicines) {
+            const { created_at: _c, updated_at: _u, ...medData } = med;
+            await createMedicine(medData as Omit<Medicine, 'created_at' | 'updated_at'>);
+          }
+          for (const sch of scheduleSnapshot) {
+            const { created_at: _c, ...schData } = sch;
+            await createSchedule(schData);
+          }
+          for (const rec of doseSnapshot) {
+            const { created_at: _c, updated_at: _u, ...recData } = rec;
+            await createDoseRecord(recData);
+          }
+          await loadPrescriptions();
+        } catch { /* undo is best-effort */ }
+      });
+    } catch { /* action failed silently */ }
   };
 
   const getStatusColor = (status: string) => {
@@ -204,7 +228,7 @@ export default function HistoryScreen() {
                 <View style={styles.actions}>
                   {rx.treatment_status === 'active' && (
                     <TouchableOpacity
-                      onPress={() => handleArchive(rx.id)}
+                      onPress={() => handleArchive(rx)}
                       style={styles.actionBtn}
                       accessibilityLabel="Archive prescription"
                     >
@@ -215,7 +239,7 @@ export default function HistoryScreen() {
                     </TouchableOpacity>
                   )}
                   <TouchableOpacity
-                    onPress={() => handleDelete(rx.id)}
+                    onPress={() => handleDelete(rx)}
                     style={styles.actionBtn}
                     accessibilityLabel="Delete prescription"
                   >
@@ -230,6 +254,7 @@ export default function HistoryScreen() {
           )}
         </View>
       </ScrollView>
+      {undoToastElement}
     </SafeAreaView>
   );
 }

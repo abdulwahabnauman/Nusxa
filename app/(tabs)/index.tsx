@@ -19,11 +19,12 @@ import { EmptyState } from '../../src/components/ui/EmptyState';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { ScheduleTimeline } from '../../src/components/medicine/ScheduleTimeline';
 import { NextDoseHero } from '../../src/components/medicine/NextDoseHero';
+import { useUndoToast } from '../../src/components/ui/UndoToast';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
 import { getTodayRange, getLast7Days, getTodayISO } from '../../src/utils/date';
-import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords } from '../../src/db/repositories/dose';
+import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
 import type { TodayScheduleItem } from '../../src/types/models';
@@ -37,6 +38,7 @@ export default function HomeScreen() {
   const [adherence, setAdherence] = useState(0);
   const [streak, setStreak] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; percentage: number }[]>([]);
+  const { showUndoToast, undoToastElement } = useUndoToast();
 
   const loadData = useCallback(async () => {
     try {
@@ -115,8 +117,9 @@ export default function HomeScreen() {
 
   const handleTaken = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
+      const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
-      await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
+      const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
       // Decrement inventory
       try {
         const med = await getMedicine(medicineId);
@@ -125,20 +128,51 @@ export default function HomeScreen() {
         }
       } catch { /* inventory tracking is best-effort */ }
       await loadData();
+
+      showUndoToast('Dose marked as taken', async () => {
+        try {
+          if (!prev || prev.status === 'pending') {
+            // No record existed before — remove the one we just created
+            await deleteDoseRecord(record.id);
+          } else if (prev.doseRecordId) {
+            await updateDoseRecord(prev.doseRecordId, { status: prev.status });
+          }
+          // Restore the unit we subtracted from inventory
+          try {
+            const med = await getMedicine(medicineId);
+            if (med && med.remaining_quantity !== null) {
+              await updateInventory(medicineId, med.remaining_quantity + 1);
+            }
+          } catch { /* best-effort */ }
+          await loadData();
+        } catch { /* undo is best-effort */ }
+      });
     } catch {
       Alert.alert('Error', 'Could not record dose. Please try again.');
     }
-  }, [loadData]);
+  }, [loadData, todayItems, showUndoToast]);
 
   const handleSkip = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
+      const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
-      await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'skipped');
+      const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'skipped');
       await loadData();
+
+      showUndoToast('Dose skipped', async () => {
+        try {
+          if (!prev || prev.status === 'pending') {
+            await deleteDoseRecord(record.id);
+          } else if (prev.doseRecordId) {
+            await updateDoseRecord(prev.doseRecordId, { status: prev.status });
+          }
+          await loadData();
+        } catch { /* undo is best-effort */ }
+      });
     } catch {
       Alert.alert('Error', 'Could not record dose. Please try again.');
     }
-  }, [loadData]);
+  }, [loadData, todayItems, showUndoToast]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -293,6 +327,7 @@ export default function HomeScreen() {
           </View>
         </View>
       </ScrollView>
+      {undoToastElement}
     </SafeAreaView>
   );
 }
