@@ -49,7 +49,8 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const snoozeMinutes = useSettingsStore((s) => s.snoozeMinutes);
   const setSnoozeMinutes = useSettingsStore((s) => s.setSnoozeMinutes);
   const [now, setNow] = useState(() => Date.now());
-  const [snoozedUntil, setSnoozedUntil] = useState<Record<string, number>>({});
+  // {start, until} per schedule so the ring can drain over the snooze window
+  const [snoozedUntil, setSnoozedUntil] = useState<Record<string, { start: number; until: number }>>({});
   const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
 
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
@@ -80,11 +81,13 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     return nf(`${h}:${m}`);
   };
 
-  // Tick every 30s so the countdown stays honest
+  // Tick every 30s so the countdown stays honest; while a snooze is active
+  // tick faster so the snooze ring visibly drains.
+  const hasActiveSnooze = Object.values(snoozedUntil).some((entry) => entry.until > now);
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 30_000);
+    const timer = setInterval(() => setNow(Date.now()), hasActiveSnooze ? 5_000 : 30_000);
     return () => clearInterval(timer);
-  }, []);
+  }, [hasActiveSnooze]);
 
   const pending = useMemo(
     () =>
@@ -120,8 +123,8 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const next = upcoming;
   const doseDate = todaysDateFor(next.time);
   const diffMs = doseDate.getTime() - now;
-  const snoozeUntil = snoozedUntil[next.scheduleId];
-  const isSnoozed = !!snoozeUntil && snoozeUntil > now;
+  const snoozeEntry = snoozedUntil[next.scheduleId];
+  const isSnoozed = !!snoozeEntry && snoozeEntry.until > now;
 
   const [rangeStart, rangeEnd] = getTimeRangeParts(next.time, next.windowMinutes ?? 120);
   const windowLabel = t.dose.timeRange
@@ -131,18 +134,23 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const overdue = diffMs <= 0;
   const heroTint = overdue ? colors.warning : colors.accent.primary;
 
-  // Ring fills from 0 → 1 during the last hour before the dose is due
-  const ringProgress = overdue
-    ? 1
-    : Math.max(0, Math.min(1, 1 - diffMs / RING_LEAD_MS));
+  // Ring fills from 0 → 1 during the last hour before the dose is due.
+  // While snoozed it restarts as a countdown that drains over the snooze
+  // window, so the user sees the reminder visibly counting back in.
+  const ringProgress = isSnoozed && snoozeEntry
+    ? Math.max(0, Math.min(1, (snoozeEntry.until - now) / Math.max(1, snoozeEntry.until - snoozeEntry.start)))
+    : overdue
+      ? 1
+      : Math.max(0, Math.min(1, 1 - diffMs / RING_LEAD_MS));
   const ringOffset = RING_CIRCUMFERENCE * (1 - ringProgress);
 
   /** Snooze the reminder card locally and arm a one-shot re-ring. */
   const applySnooze = (minutes: number) => {
-    const at = new Date(Date.now() + minutes * 60_000);
+    const start = Date.now();
+    const until = start + minutes * 60_000;
     setSnoozedUntil((current) => ({
       ...current,
-      [next.scheduleId]: at.getTime(),
+      [next.scheduleId]: { start, until },
     }));
     setShowSnoozeOptions(false);
     setNow(Date.now());
@@ -150,7 +158,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
       scheduleId: next.scheduleId,
       medicineId: next.medicineId,
       medicineName: next.medicineName,
-      at,
+      at: new Date(until),
     }).catch(() => {});
   };
 
@@ -227,8 +235,8 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
             {next.dosage ? ` — ${next.dosage}` : ''}
           </Text>
           <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
-            {isSnoozed
-              ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeUntil)))
+            {isSnoozed && snoozeEntry
+              ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeEntry.until)))
               : `${windowLabel} · ${formatCountdown(diffMs)}`}
           </Text>
         </View>
