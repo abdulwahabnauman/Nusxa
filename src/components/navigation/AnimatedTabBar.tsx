@@ -82,7 +82,7 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
 
   return (
     <View
-      accessibilityRole="tabbar"
+      accessibilityRole="tablist"
       style={[
         styles.bar,
         {
