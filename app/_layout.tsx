@@ -158,6 +158,7 @@ function AppContent() {
         <Stack.Screen name="chat" options={{ presentation: 'card' }} />
         <Stack.Screen name="emergency-card" options={{ presentation: 'card' }} />
         <Stack.Screen name="doctor-visit" options={{ presentation: 'card' }} />
+        <Stack.Screen name="analytics" options={{ presentation: 'card' }} />
       </Stack>
     </>
   );

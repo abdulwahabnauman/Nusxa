@@ -265,6 +265,18 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             </Card>
+            <Card style={{ flex: 1 }}>
+              <TouchableOpacity
+                style={styles.quickLink}
+                onPress={() => router.push('/analytics')}
+                accessibilityLabel="Progress analytics"
+              >
+                <MaterialCommunityIcons name="chart-bar" size={24} color={colors.success} />
+                <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs }]}>
+                  Progress
+                </Text>
+              </TouchableOpacity>
+            </Card>
           </View>
         </View>
       </ScrollView>
@@ -293,10 +305,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   quickActions: {
-    marginTop: 24,
+    marginTop: 20,
   },
   section: {
-    marginTop: 28,
+    marginTop: 24,
   },
   progressRow: {
     flexDirection: 'row',
