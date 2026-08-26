@@ -173,6 +173,7 @@ nusxa/
 │   │   └── navigation.ts         # Route param types
 │   │
 │   └── utils/
+│       ├── chatHistory.ts        # Chat persistence (JSON file; wiped only via explicit Clear)
 │       ├── date.ts               # Date helpers (ISO, getTodayRange, getLast7Days)
 │       ├── export.ts             # JSON data export + transactional import (restore)
 │       ├── pdf.ts                # Doctor visit PDF generation (expo-print HTML template)
@@ -631,6 +632,7 @@ The `.env` file is gitignored. Users should enter API keys through the Settings 
 | Doctor visit PDF template | `src/utils/pdf.ts` |
 | Brand pill icon | `src/components/ui/PillIcon.tsx` |
 | Data export/import | `src/utils/export.ts` |
+| Chat history persistence | `src/utils/chatHistory.ts` |
 | AI models/API URLs (Gemini, OpenRouter, Groq) | `src/constants/config.ts` |
 | AI system prompts | `src/ai/prompts.ts` |
 | Animated splash (post-JS) | `src/components/ui/AnimatedSplash.tsx` |
@@ -655,6 +657,13 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 2. **Taken/Skip infinite-click fixed** — Home now joins today's `dose_records` into each schedule item, so cards immediately show taken/skipped state and the action buttons disappear (they only render for `pending`).
 3. **One dose record per schedule per day** — new `upsertDoseStatus()` in `src/db/repositories/dose.ts`: tapping Taken/Skip (or changing your mind) updates the existing record instead of inserting duplicates that inflated adherence stats.
 4. **Empty "This week" chart fixed** — `getAdherenceStats()` compared full ISO timestamps against date-only bounds, excluding every record. Bounds are now expanded to full-day ranges, so the weekly chart and adherence ring show real data.
+
+### ✅ Chunk 2 — Chat companion overhaul
+
+1. **Chat history persists** — messages are saved to a local JSON file (`src/utils/chatHistory.ts`, capped at 200 messages) and restored on open. History is only wiped when the user explicitly taps the new **clear (trash) icon** in the chat header (with confirmation).
+2. **Assistant knows your medicines** — the system prompt is now built from `getActiveMedicines()` instead of an empty list, so questions about "my Panadol" get real answers.
+3. **Readable user bubbles** — `parseMarkdown()` accepts an optional `textColor`; user messages render white text on the blue bubble (was black-on-blue).
+4. **No gap above the keyboard** — removed the double safe-area offset (`edges` no longer includes bottom, `keyboardVerticalOffset` 80→0); the input bar hugs the keyboard and pads itself with the bottom inset otherwise.
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
@@ -19,16 +20,67 @@ import { multiTurnChat } from '../src/ai/client';
 import { resolveTextProviderKeys } from '../src/utils/secureStorage';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
 import { parseMarkdown } from '../src/components/ui/MarkdownText';
+import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
+import { getActiveMedicines } from '../src/db/repositories/medicine';
 
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const insets = useSafeAreaInsets();
   const router = useRouter();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const hydratedRef = useRef(false);
 
-  const systemPrompt = `${CHAT_SYSTEM_PROMPT}\n\n${buildChatContext([])}`;
+  // Restore persisted history + load the user's real medicine list so the
+  // assistant actually knows what the user is taking.
+  useEffect(() => {
+    (async () => {
+      const history = await loadChatHistory();
+      setMessages(history);
+      hydratedRef.current = true;
+    })();
+  }, []);
+
+  const [medicines, setMedicines] = useState<
+    Array<{ name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }>
+  >([]);
+  useEffect(() => {
+    getActiveMedicines()
+      .then(setMedicines)
+      .catch(() => {});
+  }, []);
+
+  // Persist every change (except the initial empty state before hydration).
+  useEffect(() => {
+    if (hydratedRef.current) {
+      saveChatHistory(messages);
+    }
+  }, [messages]);
+
+  const systemPrompt = useMemo(
+    () => `${CHAT_SYSTEM_PROMPT}\n\n${buildChatContext(medicines)}`,
+    [medicines]
+  );
+
+  const handleClear = () => {
+    Alert.alert(
+      'Clear conversation?',
+      'This permanently deletes the chat history on this device.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear',
+          style: 'destructive',
+          onPress: async () => {
+            setMessages([]);
+            await clearChatHistory();
+          },
+        },
+      ]
+    );
+  };
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -85,18 +137,21 @@ export default function ChatScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background.primary }]}
+      edges={['top', 'left', 'right']}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.inner}
-        keyboardVerticalOffset={80}
+        keyboardVerticalOffset={0}
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border.default, paddingHorizontal: spacing.base }]}>
           <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Go back">
             <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
           </TouchableOpacity>
-          <View style={{ marginLeft: 12 }}>
+          <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
               Nusxa Companion
             </Text>
@@ -104,6 +159,15 @@ export default function ChatScreen() {
               Ask about your medicines
             </Text>
           </View>
+          {messages.length > 0 && (
+            <TouchableOpacity
+              onPress={handleClear}
+              accessibilityLabel="Clear chat history"
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
+              <MaterialCommunityIcons name="delete-outline" size={22} color={colors.text.secondary} />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Messages */}
@@ -136,7 +200,7 @@ export default function ChatScreen() {
               ]}
             >
               <View>
-                {parseMarkdown(msg.content).map((node, idx) => (
+                {parseMarkdown(msg.content, msg.role === 'user' ? '#FFFFFF' : undefined).map((node, idx) => (
                   <React.Fragment key={idx}>
                     {node}
                   </React.Fragment>
@@ -153,7 +217,7 @@ export default function ChatScreen() {
         </ScrollView>
 
         {/* Input */}
-        <View style={[styles.inputContainer, { borderTopColor: colors.border.default, backgroundColor: colors.background.surface, paddingHorizontal: spacing.base, paddingVertical: spacing.sm }]}>
+        <View style={[styles.inputContainer, { borderTopColor: colors.border.default, backgroundColor: colors.background.surface, paddingHorizontal: spacing.base, paddingVertical: spacing.sm, paddingBottom: Math.max(spacing.sm, insets.bottom) }]}>
           <TextInput
             style={[
               styles.textInput,

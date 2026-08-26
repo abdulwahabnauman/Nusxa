@@ -1,12 +1,14 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 
-/** Simple Markdown parser for React Native */
-export function parseMarkdown(text: string): React.ReactNode[] {
+/** Simple Markdown parser for React Native. `textColor` overrides the
+ *  default text color (used for white text on the blue user chat bubble). */
+export function parseMarkdown(text: string, textColor?: string): React.ReactNode[] {
   const lines = text.split('\n');
   const nodes: React.ReactNode[] = [];
   let listStartIndex = -1;
   let listItems: string[] = [];
+  const colorStyle = textColor ? { color: textColor } : undefined;
 
   const processInline = (content: string): React.ReactNode => {
     const parts: React.ReactNode[] = [];
@@ -73,7 +75,7 @@ export function parseMarkdown(text: string): React.ReactNode[] {
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
+    const line = lines[i] ?? '';
 
     // Unordered list item
     if (line.trim().startsWith('- ')) {
@@ -87,8 +89,8 @@ export function parseMarkdown(text: string): React.ReactNode[] {
           <View key={i} style={styles.list}>
             {listItems.map((item, idx) => (
               <View key={idx} style={styles.listItem}>
-                <Text style={styles.bullet}>•</Text>
-                <Text style={[styles.listText, { marginLeft: 8 }]}>
+                <Text style={[styles.bullet, colorStyle]}>•</Text>
+                <Text style={[styles.listText, { marginLeft: 8 }, colorStyle]}>
                   {processInline(item)}
                 </Text>
               </View>
@@ -109,7 +111,7 @@ export function parseMarkdown(text: string): React.ReactNode[] {
 
     // Regular paragraph
     nodes.push(
-      <Text key={i} style={styles.paragraph}>
+      <Text key={i} style={[styles.paragraph, colorStyle]}>
         {processInline(line)}
       </Text>
     );
