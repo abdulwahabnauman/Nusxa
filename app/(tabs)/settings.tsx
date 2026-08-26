@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, Share, TextInput, I18nManager } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
+import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../../src/theme/provider';
 import { useThemeStore } from '../../src/stores/theme-store';
@@ -308,9 +309,16 @@ export default function SettingsScreen() {
               onPress={async () => {
                 try {
                   const data = await exportAsJSON();
-                  await Share.share({
-                    message: JSON.stringify(data, null, 2),
-                    title: 'Nusxa Data Export',
+                  // Write a real .json file so the share sheet hands over a
+                  // properly named document instead of a blob of text.
+                  const fileName = `Nusxa_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                  const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+                  await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2), {
+                    encoding: FileSystem.EncodingType.UTF8,
+                  });
+                  await Sharing.shareAsync(fileUri, {
+                    mimeType: 'application/json',
+                    dialogTitle: 'Export Nusxa data',
                   });
                 } catch {
                   Alert.alert('Error', 'Failed to export data.');

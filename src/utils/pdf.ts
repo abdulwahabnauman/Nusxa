@@ -1,4 +1,5 @@
 import * as Print from 'expo-print';
+import * as FileSystem from 'expo-file-system/legacy';
 import { formatDateReadable, formatTime12h } from './date';
 import type { Medicine, Schedule } from '../types/models';
 
@@ -184,5 +185,18 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
 </html>`;
 
   const { uri } = await Print.printToFileAsync({ html });
-  return uri;
+
+  // expo-print names its temp file arbitrarily; copy it to a human-friendly
+  // name so the share sheet / saved file reads "Nusxa_DoctorVisit_<patient>_<date>.pdf".
+  const safeName = profileName.trim().replace(/[^\w\- ]+/g, '').replace(/\s+/g, '_') || 'Patient';
+  const dated = new Date().toISOString().slice(0, 10);
+  const namedUri = `${FileSystem.cacheDirectory}Nusxa_DoctorVisit_${safeName}_${dated}.pdf`;
+  try {
+    await FileSystem.copyAsync({ from: uri, to: namedUri });
+    await FileSystem.deleteAsync(uri, { idempotent: true });
+    return namedUri;
+  } catch {
+    // If the rename fails for any reason, share the original temp file
+    return uri;
+  }
 }
