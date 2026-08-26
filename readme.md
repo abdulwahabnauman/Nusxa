@@ -733,6 +733,12 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Medicine cards** now give spring press feedback: the card dips to 97% scale on touch-down and springs back on release (shared-value animation, skipped entirely under Reduced motion).
 - **Medicine detail screen** opens with a staggered FadeInUp entrance (header first, then each section at 55ms intervals) so navigation feels like the screen grows out of the tapped card. All animations respect the Reduced motion setting.
 
+### ✅ Chunk 15 — Android launcher shortcut "Today's doses"
+
+- Long-pressing the Nusxa launcher icon on Android now offers a **"Today's doses"** static app shortcut. It fires the `nusxa://` deep link, which expo-router resolves to the Home tab — next-dose hero card + today's dose timeline.
+- Implemented as a local Expo config plugin (`plugins/with-today-shortcut.js`) that writes `res/xml/shortcuts.xml` + label strings and registers the `android.app.shortcuts` meta-data, so the shortcut survives `expo prebuild`. The same files were applied directly to the committed `android/` project so the current native build picks it up without regeneration.
+- Best-effort by design: a true home-screen *widget* would need a native AppWidgetProvider and is out of scope for this batch.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
