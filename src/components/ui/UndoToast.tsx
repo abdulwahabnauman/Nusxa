@@ -40,14 +40,15 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
 
   useEffect(() => {
     if (state.visible) {
-      translateY.value = withSpring(0, { damping: 16, stiffness: 200 });
-      opacity.value = withTiming(1, { duration: 200 });
+      // Snappy entrance: stiff, near-critically-damped spring settles in ~250ms
+      translateY.value = withSpring(0, { damping: 24, stiffness: 420 });
+      opacity.value = withTiming(1, { duration: 120 });
 
       const timer = setTimeout(onDismiss, TOAST_DURATION);
       return () => clearTimeout(timer);
     } else {
-      translateY.value = withTiming(120, { duration: 200 });
-      opacity.value = withTiming(0, { duration: 200 });
+      translateY.value = withTiming(120, { duration: 140 });
+      opacity.value = withTiming(0, { duration: 140 });
     }
   }, [state.visible, onDismiss, translateY, opacity]);
 

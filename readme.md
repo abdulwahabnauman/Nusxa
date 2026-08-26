@@ -753,6 +753,7 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Swipe-to-taken no longer misfires on scroll**: the DoseItem pan gesture is axis-locked (`activeOffsetX ±24`, `failOffsetY ±12`) and additionally requires a deliberate horizontal drag (1.5× the vertical movement) or a strong horizontal fling — vertical scrolling can never mark a dose taken. Swipe reveal + Taken/Skip buttons are now translated (`dose.taken` / `dose.skip`).
 - **Chat readable in dark theme**: assistant replies use `colors.text.primary` instead of React Native's default black, so markdown text is visible on dark surfaces; inline code chips keep a fixed dark-on-light color in both themes.
 - **Smaller test APKs**: for on-device testing build a single-ABI APK with `cd android && .\gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a` — much smaller and faster than the default 4-ABI universal APK. The Play Store AAB keeps all ABIs (Play delivers per-device splits, so users only download their own).
+- **Snappier feedback animations**: dose taken/skipped icon pop, undo toast, generic toast and the celebration overlay all use stiff, near-critically-damped springs now (stiffness 300–520 vs 180–260 before) so entrances settle in ~250–300ms instead of ~600–800ms; exits shortened to 140ms. Reduced-motion behavior unchanged.
 
 ---
 

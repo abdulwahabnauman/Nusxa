@@ -34,14 +34,15 @@ export function Toast({
 
   useEffect(() => {
     if (visible) {
-      translateY.value = withSpring(0, { damping: 14, stiffness: 180 });
-      opacity.value = withTiming(1, { duration: 200 });
+      // Snappy entrance: stiff, near-critically-damped spring settles in ~250ms
+      translateY.value = withSpring(0, { damping: 24, stiffness: 420 });
+      opacity.value = withTiming(1, { duration: 120 });
 
       const timer = setTimeout(onDismiss, duration);
       return () => clearTimeout(timer);
     } else {
-      translateY.value = withTiming(-100, { duration: 200 });
-      opacity.value = withTiming(0, { duration: 200 });
+      translateY.value = withTiming(-100, { duration: 140 });
+      opacity.value = withTiming(0, { duration: 140 });
     }
   }, [visible, duration, onDismiss, translateY, opacity]);
 

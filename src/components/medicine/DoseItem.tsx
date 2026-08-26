@@ -53,9 +53,10 @@ export function DoseItem({
     if (prevStatus.current !== status) {
       prevStatus.current = status;
       if (!reducedMotion) {
+        // Quick pop: stiff springs keep the whole bounce under ~300ms
         iconScale.value = withSequence(
-          withSpring(1.4, { damping: 9, stiffness: 260 }),
-          withSpring(1, { damping: 12, stiffness: 260 })
+          withSpring(1.35, { damping: 13, stiffness: 520 }),
+          withSpring(1, { damping: 17, stiffness: 520 })
         );
       }
     }
@@ -84,7 +85,7 @@ export function DoseItem({
       if ((deliberate || fling) && onTaken) {
         runOnJS(onTaken)();
       }
-      swipeX.value = withSpring(0, { damping: 18, stiffness: 240 });
+      swipeX.value = withSpring(0, { damping: 22, stiffness: 400 });
     });
   const rowStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],

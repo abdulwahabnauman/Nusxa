@@ -33,11 +33,12 @@ export function Celebration({ title, subtitle, onDismiss, duration = 2600 }: Cel
 
   useEffect(() => {
     if (!reducedMotion) {
-      scale.value = withSpring(1, { damping: 11, stiffness: 200 });
+      // Fast pop-in: stiff spring with a touch of overshoot, settles ~300ms
+      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
       iconRotate.value = withSequence(
-        withTiming(15, { duration: 160 }),
-        withTiming(-10, { duration: 160 }),
-        withSpring(0, { damping: 10 })
+        withTiming(15, { duration: 110 }),
+        withTiming(-10, { duration: 110 }),
+        withSpring(0, { damping: 14, stiffness: 300 })
       );
     }
     const timer = setTimeout(onDismiss, duration);
@@ -53,7 +54,7 @@ export function Celebration({ title, subtitle, onDismiss, duration = 2600 }: Cel
 
   return (
     <Animated.View
-      entering={FadeIn.duration(200)}
+      entering={FadeIn.duration(140)}
       style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
       pointerEvents="box-none"
     >
