@@ -87,6 +87,7 @@ async function armSchedules(
     const scheduleId = generateId();
     const notificationId = await scheduleDoseNotification({
       id: scheduleId,
+      medicineId,
       medicineName: schedule.medicineName,
       dosage: schedule.dosage,
       mealInstruction: schedule.mealInstruction,

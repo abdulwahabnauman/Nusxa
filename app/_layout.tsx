@@ -13,7 +13,7 @@ import { updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore } from '../src/stores/settings-store';
 import { useThemeStore } from '../src/stores/theme-store';
-import { configureNotifications } from '../src/utils/notifications';
+import { configureNotifications, syncRefillNotifications } from '../src/utils/notifications';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
@@ -40,6 +40,7 @@ function AppContent() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
   const syncElderlyMode = useThemeStore((s) => s.setElderlyMode);
+  const syncHighContrast = useThemeStore((s) => s.setHighContrast);
   // Live layout direction — driven from JS so language switches flip the UI
   // instantly in both directions without needing an app restart.
   const language = useSettingsStore((s) => s.language);
@@ -114,6 +115,13 @@ function AppContent() {
         if (existingProfile.elderly_mode !== undefined) {
           syncElderlyMode(!!existingProfile.elderly_mode);
         }
+        // Sync high-contrast mode from DB
+        if (existingProfile.high_contrast !== undefined) {
+          syncHighContrast(!!existingProfile.high_contrast);
+        }
+
+        // Reconcile throttled refill reminders with current inventory
+        void syncRefillNotifications();
       } catch (error) {
         console.error('[Init] Fatal initialization error:', error);
         // Critical failures still caught here
