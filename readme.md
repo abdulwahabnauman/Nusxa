@@ -271,7 +271,9 @@ scan.tsx (camera/gallery)
   → passes URI to processing.tsx
     → pipeline.ts: imageToBase64() → visionCompletion() → parseOCRResponse() → validatePrescription()
   → review.tsx (user verifies/edits extracted fields)
-    → schedule.tsx (creates prescription + medicines + schedules + notifications in DB)
+    → schedule.tsx or processing-OK → savePrescription() (shared util)
+      → duplicate check: matching active medicines are refreshed, not re-inserted
+      → creates prescription + medicines + schedules + notifications in DB
       → redirects to home screen
 ```
 
@@ -664,6 +666,13 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 2. **Assistant knows your medicines** — the system prompt is now built from `getActiveMedicines()` instead of an empty list, so questions about "my Panadol" get real answers.
 3. **Readable user bubbles** — `parseMarkdown()` accepts an optional `textColor`; user messages render white text on the blue bubble (was black-on-blue).
 4. **No gap above the keyboard** — removed the double safe-area offset (`edges` no longer includes bottom, `keyboardVerticalOffset` 80→0); the input bar hugs the keyboard and pads itself with the bottom inset otherwise.
+
+### ✅ Chunk 3 — Duplicate-medicine prevention
+
+- **`savePrescription()` is now duplicate-safe**: each scanned medicine is matched against the active list by normalized name (+ strength/form when both sides know them). A match is **updated in place** (fresh details, old reminders cancelled, new times armed) instead of inserted again — re-scanning the same prescription can no longer create duplicate medicines, schedules, or notifications.
+- **No phantom prescriptions**: a prescription row is only created when at least one genuinely new medicine is saved.
+- **User feedback**: the processing/schedule confirmations now say "Already in your list — refreshed" when everything matched, with exact added/updated counts.
+- Note: duplicates created *before* this fix remain in the DB and can be removed from Medicines → delete.
 
 ---
 

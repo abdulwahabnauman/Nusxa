@@ -95,12 +95,16 @@ export default function ProcessingScreen() {
           verification_status: 'verified' as const,
         })),
       };
-      await savePrescription(verified, buildDefaultSchedules(verified), imageUri);
-      Alert.alert(
-        'Medicines added',
-        'Your prescription was approved. Medicines are loaded with default reminder times — adjust them anytime from the medicine details.',
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
-      );
+      const outcome = await savePrescription(verified, buildDefaultSchedules(verified), imageUri);
+      const title =
+        outcome.updated > 0 && outcome.added === 0
+          ? 'Already in your list'
+          : 'Medicines added';
+      const body =
+        outcome.updated > 0
+          ? `${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list — the details and reminders were refreshed instead of adding duplicates.${outcome.added > 0 ? ` ${outcome.added} new medicine${outcome.added === 1 ? ' was' : 's were'} added.` : ''}`
+          : 'Your prescription was approved. Medicines are loaded with default reminder times — adjust them anytime from the medicine details.';
+      Alert.alert(title, body, [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]);
     } catch (err) {
       console.error('Approve prescription error:', err);
       Alert.alert('Error', 'Failed to save your medicines. Please try again.');

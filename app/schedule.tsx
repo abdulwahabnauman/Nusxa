@@ -58,11 +58,13 @@ export default function ScheduleScreen() {
     if (!prescription) return;
     setConfirming(true);
     try {
-      await savePrescription(prescription, schedules, imageUri);
+      const outcome = await savePrescription(prescription, schedules, imageUri);
 
       Alert.alert(
         'Schedule confirmed',
-        'Your medication schedule has been set up. You will receive reminders at the scheduled times.',
+        outcome.updated > 0
+          ? `${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list — reminders were refreshed with the new times, no duplicates added. You will receive reminders at the scheduled times.`
+          : 'Your medication schedule has been set up. You will receive reminders at the scheduled times.',
         [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
       );
     } catch (err) {
