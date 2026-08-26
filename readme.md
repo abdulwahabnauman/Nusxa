@@ -761,6 +761,18 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Weekly adherence chart no longer overflows its card.** `chartArea` previously hardcoded 140px with 120px bars, leaving ~20px for the day labels — not enough once elderly mode scales up `typography.body.xs` and `spacing.xs`. The height is now derived at render time from the live theme tokens (`100px bars + label lineHeight + spacing.xs + buffer`), so it self-adjusts in normal, elderly, and Urdu (Nastaliq, 1.9× line height) modes alike.
 - **Elderly-mode buttons capped instead of compounding.** Buttons previously got *both* the elderly font-size bump and the full ~1.6× `elderlySpacing` padding, producing disproportionately huge buttons that clipped off-screen. A dedicated `elderlyButtonSpacing` scale (smaller bump, tuned to just guarantee the 44pt touch target) now drives button padding via the new `isElderly` theme flag; everything else (cards, inputs, layouts) keeps the full elderly spacing. Elderly `size="md"`: 64px → 52px tall; `size="lg"`: 72px → 64px tall; horizontal padding 40 → 28px. Normal-mode sizing untouched.
 
+### ✅ Learn tab = "Your Medicines" (replaces the generic education library)
+
+- **Learn now teaches your own prescriptions.** The tab lists active, verified medicines (`getActiveMedicines()`) — name, dosage, purpose snippet — and tapping one opens a dedicated education detail (`app/education/[medicineId].tsx`) with purpose, common side effects, food interactions, storage and warnings. The old generic article library and its reader (`[slug].tsx`) are gone; the bookmarks/reading-history tables stay dormant in the DB (no migration churn).
+- **AI gap-fill with per-language caching.** When a medicine row is thin (no purpose and no side effects), the detail screen calls the existing text-provider chain (Nemotron → Groq) with a new `MEDICINE_INFO_SYSTEM_PROMPT` ("general information, not medical advice") and caches the answer back into the row via UPDATE so it is never called again. **Schema v11** adds parallel Urdu columns (`purpose_ur`, `side_effects_ur`, `food_interactions_ur`, `storage_ur`, `warnings_ur`) so each language keeps its own cached copy and base scan data is never overwritten; Urdu falls back to the base columns until its Urdu gap-fill lands. Enrichment is non-blocking — content renders immediately with an inline "loading extra details" row.
+- **Failures are quiet.** Offline / rate-limit / missing key / bad JSON → inline card "Couldn't load extra details right now — showing what we have"; populated fields still render. Never a crash, never a blank screen.
+- **Bilingual + empty state.** All new strings in `en.ts`/`ur.ts`; an empty Learn tab points straight at "Scan a prescription". On-device proof lives in `screenshots/` (list + detail in EN and UR, dark theme): `after-list-en.png`, `after-detail-en.png`, `after-list-ur.png`, `after-detail-ur.png`.
+
+### ✅ One pill icon everywhere — legacy FormIcon removed
+
+- The old font-glyph `MedicineFormIcon` (`src/components/medicine/FormIcon.tsx`, a MaterialCommunityIcons pill in a bubble) is **deleted**. It predated the brand SVG mark and had lingered on medicine cards/details; the new Learn screens had reused it by mistake. Every occurrence — Learn list cards, Learn detail header, Medicines cards, medicine detail header, Learn empty state — now renders the brand **`PillIcon` SVG** (two-tone capsule, same idiom as the tab bar and next-dose hero) inside the accent-subtle bubble.
+- `strengthColor()` moved out of the deleted file into `src/theme/tokens.ts` (next to `categoryColors`); behavior unchanged.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
@@ -789,6 +801,7 @@ A seven-issue hardening pass. Nothing Gemini/API-related was touched.
 - v8: Expanded education content (5 categories, 12 bilingual articles)
 - v9: Eastern Arabic numeral preference (profile.eastern_numerals)
 - v10: Reminder windows (schedules.window_minutes, default 120)
+- v11: Per-language Learn enrichment cache (medicines purpose_ur / side_effects_ur / food_interactions_ur / storage_ur / warnings_ur)
 
 ---
 

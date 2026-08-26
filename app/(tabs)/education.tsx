@@ -14,7 +14,7 @@ import { useI18n } from '../../src/i18n';
 import { Card } from '../../src/components/ui/Card';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
-import { MedicineFormIcon } from '../../src/components/medicine/FormIcon';
+import { PillIcon } from '../../src/components/ui/PillIcon';
 import { getActiveMedicines } from '../../src/db/repositories/medicine';
 import type { Medicine } from '../../src/types/models';
 
@@ -74,7 +74,7 @@ export default function EducationScreen() {
 
       {medicines.length === 0 ? (
         <EmptyState
-          icon="pill"
+          icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
           title={t.education.emptyTitle}
           description={t.education.emptyDesc}
           actionLabel={t.education.emptyAction}
@@ -97,13 +97,19 @@ export default function EducationScreen() {
             >
               <Card>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <MedicineFormIcon
-                    form={medicine.form}
-                    size={22}
-                    color={colors.accent.primary}
-                    bubbleBackground={colors.accent.subtle}
-                    style={{ marginRight: spacing.sm }}
-                  />
+                  <View
+                    style={{
+                      width: 42,
+                      height: 42,
+                      borderRadius: 21,
+                      backgroundColor: colors.accent.subtle,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginRight: spacing.sm,
+                    }}
+                  >
+                    <PillIcon size={22} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+                  </View>
                   <View style={{ flex: 1 }}>
                     <Text style={[typ.label.base, { color: colors.text.primary }]}>
                       {medicine.name ?? 'Unknown'}

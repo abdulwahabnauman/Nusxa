@@ -15,7 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
 import { Card } from '../../src/components/ui/Card';
-import { MedicineFormIcon } from '../../src/components/medicine/FormIcon';
+import { PillIcon } from '../../src/components/ui/PillIcon';
 import { getMedicine, updateMedicine } from '../../src/db/repositories/medicine';
 import { chatCompletion } from '../../src/ai/client';
 import { resolveTextProviderKeys } from '../../src/utils/secureStorage';
@@ -194,12 +194,18 @@ export default function MedicineEducationScreen() {
             )}
           </View>
 
-          <MedicineFormIcon
-            form={medicine.form}
-            size={22}
-            color={colors.accent.primary}
-            bubbleBackground={colors.accent.subtle}
-          />
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: colors.accent.subtle,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <PillIcon size={22} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+          </View>
         </View>
       </View>
 

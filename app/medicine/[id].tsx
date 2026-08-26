@@ -11,7 +11,8 @@ import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
-import { MedicineFormIcon, strengthColor } from '../../src/components/medicine/FormIcon';
+import { PillIcon } from '../../src/components/ui/PillIcon';
+import { strengthColor } from '../../src/theme/tokens';
 import { getMedicine, deleteMedicine } from '../../src/db/repositories/medicine';
 import { getSchedulesByMedicine, deactivateSchedulesByMedicine } from '../../src/db/repositories/schedule';
 import { cancelAllNotifications } from '../../src/utils/notifications';
@@ -81,13 +82,20 @@ export default function MedicineDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Animated.View entering={enter(0)} style={[styles.header, { paddingHorizontal: spacing.base }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <MedicineFormIcon
-              form={medicine.form}
-              size={26}
-              color={colors.accent.primary}
-              bubbleBackground={colors.accent.subtle}
-              style={{ marginRight: 12, marginTop: 4 }}
-            />
+            <View
+              style={{
+                width: 49,
+                height: 49,
+                borderRadius: 25,
+                backgroundColor: colors.accent.subtle,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 12,
+                marginTop: 4,
+              }}
+            >
+              <PillIcon size={26} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+            </View>
             <View style={{ flex: 1 }}>
               <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
                 {medicine.name ?? 'Unknown medicine'}

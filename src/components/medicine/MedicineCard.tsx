@@ -6,13 +6,12 @@ import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { MedicineFormIcon, strengthColor } from './FormIcon';
+import { PillIcon } from '../ui/PillIcon';
 import { formatTime12h } from '../../utils/date';
 import { formatDigits } from '../../utils/numerals';
-import { categoryColors } from '../../theme/tokens';
+import { categoryColors, strengthColor } from '../../theme/tokens';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
-import type { MedicineForm } from '../../types/models';
 
 interface MedicineCardProps {
   name: string;
@@ -74,13 +73,19 @@ export function MedicineCard({
       >
       <Card style={{ borderLeftWidth: 3, borderLeftColor: catColor }}>
         <View style={styles.header}>
-          <MedicineFormIcon
-            form={form as MedicineForm}
-            size={20}
-            color={colors.accent.primary}
-            bubbleBackground={colors.accent.subtle}
-            style={{ marginRight: 10 }}
-          />
+          <View
+            style={{
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              backgroundColor: colors.accent.subtle,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 10,
+            }}
+          >
+            <PillIcon size={20} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+          </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
               {name}
