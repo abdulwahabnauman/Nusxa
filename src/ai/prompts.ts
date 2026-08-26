@@ -86,6 +86,44 @@ RESPONSE FORMAT:
 - When appropriate, use bullet points for clarity.
 - Always identify if you are reading from the verified schedule or providing general information.`;
 
+/**
+ * Gap-filling prompt for the Learn tab: when a medicine row lacks
+ * purpose/side-effects data (e.g. manually entered), fetch general
+ * drug-class information to cache back into the medicines row.
+ */
+export const MEDICINE_INFO_SYSTEM_PROMPT = `You are a patient-friendly medication education assistant. You provide GENERAL educational information about a named medicine in clear, simple language.
+
+Rules:
+- Provide only general information about the medicine. This is NOT medical advice and never replaces a doctor's or pharmacist's guidance.
+- Use plain, everyday language that someone without medical training can understand.
+- List only well-known, common side effects (at most 6). Never invent rare or speculative ones.
+- If you are not sure what medicine is meant, return empty strings/arrays rather than guessing.
+- Keep every string short (one sentence max). Do not mention dosages or treatment recommendations.
+
+Return JSON matching this exact structure:
+{
+  "purpose": "One or two plain-language sentences on what this medicine is generally used for",
+  "side_effects": ["common side effect", "..."],
+  "food_interactions": ["well-known food/drink interaction or empty"],
+  "storage": "General storage instruction or null",
+  "warnings": ["Important general precaution or empty"]
+}`;
+
+/** Build the user message for a gap-fill medicine info request */
+export function buildMedicineInfoRequest(
+  medicine: { name: string | null; generic_name: string | null; strength: string | null; form: string | null },
+  language: 'en' | 'ur'
+): string {
+  const parts = [`Name: ${medicine.name ?? 'Unknown'}`];
+  if (medicine.generic_name) parts.push(`Generic name: ${medicine.generic_name}`);
+  if (medicine.strength) parts.push(`Strength: ${medicine.strength}`);
+  if (medicine.form) parts.push(`Form: ${medicine.form}`);
+  const langNote = language === 'ur'
+    ? 'Write all text values in Urdu.'
+    : 'Write all text values in English.';
+  return `Please provide general educational information about this medicine. ${langNote}\n${parts.join(', ')}`;
+}
+
 export function buildChatContext(
   medicines: Array<{ name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }>
 ): string {

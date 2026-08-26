@@ -54,6 +54,12 @@ export interface Medicine {
   side_effects: string[];
   food_interactions: string[];
   storage: string | null;
+  /** Urdu Learn enrichment cache (kept separate so base data is never overwritten) */
+  purpose_ur?: string | null;
+  side_effects_ur?: string[];
+  food_interactions_ur?: string[];
+  storage_ur?: string | null;
+  warnings_ur?: string[];
   confidence: number;
   warnings: string[];
   verification_status: VerificationStatus;

@@ -18,6 +18,11 @@ function parseMedicine(row: Record<string, unknown>): Medicine {
     side_effects: JSON.parse((row.side_effects as string) || '[]'),
     food_interactions: JSON.parse((row.food_interactions as string) || '[]'),
     storage: row.storage as string | null,
+    purpose_ur: (row.purpose_ur as string | null) ?? null,
+    side_effects_ur: JSON.parse((row.side_effects_ur as string) || '[]'),
+    food_interactions_ur: JSON.parse((row.food_interactions_ur as string) || '[]'),
+    storage_ur: (row.storage_ur as string | null) ?? null,
+    warnings_ur: JSON.parse((row.warnings_ur as string) || '[]'),
     confidence: row.confidence as number,
     warnings: JSON.parse((row.warnings as string) || '[]'),
     verification_status: row.verification_status as Medicine['verification_status'],
@@ -90,7 +95,10 @@ export async function updateMedicine(
   const values: unknown[] = [];
 
   for (const [key, value] of Object.entries(data)) {
-    if (key === 'side_effects' || key === 'food_interactions' || key === 'warnings') {
+    if (
+      key === 'side_effects' || key === 'food_interactions' || key === 'warnings' ||
+      key === 'side_effects_ur' || key === 'food_interactions_ur' || key === 'warnings_ur'
+    ) {
       fields.push(`${key} = ?`);
       values.push(JSON.stringify(value));
     } else {

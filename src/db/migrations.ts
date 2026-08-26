@@ -241,6 +241,34 @@ const migration_v10: Migration = {
   },
 };
 
+/**
+ * Version 11: Per-language Learn enrichment cache.
+ * The Learn detail fills thin medicine data via the AI text provider.
+ * Urdu gap-fill results are cached in separate `_ur` columns so each
+ * language keeps its own copy and the base (scan/English) data is
+ * never overwritten.
+ */
+const migration_v11: Migration = {
+  version: 11,
+  up: async (db) => {
+    const columns = [
+      'ALTER TABLE medicines ADD COLUMN purpose_ur TEXT;',
+      "ALTER TABLE medicines ADD COLUMN side_effects_ur TEXT DEFAULT '[]';",
+      "ALTER TABLE medicines ADD COLUMN food_interactions_ur TEXT DEFAULT '[]';",
+      'ALTER TABLE medicines ADD COLUMN storage_ur TEXT;',
+      "ALTER TABLE medicines ADD COLUMN warnings_ur TEXT DEFAULT '[]';",
+    ];
+    for (const sql of columns) {
+      try {
+        await db.execAsync(sql);
+      } catch {
+        // Column already exists — nothing to do
+      }
+    }
+    await db.runAsync('UPDATE schema_version SET version = 11;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -252,6 +280,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v8,
   migration_v9,
   migration_v10,
+  migration_v11,
 ];
 
 /** Run pending migrations */
@@ -277,4 +306,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 10;
+export const CURRENT_SCHEMA_VERSION = 11;
