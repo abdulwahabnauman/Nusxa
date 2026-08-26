@@ -14,22 +14,62 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withDelay,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from '../src/theme/provider';
+import { useI18n } from '../src/i18n';
+import { useReducedMotion } from '../src/hooks/useReducedMotion';
 import { ChatMessage } from '../src/ai/types';
-import { multiTurnChat } from '../src/ai/client';
 import { resolveTextProviderKeys } from '../src/utils/secureStorage';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
 import { parseMarkdown } from '../src/components/ui/MarkdownText';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
 
+/** One pulsing dot for the "assistant is typing" bubble */
+function TypingDot({ color, delay }: { color: string; delay: number }) {
+  const pulse = useSharedValue(0.3);
+  useEffect(() => {
+    pulse.value = withRepeat(
+      withDelay(
+        delay,
+        withSequence(
+          withTiming(1, { duration: 350 }),
+          withTiming(0.3, { duration: 350 }),
+        ),
+      ),
+      -1,
+      false,
+    );
+  }, [delay, pulse]);
+  const style = useAnimatedStyle(() => ({
+    opacity: pulse.value,
+    transform: [{ scale: 0.7 + pulse.value * 0.3 }],
+  }));
+  return (
+    <Animated.View
+      style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, style]}
+    />
+  );
+}
+
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const reducedMotion = useReducedMotion();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  // Word-by-word reveal of the latest assistant answer
+  const [reveal, setReveal] = useState<{ id: string; count: number } | null>(null);
   const scrollViewRef = useRef<ScrollView>(null);
   const hydratedRef = useRef(false);
 
@@ -64,6 +104,32 @@ export default function ChatScreen() {
     [medicines]
   );
 
+  // Reveal the newest assistant answer a few words at a time
+  useEffect(() => {
+    if (!reveal || reducedMotion) return;
+    const target = messages.find((m) => m.id === reveal.id);
+    if (!target || reveal.count >= target.content.split(/\s+/).length) {
+      setReveal(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      setReveal((r) => (r && r.id === target.id ? { ...r, count: r.count + 3 } : r));
+    }, 70);
+    return () => clearTimeout(timer);
+  }, [reveal, messages, reducedMotion]);
+
+  const displayedContent = (msg: ChatMessage): string => {
+    if (reveal && reveal.id === msg.id && !reducedMotion) {
+      return msg.content.split(/\s+/).slice(0, reveal.count).join(' ');
+    }
+    return msg.content;
+  };
+
+  const suggestions = useMemo(
+    () => [t.chat.chipPurpose, t.chat.chipSideEffects, t.chat.chipHowToTake, t.chat.chipInteractions],
+    [t]
+  );
+
   const handleClear = () => {
     Alert.alert(
       'Clear conversation?',
@@ -82,12 +148,13 @@ export default function ChatScreen() {
     );
   };
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  const sendText = async (raw: string) => {
+    const text = raw.trim();
+    if (!text || loading) return;
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
-      content: input.trim(),
+      content: text,
       timestamp: new Date().toISOString(),
     };
 
@@ -111,9 +178,12 @@ export default function ChatScreen() {
       const chatMessages = [
         { role: 'system' as const, content: systemPrompt },
         ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-        { role: 'user' as const, content: userMsg.content },
+        { role: 'user' as const, content: text },
       ];
 
+      // Lazy-load the AI client so opening the chat never pays for the
+      // network stack up front.
+      const { multiTurnChat } = require('../src/ai/client') as typeof import('../src/ai/client');
       const response = await multiTurnChat(chatMessages, keys);
 
       const assistantMsg: ChatMessage = {
@@ -123,6 +193,7 @@ export default function ChatScreen() {
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, assistantMsg]);
+      if (!reducedMotion) setReveal({ id: assistantMsg.id, count: 3 });
     } catch (err) {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
@@ -135,6 +206,8 @@ export default function ChatScreen() {
       setLoading(false);
     }
   };
+
+  const handleSend = () => sendText(input);
 
   return (
     <SafeAreaView
@@ -185,6 +258,28 @@ export default function ChatScreen() {
               <Text style={[typography.body.sm, { color: colors.text.disabled, textAlign: 'center', marginTop: 8 }]}>
                 I provide general information, not medical advice.
               </Text>
+              {/* Suggested questions */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.md }}>
+                {suggestions.map((s) => (
+                  <TouchableOpacity
+                    key={s}
+                    onPress={() => sendText(s)}
+                    disabled={loading}
+                    style={{
+                      backgroundColor: colors.background.surface,
+                      borderColor: colors.border.default,
+                      borderWidth: 1,
+                      borderRadius: borderRadius.md,
+                      paddingHorizontal: spacing.md,
+                      paddingVertical: spacing.sm,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={s}
+                  >
+                    <Text style={[typography.body.sm, { color: colors.accent.primary }]}>{s}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           )}
 
@@ -200,7 +295,7 @@ export default function ChatScreen() {
               ]}
             >
               <View>
-                {parseMarkdown(msg.content, msg.role === 'user' ? '#FFFFFF' : colors.text.primary).map((node, idx) => (
+                {parseMarkdown(displayedContent(msg), msg.role === 'user' ? '#FFFFFF' : colors.text.primary).map((node, idx) => (
                   <React.Fragment key={idx}>
                     {node}
                   </React.Fragment>
@@ -210,8 +305,16 @@ export default function ChatScreen() {
           ))}
 
           {loading && (
-            <View style={[styles.messageBubble, { backgroundColor: colors.background.surface, borderWidth: 1, borderColor: colors.border.default, borderRadius: borderRadius.lg, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 10 }]}>
-              <ActivityIndicator size="small" color={colors.accent.primary} />
+            <View style={[styles.messageBubble, { backgroundColor: colors.background.surface, borderWidth: 1, borderColor: colors.border.default, borderRadius: borderRadius.lg, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 12 }]}>
+              {reducedMotion ? (
+                <ActivityIndicator size="small" color={colors.accent.primary} />
+              ) : (
+                <View style={{ flexDirection: 'row', gap: 4 }}>
+                  {[0, 150, 300].map((d) => (
+                    <TypingDot key={d} color={colors.accent.primary} delay={d} />
+                  ))}
+                </View>
+              )}
             </View>
           )}
         </ScrollView>
