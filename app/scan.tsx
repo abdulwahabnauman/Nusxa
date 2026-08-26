@@ -507,59 +507,59 @@ export default function ScanScreen() {
   if (cameraActive && permission?.granted) {
     return (
       <View style={styles.cameraContainer}>
+        {/* CameraView doesn't accept children — overlays are absolutely-positioned siblings */}
         <ExpoCameraView
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={false}
-        >
-          {/* Tap to focus handler */}
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            onPress={handleCameraTap}
-            activeOpacity={1}
-          />
-          {/* Overlay guide */}
-          <View style={styles.overlay}>
-            <View style={styles.overlayTop} />
-            <View style={styles.overlayMiddle}>
-              <View style={styles.overlaySide} />
-              <View style={[styles.scanFrame, { borderColor: colors.accent.primary }]}>
-                <Text style={[styles.scanHint, { color: '#FFFFFF' }]}>
-                  {t.scanner.alignGuide}
-                </Text>
-              </View>
-              <View style={styles.overlaySide} />
+        />
+        {/* Tap to focus handler */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          onPress={handleCameraTap}
+          activeOpacity={1}
+        />
+        {/* Overlay guide */}
+        <View style={styles.overlay}>
+          <View style={styles.overlayTop} />
+          <View style={styles.overlayMiddle}>
+            <View style={styles.overlaySide} />
+            <View style={[styles.scanFrame, { borderColor: colors.accent.primary }]}>
+              <Text style={[styles.scanHint, { color: '#FFFFFF' }]}>
+                {t.scanner.alignGuide}
+              </Text>
             </View>
-            <View style={styles.overlayBottom}>
-              <TouchableOpacity
-                style={[styles.captureButton, { backgroundColor: colors.accent.primary }]}
-                onPress={handleTakePhoto}
-                accessibilityLabel={t.scanner.capture}
-              >
-                <MaterialCommunityIcons name="camera" size={32} color="#FFFFFF" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.closeButton}
-                onPress={() => setCameraActive(false)}
-                accessibilityLabel="Close camera"
-              >
-                <MaterialCommunityIcons name="close" size={28} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
+            <View style={styles.overlaySide} />
           </View>
+          <View style={styles.overlayBottom}>
+            <TouchableOpacity
+              style={[styles.captureButton, { backgroundColor: colors.accent.primary }]}
+              onPress={handleTakePhoto}
+              accessibilityLabel={t.scanner.capture}
+            >
+              <MaterialCommunityIcons name="camera" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setCameraActive(false)}
+              accessibilityLabel="Close camera"
+            >
+              <MaterialCommunityIcons name="close" size={28} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </View>
 
-          {/* Focus Indicator Overlay */}
-          {focusPoint && (
-            <View style={styles.focusOverlay}>
-              <View style={[styles.focusCircle, { left: focusPoint.x - 40, top: focusPoint.y - 40 }]}>
-                <View style={styles.crosshairHorizontal} />
-                <View style={styles.crosshairVertical} />
-              </View>
-              <Text style={styles.focusHint}>{t.scanner.tapToFocus}</Text>
+        {/* Focus Indicator Overlay */}
+        {focusPoint && (
+          <View style={styles.focusOverlay}>
+            <View style={[styles.focusCircle, { left: focusPoint.x - 40, top: focusPoint.y - 40 }]}>
+              <View style={styles.crosshairHorizontal} />
+              <View style={styles.crosshairVertical} />
             </View>
-          )}
-        </ExpoCameraView>
+            <Text style={styles.focusHint}>{t.scanner.tapToFocus}</Text>
+          </View>
+        )}
       </View>
     );
   }
@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   overlay: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   overlayTop: {
     flex: 1,
