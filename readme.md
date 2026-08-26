@@ -56,7 +56,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Language           | TypeScript (strict mode)                |
 | Navigation         | Expo Router v6 (file-based routing)     |
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
-| Database           | expo-sqlite (SQLite, offline-first, schema v8) |
+| Database           | expo-sqlite (SQLite, offline-first, schema v9) |
 | AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
 | AI — Chat/Explain  | Nemotron 3 Ultra via OpenRouter (free, primary), Groq gpt-oss-120b (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
@@ -137,7 +137,7 @@ nusxa/
 │   ├── db/                       # SQLite database layer
 │   │   ├── database.ts           # Connection manager (open, get, close)
 │   │   ├── schema.ts             # SQL CREATE statements (v2 schema)
-│   │   ├── migrations.ts         # Migration runner (version-based, currently v8)
+│   │   ├── migrations.ts         # Migration runner (version-based, currently v9)
 │   │   ├── schemas/
 │   │   │   └── education.ts      # Education library SQL schema
 │   │   └── repositories/         # Data access layer (one file per table)
@@ -191,7 +191,7 @@ nusxa/
 
 ---
 
-## Database Schema (v8)
+## Database Schema (v9)
 
 Core schema + settings columns + education library extension:
 
@@ -201,6 +201,8 @@ profile (id=1, singleton)
 ├── name, date_of_birth, blood_group, allergies (JSON array)
 ├── emergency_contact (JSON: {name, phone}), primary_physician
 ├── elderly_mode (bool), language (text, default 'en')
+├── notifications_enabled (bool), reduced_motion (bool)
+├── eastern_numerals (bool, v9 — render digits as ۰۱۲۳۴۵۶۷۸۹)
 └── onboarding_complete (bool)
 
 prescriptions
@@ -601,7 +603,7 @@ The core medication tracking functionality works flawlessly! The remaining gaps 
 
 ### Database migration errors
 - Migrations are versioned in `src/db/migrations.ts`
-- Current schema version: **8** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data → v7 profile settings backfill → v8 expanded content)
+- Current schema version: **9** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data → v7 profile settings backfill → v8 expanded content → v9 eastern_numerals preference)
 - If you get migration errors, delete the app data and restart (or increment `SCHEMA_VERSION` in schema.ts and add a new migration)
 
 ### TypeScript errors after pulling changes
@@ -719,6 +721,12 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **New `src/components/medicine/FormIcon.tsx`**: per-form icon (tablet/capsule/syrup/injection/cream/drops/inhaler/patch) rendered in a tinted bubble — glyph existence is verified at runtime against the bundled MaterialCommunityIcons map with a pill fallback, so unknown forms can never crash.
 - **`strengthColor()`** maps the numeric part of a strength to a deterministic hue (blue <100, teal <500, amber <1000, red ≥1000) so strengths are glanceably color-coded.
 - **Medicines list** cards and the **medicine detail header** both show the form bubble; strength renders as a colored chip/label instead of plain gray text.
+
+### ✅ Chunk 13 — Full Urdu coverage + Eastern Arabic numerals
+
+- **Eastern Arabic numerals (۰۱۲۳۴۵۶۷۸۹)**: new opt-in setting under Settings → Language. New `src/utils/numerals.ts` converts any digit string; the preference is persisted via **schema v9 migration** (`profile.eastern_numerals`) and the settings store. Applied to the next-dose countdown/clock, snooze label, and refill/day-count badges.
+- **Urdu coverage audit**: every hardcoded English string on the Home screen (greeting, section titles, empty state, quick links, celebration banners, undo toasts) now flows through `useI18n()` — keys already existed in `ur.ts` and are now actually used. New bilingual keys added for the hero card (next dose/snoozed/take/snooze/countdown templates), celebration banners, day-part grouping (صبح/دوپہر/رات), refill badges, and the Undo action.
+- **`ScheduleTimeline`** Morning/Afternoon/Night headers and **`MedicineCard`** refill strings are translated; Urdu word order is handled via `{t}`/`{n}` placeholder templates instead of string concatenation.
 
 ---
 

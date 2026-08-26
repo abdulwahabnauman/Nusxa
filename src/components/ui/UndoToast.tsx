@@ -16,6 +16,7 @@ import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } fr
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 
 const TOAST_DURATION = 5000;
 
@@ -32,6 +33,7 @@ interface UndoToastProps {
 
 function UndoToast({ state, onDismiss }: UndoToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(120);
   const opacity = useSharedValue(0);
@@ -93,7 +95,7 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
         accessibilityLabel="Undo last action"
       >
         <Text style={[typography.label.base, { color: colors.accent.primary, fontWeight: '700' }]}>
-          UNDO
+          {t.common.undo.toUpperCase()}
         </Text>
       </TouchableOpacity>
     </Animated.View>

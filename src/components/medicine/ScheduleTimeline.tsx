@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { DoseItem } from './DoseItem';
 import type { TodayScheduleItem } from '../../types/models';
 
@@ -33,6 +34,13 @@ function dayPartOf(time: string): DayPart {
 
 export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = true }: ScheduleTimelineProps) {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
+
+  const DAY_PART_LABELS: Record<DayPart, string> = {
+    Morning: t.dose.morning,
+    Afternoon: t.dose.afternoon,
+    Night: t.dose.night,
+  };
 
   if (items.length === 0) return null;
 
@@ -80,7 +88,7 @@ export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = tr
                 { color: colors.text.secondary, marginLeft: 6 },
               ]}
             >
-              {part}
+              {DAY_PART_LABELS[part]}
             </Text>
           </View>
           {(grouped.get(part) ?? []).map(renderItem)}

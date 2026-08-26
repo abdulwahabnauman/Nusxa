@@ -8,10 +8,12 @@ interface SettingsState {
   notificationsEnabled: boolean;
   reminderEscalation: boolean;
   reducedMotion: boolean;
+  easternNumerals: boolean;
   setLanguage: (lang: Language) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
+  setEasternNumerals: (enabled: boolean) => void;
 }
 
 // Helper function to save settings to database
@@ -21,6 +23,7 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
       language: state.language,
       notifications_enabled: state.notificationsEnabled,
       reduced_motion: state.reducedMotion,
+      eastern_numerals: state.easternNumerals,
     });
   } catch (error) {
     console.error('Failed to save settings to database:', error);
@@ -36,6 +39,7 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
         language: (profile.language as Language) || 'en',
         notificationsEnabled: !!profile.notifications_enabled,
         reducedMotion: !!profile.reduced_motion,
+        easternNumerals: !!profile.eastern_numerals,
       };
     }
   } catch (error) {
@@ -55,6 +59,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       language: initialSettings.language || 'en',
       notificationsEnabled: initialSettings.notificationsEnabled ?? true,
       reducedMotion: initialSettings.reducedMotion ?? false,
+      easternNumerals: initialSettings.easternNumerals ?? false,
     });
   });
 
@@ -64,6 +69,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     notificationsEnabled: true,
     reminderEscalation: true,
     reducedMotion: false,
+    easternNumerals: false,
     
     setLanguage: (language) => {
       set({ language });
@@ -81,6 +87,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     
     setReducedMotion: (reducedMotion) => {
       set({ reducedMotion });
+      saveSettingsToDatabase(get());
+    },
+
+    setEasternNumerals: (easternNumerals) => {
+      set({ easternNumerals });
       saveSettingsToDatabase(get());
     },
   };

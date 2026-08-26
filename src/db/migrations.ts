@@ -205,6 +205,24 @@ const migration_v8: Migration = {
   },
 };
 
+/**
+ * Version 9: Eastern Arabic numeral preference.
+ * Adds an `eastern_numerals` flag to the profile so the numeral style
+ * choice survives restarts. Defensive ALTER keeps it safe if the column
+ * already exists.
+ */
+const migration_v9: Migration = {
+  version: 9,
+  up: async (db) => {
+    try {
+      await db.execAsync('ALTER TABLE profile ADD COLUMN eastern_numerals INTEGER DEFAULT 0;');
+    } catch {
+      // Column already exists — nothing to do
+    }
+    await db.runAsync('UPDATE schema_version SET version = 9;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -214,6 +232,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v6,
   migration_v7,
   migration_v8,
+  migration_v9,
 ];
 
 /** Run pending migrations */
@@ -239,4 +258,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 8;
+export const CURRENT_SCHEMA_VERSION = 9;

@@ -8,6 +8,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
+import { useSettingsStore } from '../../stores/settings-store';
+import { formatDigits } from '../../utils/numerals';
 import type { TodayScheduleItem } from '../../types/models';
 
 const SNOOZE_MINUTES = 10;
@@ -25,30 +28,40 @@ function todaysDateFor(time: string): Date {
   return d;
 }
 
-/** Human countdown, e.g. "in 2h 15m", "due now", "overdue by 35m" */
-function formatCountdown(diffMs: number): string {
-  if (diffMs <= 0) {
-    const overdueMin = Math.round(-diffMs / 60000);
-    if (overdueMin < 1) return 'due now';
-    if (overdueMin < 60) return `overdue by ${overdueMin}m`;
-    return `overdue by ${Math.floor(overdueMin / 60)}h ${overdueMin % 60}m`;
-  }
-  const totalMin = Math.round(diffMs / 60000);
-  if (totalMin < 1) return 'due now';
-  if (totalMin < 60) return `in ${totalMin}m`;
-  return `in ${Math.floor(totalMin / 60)}h ${totalMin % 60}m`;
-}
-
-function formatClock(date: Date): string {
-  const h = date.getHours().toString().padStart(2, '0');
-  const m = date.getMinutes().toString().padStart(2, '0');
-  return `${h}:${m}`;
-}
-
 export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const { colors, typography: typ, spacing } = useTheme();
+  const { t } = useI18n();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const [now, setNow] = useState(() => Date.now());
   const [snoozedUntil, setSnoozedUntil] = useState<Record<string, number>>({});
+
+  const nf = (v: string | number) => formatDigits(v, easternNumerals);
+
+  /** Human countdown, e.g. "in 2h 15m", "due now", "overdue by 35m" */
+  const formatCountdown = (diffMs: number): string => {
+    const span = (min: number) => {
+      if (min < 60) return `${nf(min)}${t.home.minutesShort}`;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return m === 0
+        ? `${nf(h)}${t.home.hoursShort}`
+        : `${nf(h)}${t.home.hoursShort} ${nf(m)}${t.home.minutesShort}`;
+    };
+    if (diffMs <= 0) {
+      const overdueMin = Math.round(-diffMs / 60000);
+      if (overdueMin < 1) return t.home.dueNow;
+      return t.home.countdownOverdue.replace('{t}', span(overdueMin));
+    }
+    const totalMin = Math.round(diffMs / 60000);
+    if (totalMin < 1) return t.home.dueNow;
+    return t.home.countdownIn.replace('{t}', span(totalMin));
+  };
+
+  const formatClock = (date: Date): string => {
+    const h = date.getHours().toString().padStart(2, '0');
+    const m = date.getMinutes().toString().padStart(2, '0');
+    return nf(`${h}:${m}`);
+  };
 
   // Tick every 30s so the countdown stays honest
   useEffect(() => {
@@ -74,9 +87,9 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           <MaterialCommunityIcons name="check-circle" size={26} color={colors.success} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[typ.label.base, { color: colors.text.primary }]}>All done for today</Text>
+          <Text style={[typ.label.base, { color: colors.text.primary }]}>{t.home.allDoneToday}</Text>
           <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
-            Every scheduled dose is handled. See you tomorrow.
+            {t.home.allDoneTodayDesc}
           </Text>
         </View>
       </View>
@@ -136,7 +149,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
               },
             ]}
           >
-            {isSnoozed ? 'Snoozed' : 'Next dose'}
+            {isSnoozed ? t.home.snoozed : t.home.nextDose}
           </Text>
           <Text
             numberOfLines={1}
@@ -147,7 +160,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           </Text>
           <Text style={[typ.body.sm, { color: diffMs <= 0 ? colors.text.secondary : 'rgba(255,255,255,0.85)' }]}>
             {isSnoozed
-              ? `Reminder back at ${formatClock(new Date(snoozeUntil))}`
+              ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeUntil)))
               : `${formatClock(doseDate)} · ${formatCountdown(diffMs)}`}
           </Text>
         </View>
@@ -174,7 +187,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
               { color: diffMs <= 0 ? '#FFFFFF' : colors.accent.primary, marginLeft: 6 },
             ]}
           >
-            Take
+            {t.home.take}
           </Text>
         </TouchableOpacity>
 
@@ -204,7 +217,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
                 },
               ]}
             >
-              Snooze {SNOOZE_MINUTES}m
+              {`${t.home.snooze} ${nf(SNOOZE_MINUTES)}${t.home.minutesShort}`}
             </Text>
           </TouchableOpacity>
         )}

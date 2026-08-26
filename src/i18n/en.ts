@@ -18,6 +18,7 @@ export const en = {
     no: 'No',
     close: 'Close',
     search: 'Search',
+    undo: 'Undo',
   },
   // Navigation
   nav: {
@@ -46,10 +47,29 @@ export const en = {
     yesterday: 'Yesterday',
     refillSoon: 'Refill soon',
     daysLeft: 'days left',
+    outOfStock: 'Out of stock — refill now',
+    daysLeftRefill: '{n} days left — refill soon',
     takeNow: 'Take now',
     skipDose: 'Skip',
     completed: 'Completed',
     missed: 'Missed',
+    nextDose: 'Next dose',
+    snoozed: 'Snoozed',
+    take: 'Take',
+    snooze: 'Snooze',
+    dueNow: 'due now',
+    countdownIn: 'in {t}',
+    countdownOverdue: 'overdue by {t}',
+    hoursShort: 'h',
+    minutesShort: 'm',
+    reminderBackAt: 'Reminder back at {t}',
+    allDoneToday: 'All done for today',
+    allDoneTodayDesc: 'Every scheduled dose is handled. See you tomorrow.',
+    streakTitle: '{n}-day streak!',
+    weekSubtitle: 'One full week of showing up. Excellent!',
+    monthSubtitle: 'One full month — outstanding dedication!',
+    doseTakenToast: 'Dose marked as taken',
+    doseSkippedToast: 'Dose skipped',
   },
   // Onboarding
   onboarding: {
@@ -101,6 +121,8 @@ export const en = {
     language: 'Language',
     english: 'English',
     urdu: 'اردو',
+    easternNumerals: 'Eastern Arabic numerals',
+    easternNumeralsDesc: 'Display numbers as ۰۱۲۳۴۵۶۷۸۹',
     data: 'Data',
     exportData: 'Export data (JSON)',
     importData: 'Import data (JSON)',
@@ -161,6 +183,7 @@ export const en = {
     completeTreatment: 'Complete treatment',
     noActiveMedicines: 'No active medicines',
     noActiveMedicinesDesc: 'When you verify a prescription, your medicines will appear here with their schedules.',
+    daysRemaining: '~{n} days remaining (estimate)',
   },
   // History
   history: {
@@ -209,6 +232,9 @@ export const en = {
     beforeMeals: 'before meals',
     afterMeals: 'after meals',
     withMeals: 'with meals',
+    morning: 'Morning',
+    afternoon: 'Afternoon',
+    night: 'Night',
   },
   // Streak / progress
   progress: {

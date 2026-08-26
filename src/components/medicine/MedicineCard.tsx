@@ -8,7 +8,10 @@ import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
 import { MedicineFormIcon, strengthColor } from './FormIcon';
 import { formatTime12h } from '../../utils/date';
+import { formatDigits } from '../../utils/numerals';
 import { categoryColors } from '../../theme/tokens';
+import { useI18n } from '../../i18n';
+import { useSettingsStore } from '../../stores/settings-store';
 import type { MedicineForm } from '../../types/models';
 
 interface MedicineCardProps {
@@ -39,6 +42,8 @@ export function MedicineCard({
   onPress,
 }: MedicineCardProps) {
   const { colors, typography, spacing, mode } = useTheme();
+  const { t } = useI18n();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
   const catColor = mode === 'dark'
     ? categoryColors.dark[category as keyof typeof categoryColors.dark] ?? categoryColors.dark.default
@@ -91,7 +96,7 @@ export function MedicineCard({
           daysUntilRefill <= 7 ? (
             <View style={styles.refillRow}>
               <Badge
-                label={daysUntilRefill <= 0 ? 'Out of stock — refill now' : `${daysUntilRefill} day${daysUntilRefill === 1 ? '' : 's'} left — refill soon`}
+                label={daysUntilRefill <= 0 ? t.home.outOfStock : t.home.daysLeftRefill.replace('{n}', formatDigits(daysUntilRefill, easternNumerals))}
                 variant={daysUntilRefill <= 3 ? 'error' : 'warning'}
               />
             </View>
@@ -108,7 +113,7 @@ export function MedicineCard({
                   { color: colors.text.secondary, marginLeft: 4 },
                 ]}
               >
-                ~{daysUntilRefill} days remaining (estimate)
+                {t.medicine.daysRemaining.replace('{n}', formatDigits(daysUntilRefill, easternNumerals))}
               </Text>
             </View>
           )

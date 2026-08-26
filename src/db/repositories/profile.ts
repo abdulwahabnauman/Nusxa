@@ -17,6 +17,7 @@ function parseProfile(row: Record<string, unknown>): Profile {
     onboarding_complete: (row.onboarding_complete as number) === 1,
     notifications_enabled: (row.notifications_enabled as number) === 1,
     reduced_motion: (row.reduced_motion as number) === 1,
+    eastern_numerals: (row.eastern_numerals as number) === 1,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -116,6 +117,10 @@ export async function updateProfile(
   if (data.reduced_motion !== undefined) {
     fields.push('reduced_motion = ?');
     values.push(data.reduced_motion ? 1 : 0);
+  }
+  if (data.eastern_numerals !== undefined) {
+    fields.push('eastern_numerals = ?');
+    values.push(data.eastern_numerals ? 1 : 0);
   }
 
   fields.push('updated_at = ?');

@@ -29,10 +29,12 @@ import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRec
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
+import { useI18n } from '../../src/i18n';
 import type { TodayScheduleItem } from '../../src/types/models';
 
 export default function HomeScreen() {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const [refreshing, setRefreshing] = useState(false);
@@ -52,14 +54,14 @@ export default function HomeScreen() {
       if ((streak === 7 || streak === 30) && streak > prevStreakRef.current) {
         milestoneHaptic();
         setCelebration({
-          title: `${streak}-day streak!`,
-          subtitle: streak === 7 ? 'One full week of showing up. Excellent!' : 'One full month — outstanding dedication!',
+          title: t.home.streakTitle.replace('{n}', String(streak)),
+          subtitle: streak === 7 ? t.home.weekSubtitle : t.home.monthSubtitle,
         });
       } else if (allDone && prevAllDoneRef.current === false) {
         milestoneHaptic();
         setCelebration({
-          title: 'All done for today',
-          subtitle: 'Every dose handled. See you tomorrow!',
+          title: t.home.allDoneToday,
+          subtitle: t.home.allDoneTodayDesc,
         });
       }
     }
@@ -157,7 +159,7 @@ export default function HomeScreen() {
       } catch { /* inventory tracking is best-effort */ }
       await loadData();
 
-      showUndoToast('Dose marked as taken', async () => {
+      showUndoToast(t.home.doseTakenToast, async () => {
         try {
           if (!prev || prev.status === 'pending') {
             // No record existed before — remove the one we just created
@@ -188,7 +190,7 @@ export default function HomeScreen() {
       doseHaptic();
       await loadData();
 
-      showUndoToast('Dose skipped', async () => {
+      showUndoToast(t.home.doseSkippedToast, async () => {
         try {
           if (!prev || prev.status === 'pending') {
             await deleteDoseRecord(record.id);
@@ -205,9 +207,9 @@ export default function HomeScreen() {
 
   const greeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
-    return 'Good evening';
+    if (hour < 12) return t.home.goodMorning;
+    if (hour < 17) return t.home.goodAfternoon;
+    return t.home.goodEvening;
   };
 
   const hasSchedule = todayItems.length > 0;
@@ -231,7 +233,7 @@ export default function HomeScreen() {
               {greeting()}
             </Text>
             <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: 2 }]}>
-              {profile?.name ?? 'Welcome'}
+              {profile?.name ?? t.home.welcome}
             </Text>
           </View>
           <TouchableOpacity
@@ -246,7 +248,7 @@ export default function HomeScreen() {
         {/* Quick Actions */}
         <View style={[styles.quickActions, { paddingHorizontal: spacing.base }]}>
           <Button
-            title="Scan prescription"
+            title={t.home.scanPrescription}
             onPress={() => router.push('/scan')}
             icon={<MaterialCommunityIcons name="camera-outline" size={20} color="#FFFFFF" />}
             style={{ flex: 1 }}
@@ -264,7 +266,7 @@ export default function HomeScreen() {
         {hasSchedule && (
           <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <View style={styles.progressRow}>
-              <AdherenceRing percentage={adherence} label="Today" size={90} />
+              <AdherenceRing percentage={adherence} label={t.home.today} size={90} />
               <View style={styles.streakArea}>
                 <StreakCounter streak={streak} />
               </View>
@@ -275,7 +277,7 @@ export default function HomeScreen() {
         {/* Today's Schedule */}
         <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-            Today's medicines
+            {t.home.todaysMedicines}
           </Text>
 
           <View style={{ marginTop: spacing.md }}>
@@ -290,9 +292,9 @@ export default function HomeScreen() {
             ) : (
               <EmptyState
                 icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
-                title="No medicines yet"
-                description="Scan a prescription to get started with your medication schedule."
-                actionLabel="Scan prescription"
+                title={t.home.noMedicines}
+                description={t.home.noMedicinesDesc}
+                actionLabel={t.home.scanPrescription}
                 onAction={() => router.push('/scan')}
               />
             )}
@@ -303,7 +305,7 @@ export default function HomeScreen() {
         {hasSchedule && (
           <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.md }]}>
-              This week
+              {t.home.thisWeek}
             </Text>
             <Card>
               <WeeklyChart data={weeklyData} />
@@ -314,7 +316,7 @@ export default function HomeScreen() {
         {/* Quick Links */}
         <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.md }]}>
-            Quick access
+            {t.home.quickAccess}
           </Text>
           <View style={styles.quickLinks}>
             <Card style={{ flex: 1 }} padding="sm">
@@ -325,7 +327,7 @@ export default function HomeScreen() {
               >
                 <MaterialCommunityIcons name="medical-bag" size={24} color={colors.error} />
                 <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
-                  Emergency
+                  {t.home.emergencyCard}
                 </Text>
               </TouchableOpacity>
             </Card>
@@ -337,7 +339,7 @@ export default function HomeScreen() {
               >
                 <MaterialCommunityIcons name="clipboard-text-outline" size={24} color={colors.accent.primary} />
                 <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
-                  Doctor visit
+                  {t.home.doctorVisit}
                 </Text>
               </TouchableOpacity>
             </Card>
@@ -349,7 +351,7 @@ export default function HomeScreen() {
               >
                 <MaterialCommunityIcons name="chart-bar" size={24} color={colors.success} />
                 <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
-                  Progress
+                  {t.nav.analytics}
                 </Text>
               </TouchableOpacity>
             </Card>

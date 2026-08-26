@@ -17,6 +17,7 @@ export interface Profile {
   onboarding_complete: boolean;
   notifications_enabled: boolean;
   reduced_motion: boolean;
+  eastern_numerals?: boolean;
   theme_preference?: 'system' | 'light' | 'dark';
   created_at: string;
   updated_at: string;

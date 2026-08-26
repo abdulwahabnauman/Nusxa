@@ -25,6 +25,8 @@ export default function SettingsScreen() {
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const setEasternNumerals = useSettingsStore((s) => s.setEasternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
   const { t, language, setLanguage } = useI18n();
@@ -241,6 +243,13 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+            <View style={[styles.row, { marginTop: spacing.md }]}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.easternNumerals}</Text>
+                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.easternNumeralsDesc}</Text>
+              </View>
+              <Switch value={easternNumerals} onValueChange={setEasternNumerals} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle Eastern Arabic numerals" />
             </View>
           </Card>
         </View>
