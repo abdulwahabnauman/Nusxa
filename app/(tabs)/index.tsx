@@ -18,6 +18,7 @@ import { Button } from '../../src/components/ui/Button';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { ScheduleTimeline } from '../../src/components/medicine/ScheduleTimeline';
+import { NextDoseHero } from '../../src/components/medicine/NextDoseHero';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
@@ -188,6 +189,13 @@ export default function HomeScreen() {
             style={{ flex: 1 }}
           />
         </View>
+
+        {/* Next dose hero */}
+        {hasSchedule && (
+          <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.lg }}>
+            <NextDoseHero items={todayItems} onTaken={handleTaken} />
+          </View>
+        )}
 
         {/* Progress Overview */}
         {hasSchedule && (

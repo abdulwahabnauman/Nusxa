@@ -680,6 +680,12 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - The list **refreshes every time the tab gains focus**, so adding/removing a bookmark from inside an article is reflected immediately.
 - Empty state guides users to bookmark articles from the reader; fully bilingual (EN/UR).
 
+### ✅ Chunk 5 — "Next dose" hero card on Home
+
+- **New `src/components/medicine/NextDoseHero.tsx`** rendered above the progress ring: shows the upcoming pending dose with a **live countdown** ("Panadol — 1 tablet · 14:00 · in 2h 15m", ticking every 30s), turning amber when overdue ("overdue by 35m").
+- **One-tap Take** logs the dose through the same `upsertDoseStatus()` path as the timeline (inventory decremented, stats refreshed); **Snooze 10m** defers the reminder card locally.
+- When every dose is handled, the card flips to a green **"All done for today"** state.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
