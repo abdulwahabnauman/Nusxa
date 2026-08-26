@@ -692,6 +692,10 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Home**: Taken/Skip now act instantly — no confirmation dialog. Undo restores the previous status exactly (deletes a freshly-created record, or flips an existing one back) and even puts the inventory unit back when undoing a take.
 - **History**: Archive acts instantly with Undo (restores the previous treatment status). Delete snapshots the prescription + its medicines, schedules, and dose records before the cascade delete and **fully restores them on Undo** (reminder notifications are not re-armed — edit the medicine to re-arm).
 
+### ✅ Chunk 7 — Skeleton loaders (no more blank-then-pop)
+
+- **Medicines**, **History**, and **Learn** tabs now render shimmering `SkeletonCard`/chip placeholders on first load instead of a spinner (Learn) or blank space, then swap in real content. Reduced-motion aware (shimmer becomes a static tint).
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026

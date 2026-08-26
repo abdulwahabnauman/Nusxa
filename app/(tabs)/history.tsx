@@ -16,6 +16,7 @@ import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { useUndoToast } from '../../src/components/ui/UndoToast';
+import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import {
   getAllPrescriptions,
   searchPrescriptions,
@@ -38,6 +39,7 @@ export default function HistoryScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const { showUndoToast, undoToastElement } = useUndoToast();
@@ -59,6 +61,8 @@ export default function HistoryScreen() {
       setPrescriptions(enriched);
     } catch {
       // Offline-safe
+    } finally {
+      setLoading(false);
     }
   }, [searchQuery]);
 
@@ -186,7 +190,13 @@ export default function HistoryScreen() {
 
         {/* List */}
         <View style={[styles.content, { paddingHorizontal: spacing.base }]}>
-          {prescriptions.length === 0 ? (
+          {loading ? (
+            <View style={{ gap: 12 }}>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </View>
+          ) : prescriptions.length === 0 ? (
             <EmptyState
               icon="history"
               title={searchQuery ? 'No results found' : 'No prescription history'}

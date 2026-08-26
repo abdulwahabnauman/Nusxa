@@ -16,6 +16,7 @@ import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { MedicineCard } from '../../src/components/medicine/MedicineCard';
+import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { getActiveMedicines } from '../../src/db/repositories/medicine';
 import { getSchedulesByMedicine } from '../../src/db/repositories/schedule';
 import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
@@ -30,6 +31,7 @@ export default function MedicinesScreen() {
   const { colors, typography, spacing } = useTheme();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [medicines, setMedicines] = useState<MedicineWithInfo[]>([]);
 
   const loadMedicines = useCallback(async () => {
@@ -47,6 +49,8 @@ export default function MedicinesScreen() {
       setMedicines(enriched);
     } catch {
       // Offline-safe
+    } finally {
+      setLoading(false);
     }
   }, []);
 
@@ -82,7 +86,13 @@ export default function MedicinesScreen() {
         </View>
 
         <View style={[styles.content, { paddingHorizontal: spacing.base }]}>
-          {medicines.length === 0 ? (
+          {loading ? (
+            <View style={{ gap: 12 }}>
+              <SkeletonCard />
+              <SkeletonCard />
+              <SkeletonCard />
+            </View>
+          ) : medicines.length === 0 ? (
             <EmptyState
               icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
               title="No active medicines"

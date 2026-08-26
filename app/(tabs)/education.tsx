@@ -9,7 +9,6 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { Skeleton, SkeletonCard } from '../../src/components/ui/Skeleton';
 import {
   getCategories,
   getContentByCategory,
@@ -166,9 +166,25 @@ export default function EducationScreen() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary }}>
-        <ActivityIndicator size="large" color={colors.accent.primary} />
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+        <View style={{ paddingTop: spacing.md, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
+          <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.education.title}</Text>
+          <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.education.subtitle}</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={{ padding: spacing.base, gap: spacing.sm, paddingBottom: spacing.xl + 20 }}>
+          {/* Category chip placeholders */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <Skeleton width={120} height={108} borderRadius={12} />
+            <Skeleton width={120} height={108} borderRadius={12} />
+            <Skeleton width={120} height={108} borderRadius={12} />
+          </View>
+          {/* Article placeholders */}
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </ScrollView>
+      </SafeAreaView>
     );
   }
 
