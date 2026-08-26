@@ -12,7 +12,6 @@ import { EmptyState } from '../src/components/ui/EmptyState';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
 import { getActiveSchedules } from '../src/db/repositories/schedule';
 import { getProfile } from '../src/db/repositories/profile';
-import { generateDoctorVisitPdf } from '../src/utils/pdf';
 import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
@@ -50,7 +49,9 @@ export default function DoctorVisitScreen() {
     setSharing(true);
     let pdfUri: string | null = null;
     try {
-      // Generate a clean PDF on-device, then hand it to the native share sheet
+      // Generate a clean PDF on-device, then hand it to the native share sheet.
+      // The PDF stack is heavy, so load it only when the user actually shares.
+      const { generateDoctorVisitPdf } = require('../src/utils/pdf') as typeof import('../src/utils/pdf');
       pdfUri = await generateDoctorVisitPdf({
         profileName,
         medicines,

@@ -56,7 +56,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Language           | TypeScript (strict mode)                |
 | Navigation         | Expo Router v6 (file-based routing)     |
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
-| Database           | expo-sqlite (SQLite, offline-first, schema v9) |
+| Database           | expo-sqlite (SQLite, offline-first, schema v12) |
 | AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
 | AI — Chat/Explain  | Nemotron 3 Ultra via OpenRouter (free, primary), Groq gpt-oss-120b (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
@@ -137,7 +137,7 @@ nusxa/
 │   ├── db/                       # SQLite database layer
 │   │   ├── database.ts           # Connection manager (open, get, close)
 │   │   ├── schema.ts             # SQL CREATE statements (v2 schema)
-│   │   ├── migrations.ts         # Migration runner (version-based, currently v9)
+│   │   ├── migrations.ts         # Migration runner (version-based, currently v12)
 │   │   ├── schemas/
 │   │   │   └── education.ts      # Education library SQL schema
 │   │   └── repositories/         # Data access layer (one file per table)
@@ -191,7 +191,7 @@ nusxa/
 
 ---
 
-## Database Schema (v9)
+## Database Schema (v12)
 
 Core schema + settings columns + education library extension:
 
@@ -603,7 +603,7 @@ The core medication tracking functionality works flawlessly! The remaining gaps 
 
 ### Database migration errors
 - Migrations are versioned in `src/db/migrations.ts`
-- Current schema version: **9** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data → v7 profile settings backfill → v8 expanded content → v9 eastern_numerals preference)
+- Current schema version: **12** (v1 core → v2 language → v3 settings columns → v4 education tables → v5 consistency → v6 education seed data → v7 profile settings backfill → v8 expanded content → v9 eastern_numerals preference → v10 reminder windows → v11 per-language Learn cache → v12 snooze/high-contrast + reminders_state)
 - If you get migration errors, delete the app data and restart (or increment `SCHEMA_VERSION` in schema.ts and add a new migration)
 
 ### TypeScript errors after pulling changes
@@ -775,6 +775,29 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 
 ---
 
+## ✅ UI/UX IMPROVEMENT BATCH 2 — 18 SELECTED FEATURES (August 26, 2026)
+
+User-selected items 2–13, 16–18, 20, 22, 23 from the 25-item improvement list, shipped as feature-scoped commits. Guiding rule: **no notification spam** — refill reminders live on a quieter channel, only fire at ≤3 days of supply, are throttled to max once per 3 days per medicine (via `reminders_state`), and all cancel when reminders are disabled.
+
+1. **Startup trim** — AI client (`src/ai/client`) and PDF stack (`src/utils/pdf`) are lazy-`require`d only at the moment of use (chat send, Learn gap-fill, doctor-visit share), never at import time.
+2. **Virtualized lists** — Medicines, History, and Learn tabs now use `FlatList` + memoized rows + pull-to-refresh.
+3. **Animated tab bar** — custom `AnimatedTabBar` with icon bounce on focus and label crossfade (reduced-motion aware).
+4. **Dose check-morph** — status icon pops while a tinted fill ring morphs in when a dose leaves `pending`; TalkBack readouts on the dose row.
+5. **Countdown ring** — next-dose hero shows an SVG progress ring filling as the dose window approaches.
+6. **Learn zoom entrance** — staggered FadeInUp sections on the education detail.
+7. **Skeletons** — medicine detail loads with header placeholder + skeleton cards.
+8. **Floating empty states** — gentle bobbing icon in every `EmptyState` (reduced-motion aware).
+9. **Configurable snooze** — 5/10/15/30 min in Settings; long-press Snooze on the hero card for one-off options; snooze re-rings once (single-shot notification, cancelled on take/skip).
+10. **Refill reminders** — throttled, quiet, bilingual; deep-link to the medicine.
+11. **Monthly adherence calendar** — day-level heat map in Analytics (green ≥80%, amber ≥40%, red <40%), bilingual month/weekday labels, navigation capped at the current month.
+12. **Notification tap → medicine detail** — every dose/snooze/refill notification carries `medicineId`.
+13. **Take-all quick action** — one tap marks every pending dose at the earliest shared time as taken.
+14. **Chat companion polish** — suggested question chips, typing-dots bubble, word-by-word answer reveal.
+15. **Error boundary** — app-wide `ErrorBoundary` with a friendly translated crash screen (retry + share details).
+16. **TalkBack pass + high-contrast toggle** — accessibility labels across touched surfaces; high-contrast mode in Settings (schema v12).
+
+---
+
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
 
 A seven-issue hardening pass. Nothing Gemini/API-related was touched.
@@ -802,6 +825,7 @@ A seven-issue hardening pass. Nothing Gemini/API-related was touched.
 - v9: Eastern Arabic numeral preference (profile.eastern_numerals)
 - v10: Reminder windows (schedules.window_minutes, default 120)
 - v11: Per-language Learn enrichment cache (medicines purpose_ur / side_effects_ur / food_interactions_ur / storage_ur / warnings_ur)
+- v12: Configurable snooze + high-contrast preference (profile.snooze_minutes / profile.high_contrast) + `reminders_state` KV table for notification throttling
 
 ---
 
