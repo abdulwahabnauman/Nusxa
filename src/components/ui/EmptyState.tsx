@@ -75,6 +75,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingVertical: 32,
   },
 });
