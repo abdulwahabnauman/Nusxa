@@ -3,7 +3,9 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/provider';
+import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
@@ -17,10 +19,15 @@ import type { Medicine, Schedule } from '../../src/types/models';
 
 export default function MedicineDetailScreen() {
   const { colors, typography, spacing } = useTheme();
+  const reducedMotion = useReducedMotion();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+
+  // Staggered entrance so the detail screen feels like it grows out of the card
+  const enter = (index: number) =>
+    reducedMotion ? undefined : FadeInUp.duration(280).delay(index * 55).springify();
 
   useEffect(() => {
     async function load() {
@@ -67,7 +74,7 @@ export default function MedicineDetailScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+        <Animated.View entering={enter(0)} style={[styles.header, { paddingHorizontal: spacing.base }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
             <MedicineFormIcon
               form={medicine.form}
@@ -109,10 +116,10 @@ export default function MedicineDetailScreen() {
               variant={medicine.verification_status === 'verified' ? 'verified' : 'pending'}
             />
           </View>
-        </View>
+        </Animated.View>
 
         {/* Details */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+        <Animated.View entering={enter(1)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
             Details
           </Text>
@@ -128,11 +135,11 @@ export default function MedicineDetailScreen() {
               </View>
             ))}
           </Card>
-        </View>
+        </Animated.View>
 
         {/* Schedule */}
         {schedules.length > 0 && (
-          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Animated.View entering={enter(2)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               Schedule
             </Text>
@@ -147,12 +154,12 @@ export default function MedicineDetailScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Side Effects */}
         {medicine.side_effects.length > 0 && (
-          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Animated.View entering={enter(3)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               Common side effects
             </Text>
@@ -166,12 +173,12 @@ export default function MedicineDetailScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Warnings */}
         {medicine.warnings.length > 0 && (
-          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Animated.View entering={enter(4)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.warning }}>
               {medicine.warnings.map((warning, i) => (
                 <View key={i} style={styles.warningRow}>
@@ -182,12 +189,12 @@ export default function MedicineDetailScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Inventory */}
         {medicine.initial_quantity != null && (
-          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Animated.View entering={enter(5)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               Inventory
             </Text>
@@ -210,12 +217,12 @@ export default function MedicineDetailScreen() {
                 </View>
               )}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Food Interactions */}
         {medicine.food_interactions.length > 0 && (
-          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Animated.View entering={enter(6)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               Food interactions
             </Text>
@@ -229,11 +236,11 @@ export default function MedicineDetailScreen() {
                 </View>
               ))}
             </Card>
-          </View>
+          </Animated.View>
         )}
 
         {/* Actions */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+        <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Button
             title="Ask AI about this medicine"
             variant="secondary"
@@ -261,7 +268,7 @@ export default function MedicineDetailScreen() {
             }}
             style={{ marginTop: spacing.sm }}
           />
-        </View>
+        </Animated.View>
       </ScrollView>
     </SafeAreaView>
   );

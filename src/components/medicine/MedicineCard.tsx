@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { FadeInUp } from 'react-native-reanimated';
+import Animated, { FadeInUp, useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Card } from '../ui/Card';
@@ -45,13 +45,33 @@ export function MedicineCard({
   const { t } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
+
+  // Spring press feedback — the card dips slightly on its way to the detail screen
+  const pressScale = useSharedValue(1);
+  const pressStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: pressScale.value }],
+  }));
+  const handlePressIn = () => {
+    if (!reducedMotion) {
+      pressScale.value = withSpring(0.97, { damping: 20, stiffness: 320 });
+    }
+  };
+  const handlePressOut = () => {
+    pressScale.value = withSpring(1, { damping: 20, stiffness: 320 });
+  };
   const catColor = mode === 'dark'
     ? categoryColors.dark[category as keyof typeof categoryColors.dark] ?? categoryColors.dark.default
     : categoryColors.light[category as keyof typeof categoryColors.light] ?? categoryColors.light.default;
 
   return (
-    <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(350).springify()}>
-      <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+    <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(350).springify()} style={pressStyle}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={0.85}
+        accessibilityRole="button"
+      >
       <Card style={{ borderLeftWidth: 3, borderLeftColor: catColor }}>
         <View style={styles.header}>
           <MedicineFormIcon

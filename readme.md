@@ -728,6 +728,11 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Urdu coverage audit**: every hardcoded English string on the Home screen (greeting, section titles, empty state, quick links, celebration banners, undo toasts) now flows through `useI18n()` — keys already existed in `ur.ts` and are now actually used. New bilingual keys added for the hero card (next dose/snoozed/take/snooze/countdown templates), celebration banners, day-part grouping (صبح/دوپہر/رات), refill badges, and the Undo action.
 - **`ScheduleTimeline`** Morning/Afternoon/Night headers and **`MedicineCard`** refill strings are translated; Urdu word order is handled via `{t}`/`{n}` placeholder templates instead of string concatenation.
 
+### ✅ Chunk 14 — Card→detail transition polish
+
+- **Medicine cards** now give spring press feedback: the card dips to 97% scale on touch-down and springs back on release (shared-value animation, skipped entirely under Reduced motion).
+- **Medicine detail screen** opens with a staggered FadeInUp entrance (header first, then each section at 55ms intervals) so navigation feels like the screen grows out of the tapped card. All animations respect the Reduced motion setting.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
