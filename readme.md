@@ -696,6 +696,10 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 
 - **Medicines**, **History**, and **Learn** tabs now render shimmering `SkeletonCard`/chip placeholders on first load instead of a spinner (Learn) or blank space, then swap in real content. Reduced-motion aware (shimmer becomes a static tint).
 
+### ✅ Chunk 8 — Swipe = taken on dose items
+
+- On Home's timeline, **swiping a pending dose row to the right marks it as taken** (one-handed use). A green "✓ Taken" layer reveals proportionally to the drag; crossing the 80px threshold fires the same `handleTaken` path (undo toast included). Powered by react-native-gesture-handler + Reanimated; rows spring back on release.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026

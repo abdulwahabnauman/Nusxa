@@ -1,7 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, { useSharedValue, useAnimatedStyle, withSequence, withSpring } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+  runOnJS,
+  interpolate,
+} from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { formatTime12h } from '../../utils/date';
@@ -54,6 +62,27 @@ export function DoseItem({
     transform: [{ scale: iconScale.value }],
   }));
 
+  // Swipe right = taken (pending doses only)
+  const swipeX = useSharedValue(0);
+  const swipeEnabled = status === 'pending' && !!onTaken;
+  const swipeGesture = Gesture.Pan()
+    .enabled(swipeEnabled)
+    .onChange((e) => {
+      swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_MAX));
+    })
+    .onEnd((e) => {
+      if (e.translationX >= SWIPE_THRESHOLD && onTaken) {
+        runOnJS(onTaken)();
+      }
+      swipeX.value = withSpring(0, { damping: 18, stiffness: 240 });
+    });
+  const rowStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
+  }));
+  const revealStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(swipeX.value, [0, SWIPE_THRESHOLD], [0.35, 1], 'clamp'),
+  }));
+
   const statusColor =
     status === 'taken' ? colors.success
     : status === 'missed' ? colors.error
@@ -61,7 +90,24 @@ export function DoseItem({
     : colors.text.secondary;
 
   return (
-    <View style={[styles.container, { borderBottomColor: colors.border.default }]}>
+    <View style={{ borderBottomColor: colors.border.default, borderBottomWidth: 1, overflow: 'hidden' }}>
+      {/* Swipe reveal layer */}
+      {swipeEnabled && (
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            styles.swipeReveal,
+            { backgroundColor: colors.success, borderRadius: borderRadius.sm },
+            revealStyle,
+          ]}
+        >
+          <MaterialCommunityIcons name="check" size={24} color="#FFFFFF" />
+          <Text style={[typography.label.sm, { color: '#FFFFFF', marginLeft: 6 }]}>Taken</Text>
+        </Animated.View>
+      )}
+
+      <GestureDetector gesture={swipeGesture}>
+        <Animated.View style={[styles.container, { backgroundColor: colors.background.surface }, rowStyle]}>
       <View style={styles.left}>
         <Animated.View style={iconStyle}>
           <MaterialCommunityIcons name={STATUS_ICONS[status]} size={22} color={statusColor} />
@@ -99,9 +145,14 @@ export function DoseItem({
           </TouchableOpacity>
         </View>
       )}
+        </Animated.View>
+      </GestureDetector>
     </View>
   );
 }
+
+const SWIPE_THRESHOLD = 80;
+const SWIPE_MAX = 140;
 
 const styles = StyleSheet.create({
   container: {
@@ -109,7 +160,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    borderBottomWidth: 1,
+  },
+  swipeReveal: {
+    position: 'absolute',
+    top: 6,
+    bottom: 6,
+    left: 4,
+    right: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingLeft: 16,
   },
   left: {
     flexDirection: 'row',
