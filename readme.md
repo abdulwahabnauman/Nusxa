@@ -739,6 +739,13 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - Implemented as a local Expo config plugin (`plugins/with-today-shortcut.js`) that writes `res/xml/shortcuts.xml` + label strings and registers the `android.app.shortcuts` meta-data, so the shortcut survives `expo prebuild`. The same files were applied directly to the committed `android/` project so the current native build picks it up without regeneration.
 - Best-effort by design: a true home-screen *widget* would need a native AppWidgetProvider and is out of scope for this batch.
 
+### ✅ Crash fix — startup `NoSuchMethodError` in FontLoaderModule
+
+- **Symptom**: release APK crashed on launch with `java.lang.NoSuchMethodError: No static method getDirectConverter(...) in ReturnTypeKt` at `expo.modules.font.FontLoaderModule.definition` (captured via `adb logcat`).
+- **Root cause**: `@expo/vector-icons` declares `expo-font >=14.0.4` as a *peer* dependency; with no `expo-font` at the root, npm auto-installed the **latest** (57.x, built for a much newer SDK) whose native module expects a newer `expo-modules-core` than SDK 54's 3.0.30 → instant native crash. The lockfile also carried a mismatched `react-dom@19.2.8` next to `react@19.1.0`.
+- **Fix**: pinned `expo-font@~14.0.12` (the SDK 54 version from `expo/bundledNativeModules.json`) and `react-dom@19.1.0` as direct dependencies; the tree now dedupes to SDK-consistent versions everywhere.
+- **After pulling this fix**: run `npm install`, then **clean the Android build before rebuilding** (`cd android && gradlew clean`) so stale native expo-font artifacts are flushed, then build the APK as usual.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
