@@ -64,6 +64,10 @@ export default function MedicinesScreen() {
     setRefreshing(false);
   }, [loadMedicines]);
 
+  const lowStockCount = medicines.filter(
+    (med) => med.daysUntilRefill !== null && med.daysUntilRefill <= 7,
+  ).length;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <ScrollView
@@ -86,6 +90,29 @@ export default function MedicinesScreen() {
         </View>
 
         <View style={[styles.content, { paddingHorizontal: spacing.base }]}>
+          {!loading && lowStockCount > 0 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: colors.warning + '1A',
+                borderColor: colors.warning + '4D',
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 12,
+              }}
+              accessibilityLabel={`${lowStockCount} medicines running low on supply`}
+            >
+              <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.warning} />
+              <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                {lowStockCount === 1
+                  ? '1 medicine is running low — plan a refill soon.'
+                  : `${lowStockCount} medicines are running low — plan a refill soon.`}
+              </Text>
+            </View>
+          )}
+
           {loading ? (
             <View style={{ gap: 12 }}>
               <SkeletonCard />

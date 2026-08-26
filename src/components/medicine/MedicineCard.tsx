@@ -70,26 +70,32 @@ export function MedicineCard({
           </View>
         )}
 
-        {/* Refill info */}
+        {/* Refill info — low stock gets a prominent badge */}
         {daysUntilRefill !== null && daysUntilRefill !== undefined && (
-          <View style={styles.refillRow}>
-            <MaterialCommunityIcons
-              name="alert-circle-outline"
-              size={14}
-              color={daysUntilRefill <= 7 ? colors.warning : colors.text.secondary}
-            />
-            <Text
-              style={[
-                typography.body.xs,
-                {
-                  color: daysUntilRefill <= 7 ? colors.warning : colors.text.secondary,
-                  marginLeft: 4,
-                },
-              ]}
-            >
-              ~{daysUntilRefill} days remaining (estimate)
-            </Text>
-          </View>
+          daysUntilRefill <= 7 ? (
+            <View style={styles.refillRow}>
+              <Badge
+                label={daysUntilRefill <= 0 ? 'Out of stock — refill now' : `${daysUntilRefill} day${daysUntilRefill === 1 ? '' : 's'} left — refill soon`}
+                variant={daysUntilRefill <= 3 ? 'error' : 'warning'}
+              />
+            </View>
+          ) : (
+            <View style={styles.refillRow}>
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={14}
+                color={colors.text.secondary}
+              />
+              <Text
+                style={[
+                  typography.body.xs,
+                  { color: colors.text.secondary, marginLeft: 4 },
+                ]}
+              >
+                ~{daysUntilRefill} days remaining (estimate)
+              </Text>
+            </View>
+          )
         )}
         </Card>
       </TouchableOpacity>

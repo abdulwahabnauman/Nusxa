@@ -700,6 +700,11 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 
 - On Home's timeline, **swiping a pending dose row to the right marks it as taken** (one-handed use). A green "✓ Taken" layer reveals proportionally to the drag; crossing the 80px threshold fires the same `handleTaken` path (undo toast included). Powered by react-native-gesture-handler + Reanimated; rows spring back on release.
 
+### ✅ Chunk 9 — Low-stock / refill warnings
+
+- **Medicine cards** now show a prominent badge when inventory is thin: warning-colored "N days left — refill soon" at ≤7 days, red at ≤3 days, and "Out of stock — refill now" at zero. Comfortable stock keeps the quiet "~N days remaining" line.
+- **Medicines tab** gains a summary banner up top: "2 medicines are running low — plan a refill soon." (derived from the existing `remaining_quantity` + frequency estimate).
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
