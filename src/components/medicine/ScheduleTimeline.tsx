@@ -51,6 +51,7 @@ export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = tr
     <DoseItem
       key={item.scheduleId}
       time={item.time}
+      windowMinutes={item.windowMinutes}
       medicineName={item.medicineName}
       dosage={item.dosage}
       mealInstruction={item.mealInstruction}

@@ -5,12 +5,16 @@ import {
   ScrollView,
   StyleSheet,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillIcon } from '../src/components/ui/PillIcon';
 import { useTheme } from '../src/theme/provider';
+import { useI18n } from '../src/i18n';
+import { useSettingsStore } from '../src/stores/settings-store';
+import { formatDigits } from '../src/utils/numerals';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
@@ -21,8 +25,12 @@ import {
   ScheduleDraft,
 } from '../src/utils/savePrescription';
 
+const WINDOW_OPTIONS = [60, 90, 120, 180];
+
 export default function ScheduleScreen() {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const router = useRouter();
   const { prescriptionData, imageUri } = useLocalSearchParams<{
     prescriptionData: string;
@@ -49,6 +57,16 @@ export default function ScheduleScreen() {
       const schedule = { ...updated[medIdx]! };
       schedule.times = [...schedule.times];
       schedule.times[timeIdx] = value;
+      updated[medIdx] = schedule;
+      return updated;
+    });
+  };
+
+  const updateWindow = (medIdx: number, value: number) => {
+    setSchedules((prev) => {
+      const updated = [...prev];
+      const schedule = { ...updated[medIdx]! };
+      schedule.windowMinutes = value;
       updated[medIdx] = schedule;
       return updated;
     });
@@ -149,6 +167,39 @@ export default function ScheduleScreen() {
                   />
                 </View>
               ))}
+
+              <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.md }]}>
+                {t.schedule.reminderWindow}
+              </Text>
+              <View style={styles.windowRow}>
+                {WINDOW_OPTIONS.map((mins) => {
+                  const selected = schedule.windowMinutes === mins;
+                  return (
+                    <TouchableOpacity
+                      key={mins}
+                      style={[
+                        styles.windowChip,
+                        {
+                          backgroundColor: selected ? colors.accent.primary : colors.background.subtle,
+                          borderColor: selected ? colors.accent.primary : colors.border.default,
+                        },
+                      ]}
+                      onPress={() => updateWindow(medIdx, mins)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected }}
+                    >
+                      <Text
+                        style={[
+                          typography.label.sm,
+                          { color: selected ? '#FFFFFF' : colors.text.primary },
+                        ]}
+                      >
+                        {t.schedule.windowOption.replace('{n}', formatDigits(mins, easternNumerals))}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </Card>
           </View>
         ))}
@@ -182,5 +233,7 @@ const styles = StyleSheet.create({
   medicineSchedule: { marginTop: 16 },
   medHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   timeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+  windowRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  windowChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
   actions: { marginTop: 32, gap: 12, alignItems: 'center' },
 });

@@ -16,6 +16,7 @@ interface ThemeContextValue {
   borderRadius: typeof borderRadius | typeof elderlyBorderRadius;
   mode: ThemeMode;
   isDark: boolean;
+  isElderly: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
@@ -47,6 +48,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       borderRadius: elderlyMode ? elderlyBorderRadius : borderRadius,
       mode: resolvedMode,
       isDark: resolvedMode === 'dark',
+      isElderly: elderlyMode,
     };
   }, [resolvedMode, elderlyMode, language]);
 

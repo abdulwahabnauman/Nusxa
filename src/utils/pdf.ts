@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
-import { formatDateReadable, formatTime12h } from './date';
+import { formatDateReadable, getTimeRangeParts } from './date';
 import type { Medicine, Schedule } from '../types/models';
 
 /** Escape a string for safe inclusion in HTML */
@@ -46,7 +46,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       if (!med) return '';
       return `
         <tr>
-          <td class="mono">${esc(formatTime12h(s.time))}</td>
+          <td class="mono">${esc(getTimeRangeParts(s.time, s.window_minutes ?? 120).join(' – '))}</td>
           <td>${dash(med.name)}${med.strength ? ` <span class="muted">(${esc(med.strength)})</span>` : ''}</td>
           <td>${dash(med.dosage)}</td>
           <td>${esc(MEAL_LABELS[s.meal_instruction ?? 'none'] ?? '—')}</td>

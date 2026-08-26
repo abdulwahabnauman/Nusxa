@@ -44,13 +44,18 @@ export async function checkNotificationPermission(): Promise<boolean> {
   return status === 'granted';
 }
 
-/** Schedule a local notification for a medicine dose */
+/**
+ * Schedule a local notification for a medicine dose.
+ * Fires exactly once at `time` — the start of the reminder window.
+ * The window (window_minutes) only relaxes the displayed target range,
+ * it never adds extra alerts.
+ */
 export async function scheduleDoseNotification(params: {
   id: string;
   medicineName: string;
   dosage: string;
   mealInstruction: string | null;
-  time: string; // HH:mm
+  time: string; // HH:mm — window start
   date: Date;
 }): Promise<string | null> {
   const hasPermission = await checkNotificationPermission();

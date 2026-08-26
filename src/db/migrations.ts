@@ -223,6 +223,24 @@ const migration_v9: Migration = {
   },
 };
 
+/**
+ * Version 10: Reminder time windows.
+ * Adds `window_minutes` to schedules so a reminder represents a flexible
+ * window (e.g. 8:00–10:00 AM) instead of a single fixed point. `time`
+ * stays the window's start; the notification still fires at the start.
+ */
+const migration_v10: Migration = {
+  version: 10,
+  up: async (db) => {
+    try {
+      await db.execAsync('ALTER TABLE schedules ADD COLUMN window_minutes INTEGER DEFAULT 120;');
+    } catch {
+      // Column already exists — nothing to do
+    }
+    await db.runAsync('UPDATE schema_version SET version = 10;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -233,6 +251,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v7,
   migration_v8,
   migration_v9,
+  migration_v10,
 ];
 
 /** Run pending migrations */
@@ -258,4 +277,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 9;
+export const CURRENT_SCHEMA_VERSION = 10;

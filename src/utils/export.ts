@@ -184,12 +184,13 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       if (!id || !s.time || !medicineIds.has(s.medicine_id as string) || scheduleIds.has(id)) continue;
       scheduleIds.add(id);
       await db.runAsync(
-        `INSERT INTO schedules (id, medicine_id, time, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           id,
           asString(s.medicine_id),
           asString(s.time),
+          typeof s.window_minutes === 'number' ? s.window_minutes : 120,
           asString(s.timezone) ?? 'UTC',
           asString(s.frequency) ?? 'daily',
           asString(s.meal_instruction),

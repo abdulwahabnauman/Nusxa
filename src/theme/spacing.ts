@@ -21,6 +21,23 @@ export const elderlySpacing = {
   '3xl': 64, // Increased from 56
 } as const;
 
+/**
+ * Capped spacing scale for buttons in elderly mode.
+ * Buttons already get the elderly font-size bump, so applying the full
+ * elderlySpacing on top compounds into disproportionately huge buttons.
+ * This smaller bump keeps the ≥44pt touch target without oversizing.
+ */
+export const elderlyButtonSpacing = {
+  xs: 8,
+  sm: 10,
+  md: 14,
+  base: 20,
+  lg: 24,
+  xl: 28,
+  '2xl': 36,
+  '3xl': 52,
+} as const;
+
 export type SpacingKey = keyof typeof spacing;
 
 export const borderRadius = {

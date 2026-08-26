@@ -19,6 +19,8 @@ export interface ScheduleDraft {
   frequency: string;
   mealInstruction: string;
   times: string[];
+  /** Reminder window length in minutes from each reminder time */
+  windowMinutes: number;
 }
 
 const generateId = () =>
@@ -69,6 +71,7 @@ export function buildDefaultSchedules(
       frequency: med.frequency ?? 'Once daily',
       mealInstruction: med.meal_instruction ?? 'none',
       times: [...times],
+      windowMinutes: 120,
     };
   });
 }
@@ -95,6 +98,7 @@ async function armSchedules(
       id: scheduleId,
       medicine_id: medicineId,
       time,
+      window_minutes: schedule.windowMinutes,
       timezone,
       frequency: schedule.frequency,
       meal_instruction: (schedule.mealInstruction as any) ?? null,

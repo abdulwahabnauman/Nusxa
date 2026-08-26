@@ -91,6 +91,7 @@ export default function HomeScreen() {
           medicineName: medicine.name ?? 'Unknown',
           dosage: medicine.dosage,
           time: schedule.time,
+          windowMinutes: schedule.window_minutes,
           mealInstruction: schedule.meal_instruction,
           status: record ? record.status : 'pending',
           doseRecordId: record?.id ?? null,

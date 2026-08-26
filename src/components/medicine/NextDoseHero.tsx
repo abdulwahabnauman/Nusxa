@@ -12,6 +12,7 @@ import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
 import { formatDigits } from '../../utils/numerals';
+import { getTimeRangeParts } from '../../utils/date';
 import type { TodayScheduleItem } from '../../types/models';
 
 const SNOOZE_MINUTES = 10;
@@ -107,6 +108,11 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const snoozeUntil = snoozedUntil[next.scheduleId];
   const isSnoozed = !!snoozeUntil && snoozeUntil > now;
 
+  const [rangeStart, rangeEnd] = getTimeRangeParts(next.time, next.windowMinutes ?? 120);
+  const windowLabel = t.dose.timeRange
+    .replace('{start}', nf(rangeStart))
+    .replace('{end}', nf(rangeEnd));
+
   const handleSnooze = () => {
     setSnoozedUntil((current) => ({
       ...current,
@@ -165,7 +171,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
             {isSnoozed
               ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeUntil)))
-              : `${formatClock(doseDate)} · ${formatCountdown(diffMs)}`}
+              : `${windowLabel} · ${formatCountdown(diffMs)}`}
           </Text>
         </View>
       </View>

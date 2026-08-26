@@ -5,6 +5,8 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useTheme } from '../../src/theme/provider';
+import { useI18n } from '../../src/i18n';
+import { useSettingsStore } from '../../src/stores/settings-store';
 import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
@@ -14,11 +16,14 @@ import { getMedicine, deleteMedicine } from '../../src/db/repositories/medicine'
 import { getSchedulesByMedicine, deactivateSchedulesByMedicine } from '../../src/db/repositories/schedule';
 import { cancelAllNotifications } from '../../src/utils/notifications';
 import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
-import { formatTime12h } from '../../src/utils/date';
+import { formatTime12h, addMinutesToTime } from '../../src/utils/date';
+import { formatDigits } from '../../src/utils/numerals';
 import type { Medicine, Schedule } from '../../src/types/models';
 
 export default function MedicineDetailScreen() {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -144,15 +149,21 @@ export default function MedicineDetailScreen() {
               Schedule
             </Text>
             <Card>
-              {schedules.map((sch) => (
+              {schedules.map((sch) => {
+                const nf = (v: string | number) => formatDigits(v, easternNumerals);
+                const range = t.dose.timeRange
+                  .replace('{start}', nf(formatTime12h(sch.time)))
+                  .replace('{end}', nf(formatTime12h(addMinutesToTime(sch.time, sch.window_minutes ?? 120))));
+                return (
                 <View key={sch.id} style={styles.scheduleRow}>
                   <MaterialCommunityIcons name="clock-outline" size={20} color={colors.accent.primary} />
                   <Text style={[typography.body.base, { color: colors.text.primary, marginLeft: 8 }]}>
-                    {formatTime12h(sch.time)} — {sch.frequency}
+                    {range} — {sch.frequency}
                     {sch.meal_instruction && sch.meal_instruction !== 'none' && ` (${sch.meal_instruction} meals)`}
                   </Text>
                 </View>
-              ))}
+                );
+              })}
             </Card>
           </Animated.View>
         )}

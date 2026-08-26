@@ -6,6 +6,7 @@ function parseSchedule(row: Record<string, unknown>): Schedule {
     id: row.id as string,
     medicine_id: row.medicine_id as string,
     time: row.time as string,
+    window_minutes: typeof row.window_minutes === 'number' ? row.window_minutes : 120,
     timezone: row.timezone as string,
     frequency: row.frequency as string,
     meal_instruction: row.meal_instruction as Schedule['meal_instruction'],
@@ -24,10 +25,10 @@ export async function createSchedule(
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO schedules (id, medicine_id, time, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
-      data.id, data.medicine_id, data.time, data.timezone,
+      data.id, data.medicine_id, data.time, data.window_minutes, data.timezone,
       data.frequency, data.meal_instruction, data.start_date, data.end_date,
       data.is_active ? 1 : 0, data.notification_id, now,
     ]
@@ -68,7 +69,7 @@ export async function getSchedule(id: string): Promise<Schedule | null> {
 
 export async function updateSchedule(
   id: string,
-  data: Partial<Pick<Schedule, 'time' | 'timezone' | 'is_active' | 'notification_id' | 'end_date'>>
+  data: Partial<Pick<Schedule, 'time' | 'window_minutes' | 'timezone' | 'is_active' | 'notification_id' | 'end_date'>>
 ): Promise<void> {
   const db = getDatabase();
   const fields: string[] = [];

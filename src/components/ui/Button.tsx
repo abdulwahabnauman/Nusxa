@@ -11,6 +11,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { elderlyButtonSpacing } from '../../theme/spacing';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
@@ -46,8 +47,13 @@ export function Button({
   accessibilityRole,
   largeTouchTarget = false,
 }: ButtonProps) {
-  const { colors, typography, borderRadius, spacing } = useTheme();
+  const { colors, typography, borderRadius, spacing, isElderly } = useTheme();
   const reducedMotion = useReducedMotion();
+
+  // In elderly mode the font size is already bumped up; using the full
+  // elderlySpacing for padding on top would compound into oversized
+  // buttons, so padding growth is capped with a dedicated smaller scale.
+  const pad = isElderly ? elderlyButtonSpacing : spacing;
 
   // Press feedback: a quick spring scale-down on touch
   const scale = useSharedValue(1);
@@ -68,11 +74,11 @@ export function Button({
 
   // Size
   if (size === 'sm') {
-    containerStyles.push({ paddingVertical: spacing.sm, paddingHorizontal: spacing.base });
+    containerStyles.push({ paddingVertical: pad.sm, paddingHorizontal: pad.base });
   } else if (size === 'lg') {
-    containerStyles.push({ paddingVertical: spacing.base, paddingHorizontal: spacing.xl });
+    containerStyles.push({ paddingVertical: pad.base, paddingHorizontal: pad.xl });
   } else {
-    containerStyles.push({ paddingVertical: spacing.md, paddingHorizontal: spacing.xl });
+    containerStyles.push({ paddingVertical: pad.md, paddingHorizontal: pad.xl });
   }
 
   // Variant colors

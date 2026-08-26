@@ -12,12 +12,15 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
+import { useSettingsStore } from '../../stores/settings-store';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { formatTime12h } from '../../utils/date';
+import { getTimeRangeParts } from '../../utils/date';
+import { formatDigits } from '../../utils/numerals';
 import type { DoseStatus } from '../../types/models';
 
 interface DoseItemProps {
   time: string;
+  windowMinutes?: number;
   medicineName: string;
   dosage: string | null;
   mealInstruction: string | null;
@@ -35,6 +38,7 @@ const STATUS_ICONS: Record<DoseStatus, keyof typeof MaterialCommunityIcons.glyph
 
 export function DoseItem({
   time,
+  windowMinutes,
   medicineName,
   dosage,
   mealInstruction,
@@ -44,7 +48,14 @@ export function DoseItem({
 }: DoseItemProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const { t } = useI18n();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
+
+  const nf = (v: string | number) => formatDigits(v, easternNumerals);
+  const [rangeStart, rangeEnd] = getTimeRangeParts(time, windowMinutes ?? 120);
+  const timeLabel = t.dose.timeRange
+    .replace('{start}', nf(rangeStart))
+    .replace('{end}', nf(rangeEnd));
 
   // Pop the status icon when the dose transitions out of "pending"
   const prevStatus = useRef(status);
@@ -125,7 +136,7 @@ export function DoseItem({
         </Animated.View>
         <View style={{ marginLeft: 12, flex: 1 }}>
           <Text style={[typography.body.base, { color: colors.text.primary }]}>
-            {formatTime12h(time)}
+            {timeLabel}
           </Text>
           <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
             {medicineName} {dosage ? `— ${dosage}` : ''}

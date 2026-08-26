@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS schedules (
   id TEXT PRIMARY KEY,
   medicine_id TEXT NOT NULL REFERENCES medicines(id) ON DELETE CASCADE,
   time TEXT NOT NULL,
+  window_minutes INTEGER DEFAULT 120,
   timezone TEXT NOT NULL,
   frequency TEXT NOT NULL,
   meal_instruction TEXT,

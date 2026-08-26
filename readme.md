@@ -755,6 +755,12 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Smaller test APKs**: for on-device testing build a single-ABI APK with `cd android && .\gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a` — much smaller and faster than the default 4-ABI universal APK. The Play Store AAB keeps all ABIs (Play delivers per-device splits, so users only download their own).
 - **Snappier feedback animations**: dose taken/skipped icon pop, undo toast, generic toast and the celebration overlay all use stiff, near-critically-damped springs now (stiffness 300–520 vs 180–260 before) so entrances settle in ~250–300ms instead of ~600–800ms; exits shortened to 140ms. Reduced-motion behavior unchanged.
 
+### ✅ Reminder time windows, chart overflow fix, elderly button sizing cap
+
+- **Dose reminders are now flexible time windows instead of fixed times.** A new `schedules.window_minutes` column (**schema v10 migration**, default 120) turns each reminder into a range — `time` stays the window's start (e.g. 08:00 + 120 min → "8:00 – 10:00 AM"). The range renders everywhere a time used to: home timeline (`DoseItem`), next-dose hero card, medicine detail schedule rows, and the Patient Visit Summary PDF's TIME column. The schedule-confirm screen gets a **reminder-window picker** (60 / 90 / 120 / 180 min chips) per medicine; the quick-approve path uses the 120-min default. Notifications are unchanged in cadence — **one alert at the window start** — and backup export/import round-trips the new column. New bilingual keys: `schedule.reminderWindow`, `schedule.windowOption`, `dose.timeRange` (Eastern Arabic numerals respected).
+- **Weekly adherence chart no longer overflows its card.** `chartArea` previously hardcoded 140px with 120px bars, leaving ~20px for the day labels — not enough once elderly mode scales up `typography.body.xs` and `spacing.xs`. The height is now derived at render time from the live theme tokens (`100px bars + label lineHeight + spacing.xs + buffer`), so it self-adjusts in normal, elderly, and Urdu (Nastaliq, 1.9× line height) modes alike.
+- **Elderly-mode buttons capped instead of compounding.** Buttons previously got *both* the elderly font-size bump and the full ~1.6× `elderlySpacing` padding, producing disproportionately huge buttons that clipped off-screen. A dedicated `elderlyButtonSpacing` scale (smaller bump, tuned to just guarantee the 44pt touch target) now drives button padding via the new `isElderly` theme flag; everything else (cards, inputs, layouts) keeps the full elderly spacing. Elderly `size="md"`: 64px → 52px tall; `size="lg"`: 72px → 64px tall; horizontal padding 40 → 28px. Normal-mode sizing untouched.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
@@ -781,6 +787,8 @@ A seven-issue hardening pass. Nothing Gemini/API-related was touched.
 - v6: Education library seed data (idempotent)
 - v7: Profile settings columns backfill (notifications_enabled, theme_preference, elderly_mode, reduced_motion)
 - v8: Expanded education content (5 categories, 12 bilingual articles)
+- v9: Eastern Arabic numeral preference (profile.eastern_numerals)
+- v10: Reminder windows (schedules.window_minutes, default 120)
 
 ---
 
@@ -852,49 +860,6 @@ New tab order (6 tabs): Home, Medicines, History, Learn, Analytics, Settings
 
 - English keys: 50+ new strings (nav.analytics, nav.education, analytics.*, interactions.*)
 - Urdu translations: Complete RTL equivalents for all new features
-
-### 💾 DOCUMENTATION CREATED:
-
-- `APP_UPDATE_SUMMARY.md` - Comprehensive change log (this document)
-- Updated main `readme.md` - All new features documented
-- Git commit message template ready for single-commit deployment
-
-### 📋 GIT COMMIT COMMAND:
-
-```bash
-git add .
-git commit -m "feat: Add Education Library, Analytics Dashboard, and Medicine Interaction Checker
-
-🎯 MAJOR FEATURE ADDITIONS:
-- Education Library: Browse/read medications guides with bookmarking
-- Analytics Dashboard: Visual adherence tracking with charts
-- Medicine Interaction Checker: Safety warnings for drug conflicts
-- Biometric Lock: PIN + biometric authentication support
-
-🔧 BUG FIXES:
-- Fix database migration error (runMigrations undefined)
-- Fix duplicate name display in Settings
-- Fix Urdu tab overflow on iOS Nasteq font
-- Fix processing screen step 4 stuck pending
-- Add OK button to processing screen
-- Fix import resolution errors in education module
-
-📝 ENHANCEMENTS:
-- Added 6-tab navigation (Home, Medicines, History, Learn, Analytics, Settings)
-- Expanded database schema to v5 with education tables
-- Added 50+ bilingual translations (EN/UR)
-- Updated Gemini model to 3.6-flash
-- Improved button alignment throughout app
-
-📊 CODE STATS:
-- New files: 6 (+1,970 lines)
-- Modified files: 15
-- Total impact: ~2,500 lines of production code
-
-✅ ALL FEATURES COMPLETE & TESTED
-✅ ZERO COMPILATION ERRORS
-✅ READY FOR PRODUCTION"
-```
 
 ---
 

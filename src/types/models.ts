@@ -67,6 +67,8 @@ export interface Schedule {
   id: string;
   medicine_id: string;
   time: string;
+  /** Reminder window length in minutes from `time` (e.g. 120 = 8:00–10:00 AM) */
+  window_minutes: number;
   timezone: string;
   frequency: string;
   meal_instruction: MealInstruction;
@@ -107,6 +109,7 @@ export interface TodayScheduleItem {
   medicineName: string;
   dosage: string | null;
   time: string;
+  windowMinutes?: number;
   mealInstruction: MealInstruction;
   status: DoseStatus;
   doseRecordId: string | null;

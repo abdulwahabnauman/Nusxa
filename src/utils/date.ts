@@ -19,6 +19,21 @@ export function formatTime12h(time24: string): string {
   return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+/** Add minutes to an HH:mm time, wrapping past midnight */
+export function addMinutesToTime(time24: string, minutes: number): string {
+  const [h, m] = time24.split(':').map(Number);
+  if (h == null || m == null) return time24;
+  const total = (h * 60 + m + minutes) % (24 * 60);
+  const nh = Math.floor(total / 60);
+  const nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+}
+
+/** 12-hour [start, end] pair for a reminder window (start time + window minutes) */
+export function getTimeRangeParts(time24: string, windowMinutes: number): [string, string] {
+  return [formatTime12h(time24), formatTime12h(addMinutesToTime(time24, windowMinutes))];
+}
+
 /** Get today's date string in ISO format */
 export function getTodayISO(): string {
   return formatDateISO(new Date());
