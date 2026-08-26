@@ -1,6 +1,9 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+/* Android channel used for all medicine reminders */
+export const DOSE_CHANNEL_ID = 'medication-reminders';
+
 /** Configure notification behavior - wrapped in try/catch for safety */
 export async function configureNotifications(): Promise<void> {
   try {
@@ -20,12 +23,14 @@ export async function configureNotifications(): Promise<void> {
       },
     });
 
-    // Configure Google Play services for notifications on Android
+    // Android requires a notification channel; create it explicitly
+    // (setAndroidChannelDefaultsAsync does not exist in this SDK version)
     if (Platform.OS === 'android') {
-      await Notifications.setAndroidChannelDefaultsAsync([
-        'default',
-        'medication-reminders',
-      ]);
+      await Notifications.setNotificationChannelAsync(DOSE_CHANNEL_ID, {
+        name: 'Medication reminders',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+      });
     }
   } catch (error) {
     console.error('[Notifications] Failed to configure:', error);
@@ -74,6 +79,7 @@ export async function scheduleDoseNotification(params: {
         dosage: params.dosage,
         scheduleId: params.id,
       },
+      ...(Platform.OS === 'android' ? { channelId: DOSE_CHANNEL_ID } : {}),
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },

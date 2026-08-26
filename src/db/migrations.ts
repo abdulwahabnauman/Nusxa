@@ -142,6 +142,33 @@ const migration_v6: Migration = {
   },
 };
 
+/**
+ * Version 7: Ensure settings columns exist on upgrade installs.
+ * Early builds passed schema v3 before the settings columns were part of the
+ * v3 migration, so devices can sit at version 6 with a profile table that is
+ * missing notifications_enabled / theme_preference ("no such column" errors
+ * when saving settings). Add any missing column defensively.
+ */
+const migration_v7: Migration = {
+  version: 7,
+  up: async (db) => {
+    const columns = [
+      'ALTER TABLE profile ADD COLUMN notifications_enabled INTEGER DEFAULT 1;',
+      'ALTER TABLE profile ADD COLUMN theme_preference TEXT DEFAULT \'system\';',
+      'ALTER TABLE profile ADD COLUMN elderly_mode INTEGER DEFAULT 0;',
+      'ALTER TABLE profile ADD COLUMN reduced_motion INTEGER DEFAULT 0;',
+    ];
+    for (const sql of columns) {
+      try {
+        await db.execAsync(sql);
+      } catch {
+        // Column already exists — nothing to do
+      }
+    }
+    await db.runAsync('UPDATE schema_version SET version = 7;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -149,6 +176,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v4,
   migration_v5,
   migration_v6,
+  migration_v7,
 ];
 
 /** Run pending migrations */
@@ -174,4 +202,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 6;
+export const CURRENT_SCHEMA_VERSION = 7;
