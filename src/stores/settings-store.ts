@@ -9,11 +9,13 @@ interface SettingsState {
   reminderEscalation: boolean;
   reducedMotion: boolean;
   easternNumerals: boolean;
+  snoozeMinutes: number;
   setLanguage: (lang: Language) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
   setEasternNumerals: (enabled: boolean) => void;
+  setSnoozeMinutes: (minutes: number) => void;
 }
 
 // Helper function to save settings to database
@@ -24,6 +26,7 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
       notifications_enabled: state.notificationsEnabled,
       reduced_motion: state.reducedMotion,
       eastern_numerals: state.easternNumerals,
+      snooze_minutes: state.snoozeMinutes,
     });
   } catch (error) {
     console.error('Failed to save settings to database:', error);
@@ -40,6 +43,7 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
         notificationsEnabled: !!profile.notifications_enabled,
         reducedMotion: !!profile.reduced_motion,
         easternNumerals: !!profile.eastern_numerals,
+        snoozeMinutes: profile.snooze_minutes ?? 10,
       };
     }
   } catch (error) {
@@ -60,6 +64,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       notificationsEnabled: initialSettings.notificationsEnabled ?? true,
       reducedMotion: initialSettings.reducedMotion ?? false,
       easternNumerals: initialSettings.easternNumerals ?? false,
+      snoozeMinutes: initialSettings.snoozeMinutes ?? 10,
     });
   });
 
@@ -70,6 +75,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     reminderEscalation: true,
     reducedMotion: false,
     easternNumerals: false,
+    snoozeMinutes: 10,
     
     setLanguage: (language) => {
       set({ language });
@@ -92,6 +98,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
 
     setEasternNumerals: (easternNumerals) => {
       set({ easternNumerals });
+      saveSettingsToDatabase(get());
+    },
+
+    setSnoozeMinutes: (snoozeMinutes) => {
+      set({ snoozeMinutes });
       saveSettingsToDatabase(get());
     },
   };

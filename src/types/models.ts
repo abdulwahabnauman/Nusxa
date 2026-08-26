@@ -18,6 +18,8 @@ export interface Profile {
   notifications_enabled: boolean;
   reduced_motion: boolean;
   eastern_numerals?: boolean;
+  snooze_minutes?: number;
+  high_contrast?: boolean;
   theme_preference?: 'system' | 'light' | 'dark';
   created_at: string;
   updated_at: string;

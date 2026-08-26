@@ -269,6 +269,33 @@ const migration_v11: Migration = {
   },
 };
 
+/**
+ * Version 12: Configurable snooze + high-contrast preference.
+ * Adds `snooze_minutes` and `high_contrast` to the profile, plus a tiny
+ * key/value table used to throttle reminder notifications (e.g. refill
+ * reminders max once per medicine per few days) so the app never nags.
+ */
+const migration_v12: Migration = {
+  version: 12,
+  up: async (db) => {
+    const columns = [
+      'ALTER TABLE profile ADD COLUMN snooze_minutes INTEGER DEFAULT 10;',
+      'ALTER TABLE profile ADD COLUMN high_contrast INTEGER DEFAULT 0;',
+    ];
+    for (const sql of columns) {
+      try {
+        await db.execAsync(sql);
+      } catch {
+        // Column already exists — nothing to do
+      }
+    }
+    await db.execAsync(
+      'CREATE TABLE IF NOT EXISTS reminders_state (key TEXT PRIMARY KEY, value TEXT);'
+    );
+    await db.runAsync('UPDATE schema_version SET version = 12;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -281,6 +308,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v9,
   migration_v10,
   migration_v11,
+  migration_v12,
 ];
 
 /** Run pending migrations */
@@ -306,4 +334,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 11;
+export const CURRENT_SCHEMA_VERSION = 12;

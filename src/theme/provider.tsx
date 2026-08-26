@@ -25,6 +25,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const systemScheme = useColorScheme();
   const preference = useThemeStore((s) => s.preference);
   const elderlyMode = useThemeStore((s) => s.elderlyMode);
+  const highContrast = useThemeStore((s) => s.highContrast);
   const language = useSettingsStore((s) => s.language);
 
   const resolvedMode: ThemeMode = useMemo(() => {
@@ -38,11 +39,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     // Use elderly colors if elderly mode is enabled
     const baseColors = resolvedMode === 'dark' ? darkTokens : lightTokens;
     const elderlyColors = resolvedMode === 'dark' ? elderlyTokens.dark : elderlyTokens.light;
+    // High-contrast mode reuses the boosted elderly palette without the
+    // large-text/large-spacing scaling — colors only.
+    const useEnhancedColors = elderlyMode || highContrast;
     // Apply Nastaliq font when Urdu is selected
     const fontFamily = language === 'ur' ? URDU_FONT_FAMILY : undefined;
 
     return {
-      colors: elderlyMode ? elderlyColors : baseColors,
+      colors: useEnhancedColors ? elderlyColors : baseColors,
       typography: getTypography(elderlyMode, fontFamily),
       spacing: elderlyMode ? elderlySpacing : spacing,
       borderRadius: elderlyMode ? elderlyBorderRadius : borderRadius,
@@ -50,7 +54,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       isDark: resolvedMode === 'dark',
       isElderly: elderlyMode,
     };
-  }, [resolvedMode, elderlyMode, language]);
+  }, [resolvedMode, elderlyMode, highContrast, language]);
 
   return (
     <ThemeContext.Provider value={value}>

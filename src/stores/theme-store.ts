@@ -5,8 +5,10 @@ import { getProfile, updateProfile } from '../db/repositories/profile';
 interface ThemeState {
   preference: ThemeMode | 'system';
   elderlyMode: boolean;
+  highContrast: boolean;
   setPreference: (pref: ThemeMode | 'system') => void;
   setElderlyMode: (enabled: boolean) => void;
+  setHighContrast: (enabled: boolean) => void;
   loadFromDatabase: () => Promise<void>;
 }
 
@@ -15,6 +17,7 @@ const saveThemeToDatabase = async (state: ThemeState) => {
   try {
     await updateProfile({
       elderly_mode: state.elderlyMode,
+      high_contrast: state.highContrast,
     });
   } catch (error) {
     console.error('Failed to save theme settings to database:', error);
@@ -22,12 +25,13 @@ const saveThemeToDatabase = async (state: ThemeState) => {
 };
 
 // Load theme settings from database
-const loadThemeFromDatabase = async (): Promise<{ preference: ThemeMode | 'system'; elderlyMode: boolean }> => {
+const loadThemeFromDatabase = async (): Promise<{ preference: ThemeMode | 'system'; elderlyMode: boolean; highContrast: boolean }> => {
   try {
     const profile = await getProfile();
     if (profile) {
       return {
         elderlyMode: profile.elderly_mode,
+        highContrast: !!profile.high_contrast,
         // Note: theme_preference column exists but we'll use system default for now
         preference: 'system' as ThemeMode | 'system',
       };
@@ -39,13 +43,14 @@ const loadThemeFromDatabase = async (): Promise<{ preference: ThemeMode | 'syste
       console.error('Failed to load theme settings from database:', error);
     }
   }
-  return { preference: 'system' as ThemeMode | 'system', elderlyMode: false };
+  return { preference: 'system' as ThemeMode | 'system', elderlyMode: false, highContrast: false };
 };
 
 export const useThemeStore = create<ThemeState>((set) => {
   return {
     preference: 'system',
     elderlyMode: false,
+    highContrast: false,
 
     setPreference: (preference: ThemeMode | 'system') => {
       set({ preference });
@@ -54,6 +59,12 @@ export const useThemeStore = create<ThemeState>((set) => {
 
     setElderlyMode: (elderlyMode: boolean) => {
       set({ elderlyMode });
+      const state = useThemeStore.getState();
+      saveThemeToDatabase(state);
+    },
+
+    setHighContrast: (highContrast: boolean) => {
+      set({ highContrast });
       const state = useThemeStore.getState();
       saveThemeToDatabase(state);
     },

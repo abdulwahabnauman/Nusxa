@@ -19,10 +19,14 @@ export default function SettingsScreen() {
   const { colors, typography, spacing } = useTheme();
   const themePref = useThemeStore((s) => s.preference);
   const elderlyMode = useThemeStore((s) => s.elderlyMode);
+  const highContrast = useThemeStore((s) => s.highContrast);
   const setPreference = useThemeStore((s) => s.setPreference);
   const setElderlyMode = useThemeStore((s) => s.setElderlyMode);
+  const setHighContrast = useThemeStore((s) => s.setHighContrast);
   const notificationsEnabled = useSettingsStore((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
+  const snoozeMinutes = useSettingsStore((s) => s.snoozeMinutes);
+  const setSnoozeMinutes = useSettingsStore((s) => s.setSnoozeMinutes);
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
@@ -209,6 +213,13 @@ export default function SettingsScreen() {
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
               <View>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.highContrast}</Text>
+                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.highContrastDesc}</Text>
+              </View>
+              <Switch value={highContrast} onValueChange={setHighContrast} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle high contrast mode" />
+            </View>
+            <View style={[styles.row, { marginTop: spacing.md }]}>
+              <View>
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reducedMotion}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reducedMotionDesc}</Text>
               </View>
@@ -262,6 +273,25 @@ export default function SettingsScreen() {
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.medicineRemindersDesc}</Text>
               </View>
               <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle medicine reminders" />
+            </View>
+            <View style={[styles.row, { marginTop: spacing.md }]}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.snoozeDuration}</Text>
+                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.snoozeDurationDesc}</Text>
+              </View>
+              <View style={styles.themeOptions}>
+                {[5, 10, 15, 30].map((min) => (
+                  <TouchableOpacity
+                    key={min}
+                    style={[styles.themeChip, { backgroundColor: snoozeMinutes === min ? colors.accent.primary : colors.background.subtle, borderColor: snoozeMinutes === min ? colors.accent.primary : colors.border.default }]}
+                    onPress={() => setSnoozeMinutes(min)}
+                    accessibilityLabel={`Set snooze to ${min} minutes`}
+                    accessibilityState={{ selected: snoozeMinutes === min }}
+                  >
+                    <Text style={[typography.label.sm, { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary }]}>{min}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
           </Card>
         </View>
