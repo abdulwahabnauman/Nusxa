@@ -11,13 +11,10 @@ import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResul
 import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
 import { resolveApiKey } from '../src/utils/secureStorage';
 import { useTranslation } from '../src/i18n';
-import { useSettingsStore } from '../src/stores/settings-store';
 
 export default function ProcessingScreen() {
   const { colors, typography, spacing } = useTheme();
   const t = useTranslation();
-  const currentLanguage = useSettingsStore((s) => s.language);
-  const isRTL = currentLanguage === 'ur';
   const router = useRouter();
   const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
   const [stage, setStage] = useState<PipelineStage>('preparing');
@@ -179,7 +176,7 @@ export default function ProcessingScreen() {
               {result.validation.warnings.length > 0 &&
                 ` — ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
             </Text>
-            <View style={{ width: '100%', flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing.md }}>
+            <View style={{ width: '100%', flexDirection: 'row', gap: spacing.md }}>
               <Button 
                 title="OK" 
                 onPress={handleApprove}

@@ -40,6 +40,9 @@ function AppContent() {
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
   const syncElderlyMode = useThemeStore((s) => s.setElderlyMode);
+  // Live layout direction — driven from JS so language switches flip the UI
+  // instantly in both directions without needing an app restart.
+  const language = useSettingsStore((s) => s.language);
 
   // Load the Nastaliq font used for Urdu text
   const [fontsLoaded] = useFonts({
@@ -136,7 +139,7 @@ function AppContent() {
   const showOnboarding = !profile || !profile.onboarding_complete || !profile.name;
 
   return (
-    <>
+    <View style={{ flex: 1, direction: language === 'ur' ? 'rtl' : 'ltr' }}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       <Stack
         screenOptions={{
@@ -160,7 +163,7 @@ function AppContent() {
         <Stack.Screen name="doctor-visit" options={{ presentation: 'card' }} />
         <Stack.Screen name="analytics" options={{ presentation: 'card' }} />
       </Stack>
-    </>
+    </View>
   );
 }
 

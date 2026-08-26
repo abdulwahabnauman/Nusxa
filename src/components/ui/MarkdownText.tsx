@@ -129,6 +129,8 @@ const styles = StyleSheet.create({
   },
   code: {
     fontFamily: 'monospace',
+    // Fixed dark-on-light chip so code spans stay readable in both themes
+    color: '#1F2937',
     backgroundColor: '#F3F3F0',
     paddingHorizontal: 4,
     paddingVertical: 2,

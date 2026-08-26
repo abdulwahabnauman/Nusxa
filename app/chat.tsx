@@ -200,7 +200,7 @@ export default function ChatScreen() {
               ]}
             >
               <View>
-                {parseMarkdown(msg.content, msg.role === 'user' ? '#FFFFFF' : undefined).map((node, idx) => (
+                {parseMarkdown(msg.content, msg.role === 'user' ? '#FFFFFF' : colors.text.primary).map((node, idx) => (
                   <React.Fragment key={idx}>
                     {node}
                   </React.Fragment>

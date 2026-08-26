@@ -36,7 +36,6 @@ export default function SettingsScreen() {
   const [hasStoredOpenRouterKey, setHasStoredOpenRouterKey] = useState(false);
   const [groqKeyInput, setGroqKeyInput] = useState('');
   const [hasStoredGroqKey, setHasStoredGroqKey] = useState(false);
-  const [needsRestart, setNeedsRestart] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -232,11 +231,10 @@ export default function SettingsScreen() {
                       try { await updateProfile({ language: lang }); }
                       catch { console.log('Database not ready'); }
                       const willBeRTL = lang === 'ur';
+                      // Persist for cold starts; the live flip is instant via
+                      // the root view's `direction` style — no restart needed.
                       I18nManager.allowRTL(true);
                       I18nManager.forceRTL(willBeRTL);
-                      setNeedsRestart(true);
-                      setNeedsRestart(false);
-                      Alert.alert(lang === 'ur' ? 'زبان تبدیل ہو گئی' : 'Language changed', lang === 'ur' ? 'براہے مہربانی ایپ کو مکمل طور پر بند کر کے دوبارہ کھولیں تاکہ RTL لے آؤٹ لاگو ہو۔' : 'Language setting updated! Restart the app to see full changes.');
                     }
                   }} accessibilityLabel={`Set language to ${lang === 'en' ? 'English' : 'اردو'}`} accessibilityState={{ selected: language === lang }}>
                     <Text style={[typography.label.sm, { color: language === lang ? '#FFFFFF' : colors.text.secondary }]}>{lang === 'en' ? t.settings.english : t.settings.urdu}</Text>

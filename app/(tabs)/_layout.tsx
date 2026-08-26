@@ -32,9 +32,8 @@ export default function TabLayout() {
           height: 64 + insets.bottom,
           paddingTop: 6,
           paddingBottom: insets.bottom,
-          ...(isRTL && {
-            flexDirection: 'row-reverse',
-          }),
+          // Row order flips automatically via the root view's `direction`
+          // style — no manual row-reverse needed here.
         },
         tabBarLabelStyle: {
           fontSize: typography.sizes.xs,

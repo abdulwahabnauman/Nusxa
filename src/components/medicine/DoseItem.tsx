@@ -11,6 +11,7 @@ import Animated, {
   interpolate,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { formatTime12h } from '../../utils/date';
 import type { DoseStatus } from '../../types/models';
@@ -42,6 +43,7 @@ export function DoseItem({
   onSkip,
 }: DoseItemProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const reducedMotion = useReducedMotion();
 
   // Pop the status icon when the dose transitions out of "pending"
@@ -67,11 +69,19 @@ export function DoseItem({
   const swipeEnabled = status === 'pending' && !!onTaken;
   const swipeGesture = Gesture.Pan()
     .enabled(swipeEnabled)
+    // Axis lock: only claim the gesture after clear horizontal intent, and
+    // bail out the moment the finger moves vertically — so plain scrolling
+    // never triggers a swipe-to-taken.
+    .activeOffsetX([-24, 24])
+    .failOffsetY([-12, 12])
     .onChange((e) => {
       swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_MAX));
     })
     .onEnd((e) => {
-      if (e.translationX >= SWIPE_THRESHOLD && onTaken) {
+      const deliberate =
+        e.translationX >= SWIPE_THRESHOLD && e.translationX > Math.abs(e.translationY) * 1.5;
+      const fling = e.velocityX > 800 && e.translationX > 40;
+      if ((deliberate || fling) && onTaken) {
         runOnJS(onTaken)();
       }
       swipeX.value = withSpring(0, { damping: 18, stiffness: 240 });
@@ -102,7 +112,7 @@ export function DoseItem({
           ]}
         >
           <MaterialCommunityIcons name="check" size={24} color="#FFFFFF" />
-          <Text style={[typography.label.sm, { color: '#FFFFFF', marginLeft: 6 }]}>Taken</Text>
+          <Text style={[typography.label.sm, { color: '#FFFFFF', marginLeft: 6 }]}>{t.dose.taken}</Text>
         </Animated.View>
       )}
 
@@ -134,14 +144,14 @@ export function DoseItem({
             onPress={onTaken}
             accessibilityLabel={`Mark ${medicineName} as taken`}
           >
-            <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>Taken</Text>
+            <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.dose.taken}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.background.subtle, borderRadius: borderRadius.sm }]}
             onPress={onSkip}
             accessibilityLabel={`Skip ${medicineName}`}
           >
-            <Text style={[typography.label.sm, { color: colors.text.secondary }]}>Skip</Text>
+            <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.dose.skip}</Text>
           </TouchableOpacity>
         </View>
       )}

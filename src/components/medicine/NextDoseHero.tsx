@@ -7,6 +7,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PillIcon } from '../ui/PillIcon';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -82,7 +83,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   // All done for today
   if (pending.length === 0) {
     return (
-      <View style={[styles.hero, { backgroundColor: colors.success + '1A', borderColor: colors.success + '33' }]}>
+      <View style={[styles.hero, { backgroundColor: colors.success + '1A', borderColor: colors.success + '33', borderLeftWidth: 3, borderLeftColor: colors.success }]}>
         <View style={[styles.iconBubble, { backgroundColor: colors.success + '26' }]}>
           <MaterialCommunityIcons name="check-circle" size={26} color={colors.success} />
         </View>
@@ -114,13 +115,20 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     setNow(Date.now());
   };
 
+  // Themed like the rest of the card family: surface background, hairline
+  // border and a tinted left edge (accent, or warning once the dose is due).
+  const overdue = diffMs <= 0;
+  const heroTint = overdue ? colors.warning : colors.accent.primary;
+
   return (
     <View
       style={[
         styles.hero,
         {
-          backgroundColor: diffMs <= 0 ? colors.warning + '1A' : colors.accent.primary,
-          borderColor: 'transparent',
+          backgroundColor: colors.background.surface,
+          borderColor: colors.border.default,
+          borderLeftWidth: 3,
+          borderLeftColor: heroTint,
         },
       ]}
     >
@@ -128,14 +136,10 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
         <View
           style={[
             styles.iconBubble,
-            { backgroundColor: diffMs <= 0 ? colors.warning + '26' : 'rgba(255,255,255,0.2)' },
+            { backgroundColor: overdue ? colors.warning + '26' : colors.accent.subtle },
           ]}
         >
-          <MaterialCommunityIcons
-            name={diffMs <= 0 ? 'alarm' : 'pill'}
-            size={24}
-            color={diffMs <= 0 ? colors.warning : '#FFFFFF'}
-          />
+          <PillIcon size={26} color={heroTint} contrastColor={heroTint + '55'} />
         </View>
 
         <View style={{ flex: 1, marginLeft: spacing.md }}>
@@ -143,7 +147,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
             style={[
               typ.body.xs,
               {
-                color: diffMs <= 0 ? colors.warning : 'rgba(255,255,255,0.8)',
+                color: heroTint,
                 textTransform: 'uppercase',
                 letterSpacing: 0.8,
               },
@@ -153,12 +157,12 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           </Text>
           <Text
             numberOfLines={1}
-            style={[typ.heading.h4, { color: diffMs <= 0 ? colors.text.primary : '#FFFFFF' }]}
+            style={[typ.heading.h4, { color: colors.text.primary }]}
           >
             {next.medicineName}
             {next.dosage ? ` — ${next.dosage}` : ''}
           </Text>
-          <Text style={[typ.body.sm, { color: diffMs <= 0 ? colors.text.secondary : 'rgba(255,255,255,0.85)' }]}>
+          <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
             {isSnoozed
               ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeUntil)))
               : `${formatClock(doseDate)} · ${formatCountdown(diffMs)}`}
@@ -168,37 +172,20 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
 
       <View style={[styles.actions, { marginTop: spacing.md }]}>
         <TouchableOpacity
-          style={[
-            styles.takeButton,
-            { backgroundColor: diffMs <= 0 ? colors.accent.primary : '#FFFFFF' },
-          ]}
+          style={[styles.takeButton, { backgroundColor: colors.accent.primary }]}
           onPress={() => onTaken(next.scheduleId, next.medicineId)}
           activeOpacity={0.85}
           accessibilityLabel={`Mark ${next.medicineName} as taken`}
         >
-          <MaterialCommunityIcons
-            name="check"
-            size={18}
-            color={diffMs <= 0 ? '#FFFFFF' : colors.accent.primary}
-          />
-          <Text
-            style={[
-              typ.label.base,
-              { color: diffMs <= 0 ? '#FFFFFF' : colors.accent.primary, marginLeft: 6 },
-            ]}
-          >
+          <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
+          <Text style={[typ.label.base, { color: '#FFFFFF', marginLeft: 6 }]}>
             {t.home.take}
           </Text>
         </TouchableOpacity>
 
         {!isSnoozed && (
           <TouchableOpacity
-            style={[
-              styles.snoozeButton,
-              {
-                borderColor: diffMs <= 0 ? colors.border.default : 'rgba(255,255,255,0.5)',
-              },
-            ]}
+            style={[styles.snoozeButton, { borderColor: colors.border.default }]}
             onPress={handleSnooze}
             activeOpacity={0.85}
             accessibilityLabel={`Snooze reminder for ${SNOOZE_MINUTES} minutes`}
@@ -206,13 +193,13 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
             <MaterialCommunityIcons
               name="clock-outline"
               size={18}
-              color={diffMs <= 0 ? colors.text.secondary : '#FFFFFF'}
+              color={colors.text.secondary}
             />
             <Text
               style={[
                 typ.label.base,
                 {
-                  color: diffMs <= 0 ? colors.text.secondary : '#FFFFFF',
+                  color: colors.text.secondary,
                   marginLeft: 6,
                 },
               ]}

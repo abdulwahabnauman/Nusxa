@@ -57,12 +57,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   const isRTL = language === 'ur';
 
-  // Sync RN's built-in RTL flag when language changes
+  // Persist the direction for cold starts. The live flip (both EN→UR and
+  // UR→EN) is handled instantly by the root view's `direction` style, so we
+  // always sync the flag here — no guard, no restart required.
   useEffect(() => {
-    if (I18nManager.isRTL !== isRTL) {
-      I18nManager.allowRTL(true);
-      I18nManager.forceRTL(isRTL);
-    }
+    I18nManager.allowRTL(true);
+    I18nManager.forceRTL(isRTL);
   }, [isRTL]);
 
   const setLanguage = useCallback(

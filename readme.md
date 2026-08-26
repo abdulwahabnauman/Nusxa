@@ -746,6 +746,14 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **Fix**: pinned `expo-font@~14.0.12` (the SDK 54 version from `expo/bundledNativeModules.json`) and `react-dom@19.1.0` as direct dependencies; the tree now dedupes to SDK-consistent versions everywhere.
 - **After pulling this fix**: run `npm install`, then **clean the Android build before rebuilding** (`cd android && gradlew clean`) so stale native expo-font artifacts are flushed, then build the APK as usual.
 
+### ✅ Polish & fixes batch — instant RTL flip, themed hero card, smarter swipe, dark-mode chat
+
+- **Instant, reversible RTL**: layout direction is now driven by a `direction` style on the root view (`app/_layout.tsx`), so switching English↔Urdu flips the whole UI live **in both directions** — no restart, and Urdu no longer "sticks" when switching back to English. `I18nManager.forceRTL` is kept purely for cold-start persistence; the old manual `row-reverse` hacks (tab bar, processing screen) and the restart alert were removed.
+- **Next-dose hero card themed**: the hero now matches the card family — surface background, hairline border, tinted left edge (accent → warning when the dose is due), accent-subtle icon bubble holding the brand `PillIcon` SVG (replacing the old MaterialCommunityIcons pill glyph), and theme-token text colors that read correctly in light *and* dark mode.
+- **Swipe-to-taken no longer misfires on scroll**: the DoseItem pan gesture is axis-locked (`activeOffsetX ±24`, `failOffsetY ±12`) and additionally requires a deliberate horizontal drag (1.5× the vertical movement) or a strong horizontal fling — vertical scrolling can never mark a dose taken. Swipe reveal + Taken/Skip buttons are now translated (`dose.taken` / `dose.skip`).
+- **Chat readable in dark theme**: assistant replies use `colors.text.primary` instead of React Native's default black, so markdown text is visible on dark surfaces; inline code chips keep a fixed dark-on-light color in both themes.
+- **Smaller test APKs**: for on-device testing build a single-ABI APK with `cd android && .\gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a` — much smaller and faster than the default 4-ABI universal APK. The Play Store AAB keeps all ABIs (Play delivers per-device splits, so users only download their own).
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
