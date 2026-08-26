@@ -9,7 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { PillIcon } from '../ui/PillIcon';
+import { MedicineFormIcon } from '../ui/PillIcon';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -202,7 +202,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
               { backgroundColor: overdue ? colors.warning + '26' : colors.accent.subtle },
             ]}
           >
-            <PillIcon size={22} color={heroTint} contrastColor={heroTint + '55'} />
+            <MedicineFormIcon form={next.form} size={22} color={heroTint} contrastColor={heroTint + '55'} />
           </View>
         </View>
 

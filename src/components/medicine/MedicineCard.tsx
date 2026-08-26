@@ -6,7 +6,7 @@ import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { PillIcon } from '../ui/PillIcon';
+import { MedicineFormIcon } from '../ui/PillIcon';
 import { formatTime12h } from '../../utils/date';
 import { formatDigits } from '../../utils/numerals';
 import { categoryColors, strengthColor } from '../../theme/tokens';
@@ -84,7 +84,7 @@ export function MedicineCard({
               marginRight: 10,
             }}
           >
-            <PillIcon size={20} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+            <MedicineFormIcon form={form} size={20} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typography.heading.h4, { color: colors.text.primary }]}>

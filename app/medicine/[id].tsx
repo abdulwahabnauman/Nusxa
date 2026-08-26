@@ -11,7 +11,7 @@ import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
-import { PillIcon } from '../../src/components/ui/PillIcon';
+import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { strengthColor } from '../../src/theme/tokens';
 import { getMedicine, deleteMedicine } from '../../src/db/repositories/medicine';
@@ -110,7 +110,7 @@ export default function MedicineDetailScreen() {
                 marginTop: 4,
               }}
             >
-              <PillIcon size={26} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+              <MedicineFormIcon form={medicine.form} size={26} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[typography.heading.h2, { color: colors.text.primary }]}>

@@ -14,7 +14,7 @@ import { useI18n } from '../../src/i18n';
 import { Card } from '../../src/components/ui/Card';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
-import { PillIcon } from '../../src/components/ui/PillIcon';
+import { MedicineFormIcon, PillIcon } from '../../src/components/ui/PillIcon';
 import { getActiveMedicines } from '../../src/db/repositories/medicine';
 import type { Medicine } from '../../src/types/models';
 
@@ -52,7 +52,7 @@ const EducationRow = memo(function EducationRow({
               marginRight: spacing.sm,
             }}
           >
-            <PillIcon size={22} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+            <MedicineFormIcon form={medicine.form} size={22} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typ.label.base, { color: colors.text.primary }]}>

@@ -17,7 +17,7 @@ import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
 import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
-import { PillIcon } from '../../src/components/ui/PillIcon';
+import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
 import { getMedicine, updateMedicine } from '../../src/db/repositories/medicine';
 import { resolveTextProviderKeys } from '../../src/utils/secureStorage';
 import { MEDICINE_INFO_SYSTEM_PROMPT, buildMedicineInfoRequest } from '../../src/ai/prompts';
@@ -215,7 +215,7 @@ export default function MedicineEducationScreen() {
               justifyContent: 'center',
             }}
           >
-            <PillIcon size={22} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
+            <MedicineFormIcon form={medicine.form} size={22} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
           </View>
         </View>
       </View>

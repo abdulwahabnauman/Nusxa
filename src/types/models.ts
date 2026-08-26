@@ -116,6 +116,7 @@ export interface TodayScheduleItem {
   medicineId: string;
   medicineName: string;
   dosage: string | null;
+  form?: MedicineForm;
   time: string;
   windowMinutes?: number;
   mealInstruction: MealInstruction;

@@ -134,6 +134,7 @@ export default function HomeScreen() {
           medicineId: medicine.id,
           medicineName: medicine.name ?? 'Unknown',
           dosage: medicine.dosage,
+          form: medicine.form,
           time: schedule.time,
           windowMinutes: schedule.window_minutes,
           mealInstruction: schedule.meal_instruction,
