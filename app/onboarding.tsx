@@ -16,6 +16,7 @@ import * as Notifications from 'expo-notifications';
 import { useTheme } from '../src/theme/provider';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useThemeStore } from '../src/stores/theme-store';
+import { useSettingsStore } from '../src/stores/settings-store';
 import { upsertProfileForOnboarding } from '../src/db/repositories/profile';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
@@ -60,8 +61,10 @@ export default function OnboardingScreen() {
       }
 
       // Create or update the profile (upsert — a row may already exist on
-      // upgrade installs), then mark onboarding complete.
-      const profile = await upsertProfileForOnboarding(name.trim(), 'en');
+      // upgrade installs), then mark onboarding complete. Keep whatever
+      // language is active right now so a chosen language survives setup.
+      const currentLanguage = useSettingsStore.getState().language;
+      const profile = await upsertProfileForOnboarding(name.trim(), currentLanguage);
       setProfile(profile);
 
       // Navigate to main tabs after successful setup

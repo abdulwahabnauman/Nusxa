@@ -12,7 +12,7 @@ import { openDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
 import { updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
-import { useSettingsStore } from '../src/stores/settings-store';
+import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';
 import { useThemeStore } from '../src/stores/theme-store';
 import { configureNotifications, syncRefillNotifications } from '../src/utils/notifications';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
@@ -87,6 +87,15 @@ function AppContent() {
           } catch (secondError) {
             console.error('[Init] Database failed again, app will run offline:', secondError);
           }
+        }
+
+        // The settings store's import-time load usually runs before the DB
+        // opens and falls back to defaults — re-apply the saved values now so
+        // the user's language/preferences survive a cold start.
+        try {
+          await hydrateSettings();
+        } catch (hydrateError) {
+          console.error('[Init] Settings hydration failed:', hydrateError);
         }
         
         let existingProfile: Profile | null = null;

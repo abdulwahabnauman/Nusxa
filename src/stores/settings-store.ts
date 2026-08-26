@@ -56,9 +56,39 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
   return {};
 };
 
+let hydrationRan = false;
+
+/**
+ * Re-read persisted settings once the database is ready.
+ * The module-level load below usually runs before openDatabase() and falls
+ * back to defaults, so the root layout calls this right after the DB opens
+ * to guarantee the saved language/preferences win over the defaults.
+ */
+export async function hydrateSettings(): Promise<void> {
+  if (hydrationRan) return;
+  hydrationRan = true;
+  const loaded = await loadSettingsFromDatabase();
+  if (Object.keys(loaded).length === 0) {
+    // No profile row yet (fresh install pre-onboarding) — allow a retry
+    // on the next call instead of locking in the defaults.
+    hydrationRan = false;
+    return;
+  }
+  useSettingsStore.setState({
+    language: loaded.language || 'en',
+    notificationsEnabled: loaded.notificationsEnabled ?? true,
+    reducedMotion: loaded.reducedMotion ?? false,
+    easternNumerals: loaded.easternNumerals ?? false,
+    snoozeMinutes: loaded.snoozeMinutes ?? 10,
+  });
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => {
-  // Load settings from database on initialization (side effect)
+  // Best-effort load at import time. This usually races openDatabase() and
+  // resolves with defaults; hydrateSettings() re-applies the saved values
+  // once the DB is ready, so the user's language survives cold starts.
   loadSettingsFromDatabase().then((initialSettings) => {
+    if (Object.keys(initialSettings).length === 0) return;
     set({
       language: initialSettings.language || 'en',
       notificationsEnabled: initialSettings.notificationsEnabled ?? true,
