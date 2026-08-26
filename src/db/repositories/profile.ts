@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Profile } from '../../types/models';
 
@@ -72,7 +73,7 @@ export async function updateProfile(
   const now = new Date().toISOString();
 
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   if (data.name !== undefined) {
     fields.push('name = ?');

@@ -44,7 +44,7 @@ export function WeeklyChart({ data }: WeeklyChartProps) {
                   {
                     height,
                     backgroundColor: barColor,
-                    borderRadius: borderRadius.xs,
+                    borderRadius: borderRadius.sm,
                   },
                 ]}
                 accessibilityLabel={`${item.day}: ${Math.round(item.percentage)}%`}

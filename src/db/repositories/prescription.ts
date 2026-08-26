@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Prescription, PrescriptionWithMedicines } from '../../types/models';
 import { getMedicinesByPrescription } from './medicine';
@@ -67,7 +68,7 @@ export async function getPrescriptionWithMedicines(id: string): Promise<Prescrip
 export async function getAllPrescriptions(status?: string): Promise<Prescription[]> {
   const db = getDatabase();
   let query = 'SELECT * FROM prescriptions';
-  const params: unknown[] = [];
+  const params: SQLiteBindValue[] = [];
 
   if (status) {
     query += ' WHERE treatment_status = ?';
@@ -87,11 +88,11 @@ export async function updatePrescription(
   const db = getDatabase();
   const now = new Date().toISOString();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     fields.push(`${key} = ?`);
-    values.push(value);
+    values.push(value as SQLiteBindValue);
   }
 
   fields.push('updated_at = ?');

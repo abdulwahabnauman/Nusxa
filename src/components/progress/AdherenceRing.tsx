@@ -61,7 +61,7 @@ export function AdherenceRing({
         <View style={styles.center}>
           <Text
             style={[
-              typography.heading.lg,
+              typography.heading.h2,
               { color: colors.text.primary, textAlign: 'center' },
             ]}
             accessibilityLabel={`${clampedPercentage}% adherence`}

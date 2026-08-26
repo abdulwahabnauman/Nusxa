@@ -123,7 +123,9 @@ export default function HomeScreen() {
       // Simple streak calculation: count consecutive days with >0% adherence
       let currentStreak = 0;
       for (let i = last7.length - 1; i >= 0; i--) {
-        const dayStats = await getAdherenceStats(last7[i].iso, last7[i].iso);
+        const day = last7[i];
+        if (!day) continue;
+        const dayStats = await getAdherenceStats(day.iso, day.iso);
         if (dayStats.total > 0 && dayStats.taken > 0) {
           currentStreak++;
         } else if (i < last7.length - 1) {

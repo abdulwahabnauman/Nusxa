@@ -36,7 +36,7 @@ export function StreakCounter({ streak }: StreakCounterProps) {
     >
       <MaterialCommunityIcons name={iconName} size={28} color={iconColor} />
       <View style={styles.text}>
-        <Text style={[typography.heading.md, { color: colors.text.primary }]}>
+        <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
           {streak} {streak === 1 ? 'day' : 'days'}
         </Text>
         <Text style={[typography.body.sm, { color: colors.text.secondary }]}>

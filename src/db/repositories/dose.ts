@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { DoseRecord, DoseStatus } from '../../types/models';
 
@@ -93,11 +94,11 @@ export async function updateDoseRecord(
   const db = getDatabase();
   const now = new Date().toISOString();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     fields.push(`${key} = ?`);
-    values.push(value);
+    values.push(value as SQLiteBindValue);
   }
 
   fields.push('updated_at = ?');

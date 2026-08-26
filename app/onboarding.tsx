@@ -52,23 +52,7 @@ export default function OnboardingScreen() {
       // unavailable on some devices) must never block profile creation —
       // reminders can be enabled later from Settings.
       try {
-        const permResult = await Notifications.requestPermissionsAsync({
-          ios: {
-            allowAlert: true,
-            allowBadge: true,
-            allowSound: true,
-            allowAnnouncements: true,
-          },
-          android: {
-            allowAlert: true,
-            allowBadge: true,
-            allowSound: true,
-            allowVibrate: true,
-            allowWarning: true,
-            importance: Notifications.AndroidImportance.HIGH,
-          },
-          web: { vibrate: false },
-        });
+        const permResult = await Notifications.requestPermissionsAsync();
 
         console.log('Notification permission granted:', permResult.granted);
       } catch (permError) {
@@ -81,7 +65,7 @@ export default function OnboardingScreen() {
       setProfile(profile);
 
       // Navigate to main tabs after successful setup
-      router.replace('/(tabs)/index');
+      router.replace('/');
     } catch (error) {
       console.error('Onboarding error:', error);
       Alert.alert(
@@ -159,7 +143,7 @@ export default function OnboardingScreen() {
                 />
               </View>
               <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button title={t.common.continue} onPress={handleProfileSave} size="lg" />
+                <Button title={t.common.next} onPress={handleProfileSave} size="lg" />
                 <Button title={t.common.back} onPress={() => setStep('welcome')} variant="ghost" />
               </View>
             </View>

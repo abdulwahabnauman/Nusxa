@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Schedule } from '../../types/models';
 
@@ -73,7 +74,7 @@ export async function updateSchedule(
 ): Promise<void> {
   const db = getDatabase();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     if (key === 'is_active') {
@@ -81,7 +82,7 @@ export async function updateSchedule(
       values.push(value ? 1 : 0);
     } else {
       fields.push(`${key} = ?`);
-      values.push(value);
+      values.push(value as SQLiteBindValue);
     }
   }
 

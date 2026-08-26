@@ -6,6 +6,7 @@ export const ur: TranslationKeys = {
     cancel: 'منسوخ',
     delete: 'حذف کریں',
     back: 'واپس',
+    next: 'آگے بڑھیں',
     done: 'ہو گیا',
     loading: 'لوڈ ہو رہا ہے...',
     error: 'خرابی',

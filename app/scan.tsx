@@ -206,7 +206,7 @@ export default function ScanScreen() {
     
     // Focus on tapped area
     try {
-      cameraRef.current.focusAsync();
+      (cameraRef.current as unknown as { focusAsync?: () => Promise<void> }).focusAsync?.();
     } catch (error) {
       console.log('Auto-focus not supported on this device');
     }
@@ -282,7 +282,6 @@ export default function ScanScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={false}
-          onZoom={() => {}}
         >
           {/* Tap to focus handler */}
           <TouchableOpacity

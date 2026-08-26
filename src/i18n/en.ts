@@ -5,6 +5,7 @@ export const en = {
     cancel: 'Cancel',
     delete: 'Delete',
     back: 'Back',
+    next: 'Continue',
     done: 'Done',
     loading: 'Loading...',
     error: 'Error',

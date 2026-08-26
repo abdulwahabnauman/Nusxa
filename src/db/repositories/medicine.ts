@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Medicine } from '../../types/models';
 
@@ -92,7 +93,7 @@ export async function updateMedicine(
   const db = getDatabase();
   const now = new Date().toISOString();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     if (
@@ -103,7 +104,7 @@ export async function updateMedicine(
       values.push(JSON.stringify(value));
     } else {
       fields.push(`${key} = ?`);
-      values.push(value);
+      values.push(value as SQLiteBindValue);
     }
   }
 
