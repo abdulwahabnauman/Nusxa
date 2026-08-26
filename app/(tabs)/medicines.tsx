@@ -140,6 +140,7 @@ export default function MedicinesScreen() {
                   dosage={med.dosage}
                   frequency={med.frequency}
                   form={med.form}
+                  strength={med.strength}
                   scheduleTimes={med.scheduleTimes}
                   verificationStatus={med.verification_status}
                   daysUntilRefill={med.daysUntilRefill}

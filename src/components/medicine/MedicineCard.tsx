@@ -6,14 +6,17 @@ import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
+import { MedicineFormIcon, strengthColor } from './FormIcon';
 import { formatTime12h } from '../../utils/date';
 import { categoryColors } from '../../theme/tokens';
+import type { MedicineForm } from '../../types/models';
 
 interface MedicineCardProps {
   name: string;
   dosage: string | null;
   frequency: string | null;
   form?: string | null;
+  strength?: string | null;
   mealInstruction?: string | null;
   verificationStatus?: string;
   category?: string;
@@ -27,6 +30,7 @@ export function MedicineCard({
   dosage,
   frequency,
   form,
+  strength,
   mealInstruction,
   verificationStatus = 'verified',
   category = 'default',
@@ -45,6 +49,13 @@ export function MedicineCard({
       <TouchableOpacity onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
       <Card style={{ borderLeftWidth: 3, borderLeftColor: catColor }}>
         <View style={styles.header}>
+          <MedicineFormIcon
+            form={form as MedicineForm}
+            size={20}
+            color={colors.accent.primary}
+            bubbleBackground={colors.accent.subtle}
+            style={{ marginRight: 10 }}
+          />
           <View style={{ flex: 1 }}>
             <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
               {name}
@@ -53,6 +64,11 @@ export function MedicineCard({
               {dosage ?? '?'} — {frequency ?? '?'}
               {mealInstruction && mealInstruction !== 'none' ? ` — ${mealInstruction} meals` : ''}
             </Text>
+            {!!strength && (
+              <Text style={[typography.body.xs, { color: strengthColor(strength) ?? colors.text.secondary, marginTop: 2, fontWeight: '600' }]}>
+                {strength}
+              </Text>
+            )}
           </View>
           <Badge
             label={verificationStatus}

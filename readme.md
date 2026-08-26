@@ -714,6 +714,12 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 - **`src/utils/haptics.ts`**: light impact haptic when logging a dose; success double-tap pattern for milestones (all failures swallowed — never breaks an action).
 - **`src/components/ui/Celebration.tsx`**: auto-dismissing celebration overlay (spring-in card, wiggling party icon, reduced-motion aware). Fires when the streak hits **7 or 30 days**, or when the **last pending dose of the day is handled**.
 
+### ✅ Chunk 12 — Medicine form icons + color-coded strength
+
+- **New `src/components/medicine/FormIcon.tsx`**: per-form icon (tablet/capsule/syrup/injection/cream/drops/inhaler/patch) rendered in a tinted bubble — glyph existence is verified at runtime against the bundled MaterialCommunityIcons map with a pill fallback, so unknown forms can never crash.
+- **`strengthColor()`** maps the numeric part of a strength to a deterministic hue (blue <100, teal <500, amber <1000, red ≥1000) so strengths are glanceably color-coded.
+- **Medicines list** cards and the **medicine detail header** both show the form bubble; strength renders as a colored chip/label instead of plain gray text.
+
 ---
 
 ## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026

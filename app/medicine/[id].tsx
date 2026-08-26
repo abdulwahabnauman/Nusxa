@@ -7,6 +7,7 @@ import { useTheme } from '../../src/theme/provider';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
+import { MedicineFormIcon, strengthColor } from '../../src/components/medicine/FormIcon';
 import { getMedicine, deleteMedicine } from '../../src/db/repositories/medicine';
 import { getSchedulesByMedicine, deactivateSchedulesByMedicine } from '../../src/db/repositories/schedule';
 import { cancelAllNotifications } from '../../src/utils/notifications';
@@ -68,14 +69,39 @@ export default function MedicineDetailScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <MedicineFormIcon
+              form={medicine.form}
+              size={26}
+              color={colors.accent.primary}
+              bubbleBackground={colors.accent.subtle}
+              style={{ marginRight: 12, marginTop: 4 }}
+            />
             <View style={{ flex: 1 }}>
               <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
                 {medicine.name ?? 'Unknown medicine'}
               </Text>
-              {medicine.strength && (
-                <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: 4 }]}>
-                  {medicine.strength} {medicine.form ? `(${medicine.form})` : ''}
-                </Text>
+              {(medicine.strength || medicine.form) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
+                  {!!medicine.strength && (
+                    <View
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 2,
+                        borderRadius: 8,
+                        backgroundColor: (strengthColor(medicine.strength) ?? colors.text.secondary) + '22',
+                      }}
+                    >
+                      <Text style={[typography.label.sm, { color: strengthColor(medicine.strength) ?? colors.text.secondary, fontWeight: '700' }]}>
+                        {medicine.strength}
+                      </Text>
+                    </View>
+                  )}
+                  {!!medicine.form && (
+                    <Text style={[typography.body.base, { color: colors.text.secondary, textTransform: 'capitalize' }]}>
+                      {medicine.form}
+                    </Text>
+                  )}
+                </View>
               )}
             </View>
             <Badge
