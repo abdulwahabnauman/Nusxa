@@ -180,15 +180,13 @@ export default function ProcessingScreen() {
                 title="OK" 
                 onPress={handleApprove}
                 loading={saving}
-                size="lg"
                 style={{ flex: 1 }}
               />
               <Button
                 title="Review & adjust"
                 onPress={handleContinue}
                 variant="ghost"
-                size="lg"
-                style={{ flex: 1 }}
+                style={{ flex: 1.7 }}
               />
             </View>
           </View>

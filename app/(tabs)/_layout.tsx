@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { useTheme } from '../../src/theme/provider';
@@ -14,6 +14,7 @@ export default function TabLayout() {
   const t = useTranslation();
   const currentLanguage = useSettingsStore((s) => s.language);
   const isRTL = currentLanguage === 'ur';
+  const insets = useSafeAreaInsets();
 
   return (
     <Tabs 
@@ -22,15 +23,15 @@ export default function TabLayout() {
         headerShown: false,
         tabBarActiveTintColor: colors.accent.primary,
         tabBarInactiveTintColor: colors.text.secondary,
-        // WhatsApp-style bar: no fixed height or min/max hacks — the bar sizes
-        // itself to icon + label so labels are never clipped at the bottom.
+        // WhatsApp-style bar: explicit height so icon + label always fit above
+        // the bottom edge; the gesture/nav inset is reserved as empty padding.
         tabBarStyle: {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.border.default,
           borderTopWidth: 1,
-          // Lift labels off the screen edge so descenders are never eaten
+          height: 64 + insets.bottom,
           paddingTop: 6,
-          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          paddingBottom: insets.bottom,
           ...(isRTL && {
             flexDirection: 'row-reverse',
           }),
