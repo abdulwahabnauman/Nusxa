@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,10 @@ import { Badge } from '../src/components/ui/Badge';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { PrescriptionJSON, MedicineJSON, ValidationResult } from '../src/ai/types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../src/constants/config';
+import {
+  analyzePrescriptionDuplicates,
+  DuplicateAnalysis,
+} from '../src/utils/savePrescription';
 
 export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -46,6 +50,22 @@ export default function ReviewScreen() {
 
   const [data, setData] = useState<PrescriptionJSON | null>(initialData);
   const [saving, setSaving] = useState(false);
+  const [dupes, setDupes] = useState<DuplicateAnalysis | null>(null);
+
+  // Flag re-scans up front so the user knows these medicines already exist
+  useEffect(() => {
+    let cancelled = false;
+    if (initialData) {
+      analyzePrescriptionDuplicates(initialData)
+        .then((result) => {
+          if (!cancelled) setDupes(result);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [initialData]);
 
   if (!data) {
     return (
@@ -152,6 +172,34 @@ export default function ReviewScreen() {
           </View>
         )}
 
+        {/* Duplicate prescription banner */}
+        {dupes?.isFullDuplicate && (
+          <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+            <Card style={{ backgroundColor: colors.warning + '1A', borderColor: colors.warning }}>
+              <View style={styles.warningRow}>
+                <MaterialCommunityIcons name="check-decagram-outline" size={20} color={colors.warning} />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                    Already in your list
+                  </Text>
+                  <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                    {dupes.samePrescriptionOnRecord
+                      ? 'This prescription was scanned before and all of its medicines are already being tracked. Continuing will refresh their reminders — nothing will be added twice.'
+                      : `All ${dupes.total} medicine${dupes.total === 1 ? '' : 's'} on this prescription ${dupes.total === 1 ? 'is' : 'are'} already in your list. Continuing will refresh ${dupes.total === 1 ? 'its' : 'their'} reminders — nothing will be added twice.`}
+                  </Text>
+                </View>
+              </View>
+              <Button
+                title="Keep current schedule"
+                variant="secondary"
+                size="sm"
+                onPress={() => router.replace('/(tabs)')}
+                style={{ marginTop: 10, alignSelf: 'flex-start' }}
+              />
+            </Card>
+          </View>
+        )}
+
         {/* Warnings */}
         {validation?.warnings && validation.warnings.length > 0 && (
           <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
@@ -221,10 +269,13 @@ export default function ReviewScreen() {
                 <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
                   {medicine.name ?? `Medicine ${index + 1}`}
                 </Text>
-                <Badge
-                  label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'Good read' : 'Low confidence'}
-                  variant={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'verified' : 'needs_review'}
-                />
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {dupes?.matched[index] && <Badge label="Already added" variant="verified" />}
+                  <Badge
+                    label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'Good read' : 'Low confidence'}
+                    variant={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'verified' : 'needs_review'}
+                  />
+                </View>
               </View>
 
               <Input
@@ -291,7 +342,7 @@ export default function ReviewScreen() {
         {/* Actions */}
         <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
           <Button
-            title="Verify and continue"
+            title={dupes?.isFullDuplicate ? 'Update reminders' : 'Verify and continue'}
             onPress={handleVerify}
             loading={saving}
             size="lg"

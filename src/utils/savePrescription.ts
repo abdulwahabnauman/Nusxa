@@ -5,7 +5,7 @@
  */
 import { PrescriptionJSON } from '../ai/types';
 import { DEFAULT_SCHEDULE_TIMES } from '../constants/medical';
-import { createPrescription } from '../db/repositories/prescription';
+import { createPrescription, getAllPrescriptions } from '../db/repositories/prescription';
 import { createMedicine, getActiveMedicines, updateMedicine } from '../db/repositories/medicine';
 import { createSchedule, getSchedulesByMedicine, updateSchedule } from '../db/repositories/schedule';
 import { scheduleDoseNotification, cancelNotification } from './notifications';
@@ -50,6 +50,57 @@ function findExistingMatch(
     }
     return true;
   });
+}
+
+/**
+ * Pre-save duplicate analysis for the review screen. Tells the UI which
+ * incoming medicines already exist (so re-scanning the same prescription
+ * can be flagged up front instead of looking like a fresh add), and whether
+ * the exact same prescription (same doctor + date) was scanned before.
+ */
+export interface DuplicateAnalysis {
+  /** Per incoming medicine: true when it matches an existing active medicine */
+  matched: boolean[];
+  matchedCount: number;
+  total: number;
+  /** Every incoming medicine already exists in the active list */
+  isFullDuplicate: boolean;
+  /** A saved prescription shares the same doctor (and date when both known) */
+  samePrescriptionOnRecord: boolean;
+}
+
+export async function analyzePrescriptionDuplicates(
+  prescription: PrescriptionJSON
+): Promise<DuplicateAnalysis> {
+  const existing = await getActiveMedicines();
+  const matched = prescription.medicines.map((med) => !!findExistingMatch(med, existing));
+  const matchedCount = matched.filter(Boolean).length;
+  const total = prescription.medicines.length;
+
+  let samePrescriptionOnRecord = false;
+  try {
+    const doctor = normalize(prescription.prescription?.doctor_name);
+    const date = normalize(prescription.prescription?.date);
+    if (doctor) {
+      const saved = await getAllPrescriptions();
+      samePrescriptionOnRecord = saved.some((p) => {
+        if (normalize(p.doctor_name) !== doctor) return false;
+        // Dates may be missing or free-text; only reject on a definite mismatch
+        if (date && normalize(p.date) && normalize(p.date) !== date) return false;
+        return true;
+      });
+    }
+  } catch {
+    // Detection is best-effort; never block the review flow on it
+  }
+
+  return {
+    matched,
+    matchedCount,
+    total,
+    isFullDuplicate: total > 0 && matchedCount === total,
+    samePrescriptionOnRecord,
+  };
 }
 
 /** Derive sensible default reminder times from each medicine's frequency. */
