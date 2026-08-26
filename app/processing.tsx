@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -8,6 +8,7 @@ import { ProgressSteps } from '../src/components/ui/ProgressSteps';
 import { Button } from '../src/components/ui/Button';
 import { processPrescription } from '../src/ai/pipeline';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
+import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
 import { resolveApiKey } from '../src/utils/secureStorage';
 import { useTranslation } from '../src/i18n';
 import { useSettingsStore } from '../src/stores/settings-store';
@@ -21,6 +22,7 @@ export default function ProcessingScreen() {
   const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
   const [stage, setStage] = useState<PipelineStage>('preparing');
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{
     data: PrescriptionJSON;
     validation: ValidationResult;
@@ -76,6 +78,34 @@ export default function ProcessingScreen() {
           validationData: JSON.stringify(result.validation),
         },
       });
+    }
+  };
+
+  // OK = the user approves the scan as-is: persist medicines + schedules
+  // with sensible default reminder times and land back on Home.
+  const handleApprove = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      const verified: PrescriptionJSON = {
+        ...result.data,
+        verification_status: 'verified',
+        medicines: result.data.medicines.map((m) => ({
+          ...m,
+          verification_status: 'verified' as const,
+        })),
+      };
+      await savePrescription(verified, buildDefaultSchedules(verified), imageUri);
+      Alert.alert(
+        'Medicines added',
+        'Your prescription was approved. Medicines are loaded with default reminder times — adjust them anytime from the medicine details.',
+        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      );
+    } catch (err) {
+      console.error('Approve prescription error:', err);
+      Alert.alert('Error', 'Failed to save your medicines. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -146,12 +176,19 @@ export default function ProcessingScreen() {
                 ` — ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
             </Text>
             <View style={{ width: '100%', flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing.md }}>
-              <Button title="Review prescription" onPress={handleContinue} size="lg" />
               <Button 
                 title="OK" 
-                onPress={() => router.back()} 
+                onPress={handleApprove}
+                loading={saving}
+                size="lg"
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Review & adjust"
+                onPress={handleContinue}
                 variant="ghost"
                 size="lg"
+                style={{ flex: 1 }}
               />
             </View>
           </View>

@@ -15,21 +15,11 @@ import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { PrescriptionJSON } from '../src/ai/types';
-import { DEFAULT_SCHEDULE_TIMES } from '../src/constants/medical';
-import { createPrescription, updatePrescription } from '../src/db/repositories/prescription';
-import { createMedicine } from '../src/db/repositories/medicine';
-import { createSchedule } from '../src/db/repositories/schedule';
-import { scheduleDoseNotification } from '../src/utils/notifications';
-import { getTodayISO } from '../src/utils/date';
-
-interface ScheduleItem {
-  medicineIndex: number;
-  medicineName: string;
-  dosage: string;
-  frequency: string;
-  mealInstruction: string;
-  times: string[];
-}
+import {
+  buildDefaultSchedules,
+  savePrescription,
+  ScheduleDraft,
+} from '../src/utils/savePrescription';
 
 export default function ScheduleScreen() {
   const { colors, typography, spacing } = useTheme();
@@ -47,25 +37,9 @@ export default function ScheduleScreen() {
     }
   }, [prescriptionData]);
 
-  const [schedules, setSchedules] = useState<ScheduleItem[]>(() => {
-    if (!prescription) return [];
-    return prescription.medicines.map((med, i) => {
-      const freq = (med.frequency ?? 'once daily').toLowerCase();
-      const dailyCount = freq.includes('twice') || freq.includes('bid') ? 2
-        : freq.includes('three') || freq.includes('tid') || freq.includes('tds') ? 3
-        : freq.includes('four') || freq.includes('qid') || freq.includes('qds') ? 4
-        : 1;
-      const times = DEFAULT_SCHEDULE_TIMES[String(dailyCount)] ?? ['08:00'];
-      return {
-        medicineIndex: i,
-        medicineName: med.name ?? `Medicine ${i + 1}`,
-        dosage: med.dosage ?? '',
-        frequency: med.frequency ?? 'Once daily',
-        mealInstruction: med.meal_instruction ?? 'none',
-        times: [...times],
-      };
-    });
-  });
+  const [schedules, setSchedules] = useState<ScheduleDraft[]>(() =>
+    prescription ? buildDefaultSchedules(prescription) : []
+  );
 
   const [confirming, setConfirming] = useState(false);
 
@@ -80,86 +54,11 @@ export default function ScheduleScreen() {
     });
   };
 
-  const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-
   const handleConfirm = async () => {
     if (!prescription) return;
     setConfirming(true);
     try {
-      const today = getTodayISO();
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // 1. Create the prescription record (already verified from review screen)
-      const prescriptionId = generateId();
-      await createPrescription({
-        id: prescriptionId,
-        doctor_name: prescription.prescription?.doctor_name ?? null,
-        hospital: prescription.prescription?.hospital ?? null,
-        date: prescription.prescription?.date ?? null,
-        follow_up_date: prescription.prescription?.follow_up_date ?? null,
-        source_image_uri: imageUri ?? null,
-        verification_status: 'verified',
-        overall_confidence: prescription.overall_confidence ?? 0,
-        patient_notes: null,
-        treatment_status: 'active',
-      });
-
-      // 2. For each medicine, create the medicine record and its schedules
-      for (let i = 0; i < prescription.medicines.length; i++) {
-        const med = prescription.medicines[i]!;
-        const schedule = schedules[i];
-        if (!schedule) continue;
-
-        const medicineId = generateId();
-        await createMedicine({
-          id: medicineId,
-          prescription_id: prescriptionId,
-          name: med.name ?? null,
-          generic_name: med.generic_name ?? null,
-          brand_name: med.brand_name ?? null,
-          strength: med.strength ?? null,
-          form: (med.form as any) ?? null,
-          dosage: med.dosage ?? null,
-          frequency: med.frequency ?? null,
-          meal_instruction: (med.meal_instruction as any) ?? null,
-          duration: med.duration ?? null,
-          purpose: med.purpose ?? null,
-          side_effects: med.side_effects ?? [],
-          food_interactions: med.food_interactions ?? [],
-          storage: med.storage ?? null,
-          confidence: med.confidence ?? 0,
-          warnings: med.warnings ?? [],
-          verification_status: 'verified',
-          initial_quantity: med.initial_quantity ?? null,
-          remaining_quantity: med.remaining_quantity ?? med.initial_quantity ?? null,
-        });
-
-        // 3. Create schedule entries and schedule notifications for each time
-        for (const time of schedule.times) {
-          const scheduleId = generateId();
-          const notificationId = await scheduleDoseNotification({
-            id: scheduleId,
-            medicineName: schedule.medicineName,
-            dosage: schedule.dosage,
-            mealInstruction: schedule.mealInstruction,
-            time,
-            date: new Date(),
-          });
-
-          await createSchedule({
-            id: scheduleId,
-            medicine_id: medicineId,
-            time,
-            timezone,
-            frequency: schedule.frequency,
-            meal_instruction: (schedule.mealInstruction as any) ?? null,
-            start_date: today,
-            end_date: null,
-            is_active: true,
-            notification_id: notificationId,
-          });
-        }
-      }
+      await savePrescription(prescription, schedules, imageUri);
 
       Alert.alert(
         'Schedule confirmed',
