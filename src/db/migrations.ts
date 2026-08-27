@@ -321,6 +321,23 @@ const migration_v13: Migration = {
   },
 };
 
+/**
+ * Version 14: Reminder escalation preference.
+ * Adds `reminder_escalation` to the profile so the "escalate repeated missed
+ * doses" toggle survives restarts, matching every other settings toggle.
+ */
+const migration_v14: Migration = {
+  version: 14,
+  up: async (db) => {
+    try {
+      await db.execAsync('ALTER TABLE profile ADD COLUMN reminder_escalation INTEGER DEFAULT 1;');
+    } catch {
+      // Column already exists — nothing to do
+    }
+    await db.runAsync('UPDATE schema_version SET version = 14;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -335,6 +352,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v11,
   migration_v12,
   migration_v13,
+  migration_v14,
 ];
 
 /** Run pending migrations */
@@ -360,4 +378,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 13;
+export const CURRENT_SCHEMA_VERSION = 14;

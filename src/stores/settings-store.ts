@@ -27,6 +27,7 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
       reduced_motion: state.reducedMotion,
       eastern_numerals: state.easternNumerals,
       snooze_minutes: state.snoozeMinutes,
+      reminder_escalation: state.reminderEscalation,
     });
   } catch (error) {
     console.error('Failed to save settings to database:', error);
@@ -44,6 +45,7 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
         reducedMotion: !!profile.reduced_motion,
         easternNumerals: !!profile.eastern_numerals,
         snoozeMinutes: profile.snooze_minutes ?? 10,
+        reminderEscalation: profile.reminder_escalation ?? true,
       };
     }
   } catch (error) {
@@ -80,6 +82,7 @@ export async function hydrateSettings(): Promise<void> {
     reducedMotion: loaded.reducedMotion ?? false,
     easternNumerals: loaded.easternNumerals ?? false,
     snoozeMinutes: loaded.snoozeMinutes ?? 10,
+    reminderEscalation: loaded.reminderEscalation ?? true,
   });
 }
 
@@ -95,6 +98,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       reducedMotion: initialSettings.reducedMotion ?? false,
       easternNumerals: initialSettings.easternNumerals ?? false,
       snoozeMinutes: initialSettings.snoozeMinutes ?? 10,
+      reminderEscalation: initialSettings.reminderEscalation ?? true,
     });
   });
 
@@ -119,6 +123,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     
     setReminderEscalation: (reminderEscalation) => {
       set({ reminderEscalation });
+      saveSettingsToDatabase(get());
     },
     
     setReducedMotion: (reducedMotion) => {

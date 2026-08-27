@@ -17,6 +17,8 @@ export interface Profile {
   onboarding_complete: boolean;
   notifications_enabled: boolean;
   reduced_motion: boolean;
+  /** Escalate repeated missed doses (e.g. louder/more frequent follow-up reminders) */
+  reminder_escalation?: boolean;
   eastern_numerals?: boolean;
   snooze_minutes?: number;
   high_contrast?: boolean;

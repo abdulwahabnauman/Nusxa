@@ -18,6 +18,9 @@ function parseProfile(row: Record<string, unknown>): Profile {
     onboarding_complete: (row.onboarding_complete as number) === 1,
     notifications_enabled: (row.notifications_enabled as number) === 1,
     reduced_motion: (row.reduced_motion as number) === 1,
+    reminder_escalation: row.reminder_escalation === undefined || row.reminder_escalation === null
+      ? true
+      : (row.reminder_escalation as number) === 1,
     eastern_numerals: (row.eastern_numerals as number) === 1,
     snooze_minutes: typeof row.snooze_minutes === 'number' ? row.snooze_minutes : 10,
     high_contrast: (row.high_contrast as number) === 1,
@@ -125,6 +128,10 @@ export async function updateProfile(
   if (data.reduced_motion !== undefined) {
     fields.push('reduced_motion = ?');
     values.push(data.reduced_motion ? 1 : 0);
+  }
+  if (data.reminder_escalation !== undefined) {
+    fields.push('reminder_escalation = ?');
+    values.push(data.reminder_escalation ? 1 : 0);
   }
   if (data.eastern_numerals !== undefined) {
     fields.push('eastern_numerals = ?');
