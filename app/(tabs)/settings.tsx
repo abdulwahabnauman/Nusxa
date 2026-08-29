@@ -27,6 +27,7 @@ import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositor
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../../src/constants/config';
+import { formatDigits } from '../../src/utils/numerals';
 import { useSuccessMorph } from '../../src/hooks/useSuccessMorph';
 import { useI18n } from '../../src/i18n';
 
@@ -46,6 +47,7 @@ export default function SettingsScreen() {
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const setEasternNumerals = useSettingsStore((s) => s.setEasternNumerals);
+  const nf = (v: string | number) => formatDigits(v, easternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
   const appLockEnabled = useAuthStore((s) => s.appLockEnabled);
@@ -398,7 +400,7 @@ export default function SettingsScreen() {
                     accessibilityLabel={`Set snooze to ${min} minutes`}
                     accessibilityState={{ selected: snoozeMinutes === min }}
                   >
-                    <Text style={[typography.label.sm, { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary }]}>{min}</Text>
+                    <Text style={[typography.label.sm, { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary }]}>{nf(min)}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
