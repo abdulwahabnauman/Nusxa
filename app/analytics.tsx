@@ -24,6 +24,7 @@ import { MonthCalendar } from '../src/components/progress/MonthCalendar';
 import { getDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
 import { generateAnalyticsReportPdf } from '../src/utils/pdf';
+import { withLockExemption } from '../src/utils/appLock';
 
 interface AdherenceData {
   date: string;
@@ -261,10 +262,12 @@ export default function AnalyticsScreen() {
         days: adherenceData,
       });
 
-      await Sharing.shareAsync(uri, {
-        mimeType: 'application/pdf',
-        dialogTitle: t.analytics.exportReport,
-      });
+      await withLockExemption(() =>
+        Sharing.shareAsync(uri, {
+          mimeType: 'application/pdf',
+          dialogTitle: t.analytics.exportReport,
+        })
+      );
     } catch (error) {
       console.error('Failed to export analytics report:', error);
       showToast(t.analytics.exportError, 'error');
