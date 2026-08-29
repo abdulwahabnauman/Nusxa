@@ -338,6 +338,34 @@ const migration_v14: Migration = {
   },
 };
 
+/**
+ * Version 15: Multi-patient support removed.
+ * The app is single-user again; wipe every leftover multi-patient value.
+ * The columns themselves stay (dropping columns is unreliable across the
+ * SQLite versions shipped with older Android devices), but no code reads
+ * or writes them anymore.
+ */
+const migration_v15: Migration = {
+  version: 15,
+  up: async (db) => {
+    try {
+      await db.execAsync(
+        'UPDATE prescriptions SET patient_name = NULL WHERE patient_name IS NOT NULL;'
+      );
+    } catch {
+      // Column missing — nothing to wipe
+    }
+    try {
+      await db.execAsync(
+        'UPDATE profile SET active_patient = NULL WHERE active_patient IS NOT NULL;'
+      );
+    } catch {
+      // Column missing — nothing to wipe
+    }
+    await db.runAsync('UPDATE schema_version SET version = 15;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -353,6 +381,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v12,
   migration_v13,
   migration_v14,
+  migration_v15,
 ];
 
 /** Run pending migrations */
@@ -378,4 +407,4 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   }
 }
 
-export const CURRENT_SCHEMA_VERSION = 14;
+export const CURRENT_SCHEMA_VERSION = 15;
