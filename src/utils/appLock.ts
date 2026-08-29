@@ -7,6 +7,14 @@
  */
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
+import Constants from 'expo-constants';
+
+/** Dev-only allowance: simulators have no real biometric hardware, so a
+ * genuine prompt can never succeed there. Never true on real devices or
+ * release builds. */
+export function biometricDevBypass(): boolean {
+  return __DEV__ && Constants.isDevice === false;
+}
 
 const ENABLED_KEY = 'nusxa_app_lock_enabled';
 const PIN_KEY = 'nusxa_app_lock_pin';
