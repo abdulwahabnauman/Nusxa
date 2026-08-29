@@ -138,18 +138,22 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       font-size: 12px;
       line-height: 1.5;
       margin: 0;
+      /* Keep backgrounds and light borders in the iOS print output */
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
+    /* iOS prints through UIPrintPageRenderer, which does not support flexbox,
+       so the header uses floats. */
     .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      overflow: hidden;
       border-bottom: 3px solid #1B3A7B;
       padding-bottom: 10px;
       margin-bottom: 18px;
     }
+    .header-left { float: left; }
     .brand { font-size: 22px; font-weight: 700; color: #1B3A7B; letter-spacing: 0.5px; }
     .brand-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
-    .meta { text-align: right; font-size: 11px; color: #6b7280; }
+    .meta { float: right; text-align: right; font-size: 11px; color: #6b7280; }
     .meta strong { color: #1f2937; }
     h2 {
       font-size: 14px;
@@ -160,7 +164,9 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       border-bottom: 1px solid #e5e7eb;
       padding-bottom: 5px;
     }
-    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    /* border-collapse: separate keeps cell borders reliable on iOS prints,
+       where collapsed table borders get dropped */
+    table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
     th {
       text-align: left;
       font-size: 10px;
@@ -200,7 +206,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
 </head>
 <body>
   <div class="header">
-    <div>
+    <div class="header-left">
       <div class="brand">Nusxa</div>
       <div class="brand-sub">Patient Visit Summary</div>
     </div>
@@ -322,18 +328,22 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
       font-size: 12px;
       line-height: 1.5;
       margin: 0;
+      /* Keep backgrounds and light borders in the iOS print output */
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
     }
+    /* iOS prints through UIPrintPageRenderer, which does not support flexbox,
+       so the header uses floats. */
     .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-end;
+      overflow: hidden;
       border-bottom: 3px solid #1B3A7B;
       padding-bottom: 10px;
       margin-bottom: 18px;
     }
+    .header-left { float: left; }
     .brand { font-size: 22px; font-weight: 700; color: #1B3A7B; letter-spacing: 0.5px; }
     .brand-sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
-    .meta { text-align: right; font-size: 11px; color: #6b7280; }
+    .meta { float: right; text-align: right; font-size: 11px; color: #6b7280; }
     .meta strong { color: #1f2937; }
     h2 {
       font-size: 14px;
@@ -344,9 +354,12 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
       border-bottom: 1px solid #e5e7eb;
       padding-bottom: 5px;
     }
-    .stats { display: flex; gap: 10px; margin-top: 12px; }
+    /* Flexbox is unsupported by the iOS print renderer, so the stat cards float */
+    .stats { overflow: hidden; margin-top: 12px; }
     .stat {
-      flex: 1;
+      float: left;
+      width: 18.7%;
+      margin-right: 1.625%;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
       padding: 12px 10px;
@@ -359,11 +372,14 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
     .stat.good .value { color: #059669; }
     .stat.bad { background: #fef2f2; border-color: #fecaca; }
     .stat.bad .value { color: #dc2626; }
+    .stat:last-child { margin-right: 0; }
     .barWrap { margin-top: 16px; }
     .barTrack { background: #e5e7eb; border-radius: 6px; height: 10px; overflow: hidden; }
     .barFill { background: #059669; height: 10px; border-radius: 6px; }
     .barLabel { font-size: 10px; color: #6b7280; margin-top: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    /* border-collapse: separate keeps cell borders reliable on iOS prints,
+       where collapsed table borders get dropped */
+    table { width: 100%; border-collapse: separate; border-spacing: 0; margin-top: 4px; }
     th {
       text-align: left;
       font-size: 10px;
@@ -393,7 +409,7 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
 </head>
 <body>
   <div class="header">
-    <div>
+    <div class="header-left">
       <div class="brand">Nusxa</div>
       <div class="brand-sub">Adherence Analytics Report</div>
     </div>
