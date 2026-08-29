@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
@@ -29,19 +30,20 @@ export function Toast({
   duration = 4000,
 }: ToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const translateY = useSharedValue(-10);
+  const insets = useSafeAreaInsets();
+  const translateY = useSharedValue(10);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      // Calm entrance: gentle fade with a soft 10px settle — no bounce
+      // Calm entrance: gentle fade with a soft 10px rise into place — no bounce
       translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
       opacity.value = withTiming(1, { duration: 180 });
 
       const timer = setTimeout(onDismiss, duration);
       return () => clearTimeout(timer);
     } else {
-      translateY.value = withTiming(-8, { duration: 160, easing: Easing.in(Easing.quad) });
+      translateY.value = withTiming(8, { duration: 160, easing: Easing.in(Easing.quad) });
       opacity.value = withTiming(0, { duration: 160 });
     }
   }, [visible, duration, onDismiss, translateY, opacity]);
@@ -69,6 +71,7 @@ export function Toast({
           borderColor: colors.border.default,
           borderRadius: borderRadius.md,
           padding: spacing.base,
+          bottom: insets.bottom + 76,
         },
         animatedStyle,
       ]}
@@ -93,7 +96,6 @@ export function Toast({
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    top: 50,
     left: 16,
     right: 16,
     zIndex: 9999,
