@@ -86,7 +86,19 @@ function AppContent() {
       try {
         // Initialize with minimal required services
         await configureNotifications();
-        
+
+        // App lock lives in SecureStore (independent of the DB). When it is
+        // set up, every cold start begins behind the lock gate — hydrate it
+        // before anything that can stall so the gate always shows.
+        try {
+          if (await isAppLockEnabled()) {
+            setAppLockEnabled(true);
+            setLocked(true);
+          }
+        } catch (lockError) {
+          console.error('[Init] App lock check failed:', lockError);
+        }
+
         try {
           await openDatabase();
         } catch (dbError) {
@@ -105,17 +117,6 @@ function AppContent() {
           await hydrateSettings();
         } catch (hydrateError) {
           console.error('[Init] Settings hydration failed:', hydrateError);
-        }
-
-        // App lock lives in SecureStore (independent of the DB). When it is
-        // set up, every cold start begins behind the lock gate.
-        try {
-          if (await isAppLockEnabled()) {
-            setAppLockEnabled(true);
-            setLocked(true);
-          }
-        } catch (lockError) {
-          console.error('[Init] App lock check failed:', lockError);
         }
 
         // Remove duplicate medicines left over from re-scans that happened
