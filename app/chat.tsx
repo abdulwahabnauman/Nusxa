@@ -13,7 +13,8 @@ import {
   Keyboard,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import * as Clipboard from 'expo-clipboard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -31,6 +32,7 @@ import { resolveTextProviderKeys } from '../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../src/constants/config';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
 import { parseMarkdown } from '../src/components/ui/MarkdownText';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
 
@@ -66,10 +68,15 @@ export default function ChatScreen() {
   const { t } = useI18n();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  // Deep-link context from the medicine detail screen ("Ask AI about this
+  // medicine") — previously passed but silently ignored (audit B2).
+  const { medicineName } = useLocalSearchParams<{ medicineName?: string }>();
   const reducedMotion = useReducedMotion();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  // Last failed user question, so the error state can offer a real retry
+  const [failedText, setFailedText] = useState<string | null>(null);
   // Whether the on-screen keyboard is up — drives the input bar padding so
   // the text being typed is never hidden behind the keyboard (edge-to-edge
   // Android ignores adjustResize, so we handle it ourselves on both OSes).
@@ -127,10 +134,15 @@ export default function ChatScreen() {
     return () => clearTimeout(timer);
   }, [keyboardVisible]);
 
-  const systemPrompt = useMemo(
-    () => `${CHAT_SYSTEM_PROMPT}\n\n${buildChatContext(medicines)}`,
-    [medicines]
-  );
+  const systemPrompt = useMemo(() => {
+    const context = `${CHAT_SYSTEM_PROMPT}\n\n${buildChatContext(medicines)}`;
+    // When opened from a medicine detail screen, tell the assistant what the
+    // user is looking at so answers are immediately relevant.
+    if (medicineName) {
+      return `${context}\n\nThe user is currently viewing the medicine "${medicineName}" and their questions are most likely about it. Prioritize information about this medicine when relevant.`;
+    }
+    return context;
+  }, [medicines, medicineName]);
 
   // Reveal the newest assistant answer a few words at a time
   useEffect(() => {
@@ -160,12 +172,12 @@ export default function ChatScreen() {
 
   const handleClear = () => {
     Alert.alert(
-      'Clear conversation?',
-      'This permanently deletes the chat history on this device.',
+      t.chat.clearTitle,
+      t.chat.clearMsg,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Clear',
+          text: t.common.delete,
           style: 'destructive',
           onPress: async () => {
             setMessages([]);
@@ -176,9 +188,19 @@ export default function ChatScreen() {
     );
   };
 
+  const handleCopyMessage = async (content: string) => {
+    try {
+      await Clipboard.setStringAsync(content);
+      showToast(t.chat.copiedToast, 'success');
+    } catch {
+      // clipboard failures are non-critical
+    }
+  };
+
   const sendText = async (raw: string) => {
     const text = raw.trim();
     if (!text || loading) return;
+    setFailedText(null);
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -196,7 +218,7 @@ export default function ChatScreen() {
         const errorMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
-          content: 'I am unable to connect to the AI service right now. Please configure your API key in the settings to use the companion feature.',
+          content: t.chat.errorNoKey,
           timestamp: new Date().toISOString(),
         };
         setMessages((prev) => [...prev, errorMsg]);
@@ -226,10 +248,12 @@ export default function ChatScreen() {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: 'I had trouble responding. Please try again in a moment.',
+        content: t.chat.errorRetryMsg,
         timestamp: new Date().toISOString(),
       };
       setMessages((prev) => [...prev, errorMsg]);
+      // Never a dead-end: offer a one-tap retry for the failed question
+      setFailedText(text);
     } finally {
       setLoading(false);
     }
@@ -254,10 +278,10 @@ export default function ChatScreen() {
           </TouchableOpacity>
           <View style={{ marginLeft: 12, flex: 1 }}>
             <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-              Nusxa Companion
+              {t.chat.companionTitle}
             </Text>
             <Text style={[typography.body.xs, { color: colors.text.secondary }]}>
-              Ask about your medicines
+              {t.chat.companionSubtitle}
             </Text>
           </View>
           {messages.length > 0 && (
@@ -271,6 +295,28 @@ export default function ChatScreen() {
           )}
         </View>
 
+        {/* Context banner when opened from a medicine detail screen */}
+        {medicineName ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.xs,
+              marginHorizontal: spacing.base,
+              marginTop: spacing.sm,
+              paddingHorizontal: spacing.md,
+              paddingVertical: spacing.sm,
+              borderRadius: borderRadius.md,
+              backgroundColor: colors.accent.subtle,
+            }}
+          >
+            <MaterialCommunityIcons name="pill" size={16} color={colors.accent.primary} />
+            <Text style={[typography.label.sm, { color: colors.accent.primary, flex: 1 }]} numberOfLines={1}>
+              {t.chat.contextBanner.replace('{name}', medicineName)}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Messages */}
         <ScrollView
           ref={scrollViewRef}
@@ -283,10 +329,10 @@ export default function ChatScreen() {
           {messages.length === 0 && (
             <View style={styles.welcomeMessage}>
               <Text style={[typography.body.base, { color: colors.text.secondary, textAlign: 'center' }]}>
-                Hi! I&apos;m your Nusxa companion. Ask me anything about your medicines, schedules, or prescriptions.
+                {t.chat.welcome}
               </Text>
               <Text style={[typography.body.sm, { color: colors.text.disabled, textAlign: 'center', marginTop: 8 }]}>
-                I provide general information, not medical advice.
+                {t.chat.disclaimer}
               </Text>
               {/* Suggested questions */}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, justifyContent: 'center', marginTop: spacing.md }}>
@@ -331,8 +377,40 @@ export default function ChatScreen() {
                   </React.Fragment>
                 ))}
               </View>
+              {/* Copy button on assistant answers */}
+              {msg.role === 'assistant' && (!reveal || reveal.id !== msg.id) && (
+                <TouchableOpacity
+                  onPress={() => handleCopyMessage(msg.content)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ alignSelf: 'flex-end', marginTop: 4, padding: 2 }}
+                  accessibilityLabel={t.chat.copyMessage}
+                >
+                  <MaterialCommunityIcons name="content-copy" size={14} color={colors.text.disabled} />
+                </TouchableOpacity>
+              )}
             </View>
           ))}
+
+          {/* One-tap retry after a failed AI call — never a dead end */}
+          {failedText && !loading && (
+            <TouchableOpacity
+              onPress={() => sendText(failedText)}
+              style={{
+                alignSelf: 'center',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.sm,
+                borderRadius: borderRadius.md,
+                backgroundColor: colors.accent.subtle,
+              }}
+              accessibilityLabel={t.common.retry}
+            >
+              <MaterialCommunityIcons name="refresh" size={16} color={colors.accent.primary} />
+              <Text style={[typography.label.sm, { color: colors.accent.primary }]}>{t.common.retry}</Text>
+            </TouchableOpacity>
+          )}
 
           {loading && (
             <View style={[styles.messageBubble, { backgroundColor: colors.background.surface, borderWidth: 1, borderColor: colors.border.default, borderRadius: borderRadius.lg, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 12 }]}>
@@ -365,7 +443,7 @@ export default function ChatScreen() {
             ]}
             value={input}
             onChangeText={setInput}
-            placeholder="Ask about your medicines..."
+            placeholder={t.chat.placeholder}
             placeholderTextColor={colors.text.disabled}
             multiline
             maxLength={500}

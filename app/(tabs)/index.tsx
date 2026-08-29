@@ -26,11 +26,11 @@ import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
-import { getTodayRange, getLast7Days, getTodayISO, formatTime12h } from '../../src/utils/date';
+import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h } from '../../src/utils/date';
 import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
-import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord } from '../../src/db/repositories/dose';
+import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
-import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
+import { getMedicine, getMedicinesByIds, updateInventory } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useI18n } from '../../src/i18n';
@@ -38,7 +38,8 @@ import type { TodayScheduleItem } from '../../src/types/models';
 
 export default function HomeScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === 'ur' ? 'ur-PK' : 'en-US';
   const router = useRouter();
   const profile = useAuthStore((s) => s.profile);
   const [refreshing, setRefreshing] = useState(false);
@@ -89,17 +90,19 @@ export default function HomeScreen() {
     setShowPermPrompt(false);
   }, []);
 
-  // Celebrate streak milestones (7/30 days) and finishing every dose of the day
+  // Celebrate streak milestones (7/14/30 days) and finishing every dose of the day
   const prevStreakRef = useRef<number | null>(null);
   const prevAllDoneRef = useRef<boolean | null>(null);
   useEffect(() => {
     const allDone = todayItems.length > 0 && todayItems.every((item) => item.status === 'taken' || item.status === 'skipped');
     if (prevStreakRef.current !== null) {
-      if ((streak === 7 || streak === 30) && streak > prevStreakRef.current) {
+      if ((streak === 7 || streak === 14 || streak === 30) && streak > prevStreakRef.current) {
         milestoneHaptic();
         setCelebration({
           title: t.home.streakTitle.replace('{n}', String(streak)),
-          subtitle: streak === 7 ? t.home.weekSubtitle : t.home.monthSubtitle,
+          subtitle:
+            streak === 7 ? t.home.weekSubtitle :
+            streak === 14 ? t.home.biWeekSubtitle : t.home.monthSubtitle,
         });
       } else if (allDone && prevAllDoneRef.current === false) {
         milestoneHaptic();
@@ -119,15 +122,22 @@ export default function HomeScreen() {
       const [rangeStart, rangeEnd] = getTodayRange();
       // Close out expired slots first so the list below already shows them as missed
       await markOverdueDosesMissed();
-      const [schedules, todayRecords] = await Promise.all([
+      // All independent loads run in parallel (no sequential awaits)
+      const [schedules, todayRecords, stats, daily] = await Promise.all([
         getActiveSchedules(),
         getTodayDoseRecords(today),
+        getAdherenceStats(rangeStart, rangeEnd),
+        // Two years of per-day rollups in ONE query — enough for any streak
+        getDailyAdherence(getDaysAgoISO(730)),
       ]);
+      // One batch query for every medicine referenced by today's schedules
+      const medicines = await getMedicinesByIds(schedules.map((s) => s.medicine_id));
+      const medicineById = new Map(medicines.map((m) => [m.id, m]));
       const recordBySchedule = new Map(todayRecords.map((r) => [r.schedule_id, r]));
       const items: TodayScheduleItem[] = [];
 
       for (const schedule of schedules) {
-        const medicine = await getMedicine(schedule.medicine_id);
+        const medicine = medicineById.get(schedule.medicine_id);
         if (!medicine) continue;
 
         const record = recordBySchedule.get(schedule.id);
@@ -149,33 +159,31 @@ export default function HomeScreen() {
       setTodayItems(items);
 
       // Adherence stats
-      const stats = await getAdherenceStats(rangeStart, rangeEnd);
-      if (stats.total > 0) {
-        setAdherence(Math.round((stats.taken / stats.total) * 100));
-      } else {
-        setAdherence(0);
-      }
+      setAdherence(stats.total > 0 ? Math.round((stats.taken / stats.total) * 100) : 0);
 
-      // Weekly data
-      const last7 = getLast7Days();
-      const weekly: { day: string; percentage: number }[] = [];
-      for (const dayInfo of last7) {
-        const dayStats = await getAdherenceStats(dayInfo.iso, dayInfo.iso);
-        const pct = dayStats.total > 0 ? Math.round((dayStats.taken / dayStats.total) * 100) : 0;
-        weekly.push({ day: dayInfo.label, percentage: pct });
-      }
-      setWeeklyData(weekly);
+      // Weekly chart from the single daily rollup query (localized labels)
+      const dailyByDate = new Map(daily.map((d) => [d.date, d]));
+      const last7 = getLast7Days(locale);
+      setWeeklyData(
+        last7.map((dayInfo) => {
+          const row = dailyByDate.get(dayInfo.iso);
+          const pct = row && row.total > 0 ? Math.round((row.taken / row.total) * 100) : 0;
+          return { day: dayInfo.label, percentage: pct };
+        })
+      );
 
-      // Simple streak calculation: count consecutive days with >0% adherence
+      // Streak walks the FULL history (not just the last 7 days) so long
+      // streaks — and the 14/30-day milestones — are actually reachable.
+      // Days with at least one taken dose extend it; a day with scheduled
+      // doses but none taken ends it; days with nothing scheduled are neutral.
       let currentStreak = 0;
-      for (let i = last7.length - 1; i >= 0; i--) {
-        const day = last7[i];
-        if (!day) continue;
-        const dayStats = await getAdherenceStats(day.iso, day.iso);
-        if (dayStats.total > 0 && dayStats.taken > 0) {
+      for (let i = daily.length - 1; i >= 0; i--) {
+        const row = daily[i];
+        if (!row) continue;
+        if (row.taken > 0) {
           currentStreak++;
-        } else if (i < last7.length - 1) {
-          break; // Only count from the most recent days backward
+        } else if (row.total > 0) {
+          break;
         }
       }
       setStreak(currentStreak);
@@ -187,7 +195,7 @@ export default function HomeScreen() {
     } catch {
       // Silently handle — offline mode is fine
     }
-  }, []);
+  }, [locale]);
 
   useEffect(() => {
     loadData();

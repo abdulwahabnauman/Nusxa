@@ -11,7 +11,6 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
@@ -19,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { Card } from '../src/components/ui/Card';
+import { AdherenceRing } from '../src/components/progress/AdherenceRing';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { MonthCalendar } from '../src/components/progress/MonthCalendar';
 import { getDatabase } from '../src/db/database';
@@ -41,11 +41,12 @@ interface WeeklyStats {
   adherenceRate: number;
 }
 
-type Period = '7d' | '30d' | 'all';
+type Period = '7d' | '30d' | '90d' | 'all';
 
 export default function AnalyticsScreen() {
   const { colors, typography: typ, spacing } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === 'ur' ? 'ur-PK' : 'en-US';
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,7 @@ export default function AnalyticsScreen() {
   const periodLabels: Record<Period, string> = {
     '7d': t.analytics.last7Days,
     '30d': t.analytics.last30Days,
+    '90d': t.analytics.last90Days,
     all: t.analytics.allTime,
   };
 
@@ -64,19 +66,26 @@ export default function AnalyticsScreen() {
     try {
       const db = getDatabase();
 
-      // Calculate period start date
-      const daysBack = period === '7d' ? 7 : period === '30d' ? 30 : 365;
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - daysBack);
-
-      // Get dose records for period
-      const doseRecords = await db.getAllAsync<{ scheduled_time: string; status: string }>(
-        `SELECT dr.scheduled_time, dr.status
-         FROM dose_records dr
-         WHERE dr.scheduled_time >= ?
-         ORDER BY dr.scheduled_time DESC`,
-        [startDate.toISOString()],
-      );
+      // 'all' truly means the full history — no date filter at all
+      const doseRecords =
+        period === 'all'
+          ? await db.getAllAsync<{ scheduled_time: string; status: string }>(
+              `SELECT dr.scheduled_time, dr.status
+               FROM dose_records dr
+               ORDER BY dr.scheduled_time DESC`
+            )
+          : await db.getAllAsync<{ scheduled_time: string; status: string }>(
+              `SELECT dr.scheduled_time, dr.status
+               FROM dose_records dr
+               WHERE dr.scheduled_time >= ?
+               ORDER BY dr.scheduled_time DESC`,
+              [(() => {
+                const daysBack = period === '7d' ? 7 : period === '30d' ? 30 : 90;
+                const startDate = new Date();
+                startDate.setDate(startDate.getDate() - daysBack);
+                return startDate.toISOString();
+              })()],
+            );
 
       setAdherenceData(groupByDate(doseRecords));
       setWeeklyStats(calculateStats(doseRecords));
@@ -163,7 +172,7 @@ export default function AnalyticsScreen() {
                   />
                 </View>
                 <Text style={[typ.body.xs, { color: colors.text.secondary, marginTop: spacing.xs }]}>
-                  {new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' })[0]}
+                  {new Date(day.date).toLocaleDateString(locale, { weekday: 'short' })[0]}
                 </Text>
               </View>
             );
@@ -174,48 +183,13 @@ export default function AnalyticsScreen() {
   };
 
   const renderAdherenceRing = () => {
-    const size = 140;
-    const strokeWidth = 12;
-    const radius = (size - strokeWidth) / 2;
-    const circumference = 2 * Math.PI * radius;
     const progress = weeklyStats?.adherenceRate || 0;
-    const strokeDashoffset = circumference - (progress / 100) * circumference;
 
     return (
       <Card style={{ marginHorizontal: spacing.base, marginTop: spacing.md }}>
         <View style={{ padding: spacing.md, alignItems: 'center' }}>
-          <View style={{ width: size, height: size, justifyContent: 'center', alignItems: 'center' }}>
-            <Svg width={size} height={size}>
-              {/* Track */}
-              <Circle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="transparent"
-                stroke={colors.border.default}
-                strokeWidth={strokeWidth}
-              />
-              {/* Progress */}
-              <Circle
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="transparent"
-                stroke={colors.accent.primary}
-                strokeWidth={strokeWidth}
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                strokeLinecap="round"
-                transform={`rotate(-90 ${size / 2} ${size / 2})`}
-              />
-            </Svg>
-
-            {/* Center text */}
-            <View style={{ position: 'absolute', justifyContent: 'center', alignItems: 'center' }}>
-              <Text style={[typ.heading.h2, { color: colors.text.primary }]}>{progress}%</Text>
-              <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.analytics.adherence}</Text>
-            </View>
-          </View>
+          {/* Reuses the shared AdherenceRing instead of duplicated SVG code */}
+          <AdherenceRing percentage={progress} size={140} strokeWidth={12} label={t.analytics.adherence} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: spacing.md }}>
             <View style={{ alignItems: 'center' }}>
@@ -330,7 +304,7 @@ export default function AnalyticsScreen() {
             borderBottomColor: colors.border.default,
           }}
         >
-          {(['7d', '30d', 'all'] as const).map((period) => (
+          {(['7d', '30d', '90d', 'all'] as const).map((period) => (
             <TouchableOpacity
               key={period}
               style={{

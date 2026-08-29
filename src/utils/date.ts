@@ -58,18 +58,22 @@ export function getDateRange(days: number): { start: string; end: string } {
   };
 }
 
-/** Get the last 7 days with label and ISO date */
-export function getLast7Days(): { label: string; iso: string }[] {
+/** Get the last 7 days with label and ISO date (weekday labels localized) */
+export function getLast7Days(locale = 'en-US'): { label: string; iso: string }[] {
   const days: { label: string; iso: string }[] = [];
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   for (let i = 6; i >= 0; i--) {
     const d = addDays(new Date(), -i);
     days.push({
-      label: dayLabels[d.getDay()] ?? '',
+      label: d.toLocaleDateString(locale, { weekday: 'short' }),
       iso: formatDateISO(d),
     });
   }
   return days;
+}
+
+/** ISO date string for N days before today */
+export function getDaysAgoISO(days: number): string {
+  return formatDateISO(addDays(new Date(), -days));
 }
 
 /** Check if a date string is valid */

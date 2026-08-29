@@ -75,6 +75,19 @@ export async function getMedicinesByPrescription(prescriptionId: string): Promis
   return rows.map(parseMedicine);
 }
 
+/** Batch fetch by ids in a single query (kills per-medicine N+1 loops) */
+export async function getMedicinesByIds(ids: string[]): Promise<Medicine[]> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  const db = getDatabase();
+  const placeholders = unique.map(() => '?').join(', ');
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM medicines WHERE id IN (${placeholders});`,
+    unique
+  );
+  return rows.map(parseMedicine);
+}
+
 export async function getActiveMedicines(): Promise<Medicine[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
