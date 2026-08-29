@@ -10,7 +10,18 @@ import { useThemeStore } from '../../src/stores/theme-store';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
+import { Modal } from '../../src/components/ui/Modal';
+import { PinKeypad } from '../../src/components/ui/PinKeypad';
 import { showToast } from '../../src/components/ui/GlobalToast';
+import {
+  PIN_LENGTH,
+  disableAppLock,
+  enableAppLock,
+  getBiometricSupport,
+  isBiometricPreferred,
+  setBiometricPreferred,
+  verifyPin,
+} from '../../src/utils/appLock';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
@@ -34,6 +45,9 @@ export default function SettingsScreen() {
   const setEasternNumerals = useSettingsStore((s) => s.setEasternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
+  const appLockEnabled = useAuthStore((s) => s.appLockEnabled);
+  const setAppLockEnabled = useAuthStore((s) => s.setAppLockEnabled);
+  const setLocked = useAuthStore((s) => s.setLocked);
   const { t, language, setLanguage } = useI18n();
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [hasStoredKey, setHasStoredKey] = useState(false);
@@ -45,6 +59,20 @@ export default function SettingsScreen() {
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [biometricSupport, setBiometricSupport] = useState<{ available: boolean; label: string | null }>({
+    available: false,
+    label: null,
+  });
+  const [biometricPref, setBiometricPref] = useState(false);
+  const [pinModal, setPinModal] = useState<'none' | 'enable1' | 'enable2' | 'disable'>('none');
+  const [pinDraft, setPinDraft] = useState('');
+  const [pinEntry, setPinEntry] = useState('');
+  const [pinError, setPinError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getBiometricSupport().then(setBiometricSupport);
+    isBiometricPreferred().then(setBiometricPref);
+  }, []);
 
   useEffect(() => {
     async function checkKey() {
@@ -117,6 +145,75 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const closePinModal = () => {
+    setPinModal('none');
+    setPinDraft('');
+    setPinEntry('');
+    setPinError(null);
+  };
+
+  const handleLockToggle = (value: boolean) => {
+    // Enabling needs a fresh PIN; disabling must verify the current one
+    setPinModal(value ? 'enable1' : 'disable');
+  };
+
+  const finishPinEntry = async (pin: string) => {
+    if (pinModal === 'enable1') {
+      setPinDraft(pin);
+      setPinEntry('');
+      setPinModal('enable2');
+      return;
+    }
+
+    if (pinModal === 'enable2') {
+      if (pin === pinDraft) {
+        try {
+          const preferBiometric = biometricSupport.available;
+          await enableAppLock(pin, preferBiometric);
+          setBiometricPref(preferBiometric);
+          setAppLockEnabled(true);
+          showToast(t.settings.appLockEnabled, 'success');
+        } catch {
+          showToast('Failed to enable app lock. Please try again.', 'error');
+        }
+        closePinModal();
+      } else {
+        setPinEntry('');
+        setPinDraft('');
+        setPinModal('enable1');
+        setPinError(t.settings.pinMismatch);
+      }
+      return;
+    }
+
+    if (pinModal === 'disable') {
+      if (await verifyPin(pin)) {
+        try {
+          await disableAppLock();
+        } catch {
+          // Keys already gone — nothing to clean up
+        }
+        setAppLockEnabled(false);
+        setLocked(false);
+        showToast(t.settings.appLockDisabled, 'info');
+        closePinModal();
+      } else {
+        setPinEntry('');
+        setPinError(t.settings.wrongPin);
+      }
+    }
+  };
+
+  const handlePinDigit = (digit: string) => {
+    if (pinEntry.length >= PIN_LENGTH) return;
+    setPinError(null);
+    const next = pinEntry + digit;
+    setPinEntry(next);
+    if (next.length < PIN_LENGTH) return;
+    // Brief delay so the final dot is visible before feedback
+    setTimeout(() => void finishPinEntry(next), 150);
   };
 
   return (
@@ -298,6 +395,41 @@ export default function SettingsScreen() {
           </Card>
         </View>
 
+        {/* Security */}
+        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.security}</Text>
+          <Card>
+            <View style={styles.row}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.appLock}</Text>
+                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.appLockDesc}</Text>
+              </View>
+              <Switch value={appLockEnabled} onValueChange={handleLockToggle} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle app lock" />
+            </View>
+            {appLockEnabled && biometricSupport.available && (
+              <View style={[styles.row, { marginTop: spacing.md }]}>
+                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.useBiometric}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.useBiometricDesc}</Text>
+                </View>
+                <Switch
+                  value={biometricPref}
+                  onValueChange={async (value) => {
+                    setBiometricPref(value);
+                    try {
+                      await setBiometricPreferred(value);
+                    } catch {
+                      // Storage hiccup — toggle still reflects in this session
+                    }
+                  }}
+                  trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                  accessibilityLabel="Toggle biometric unlock"
+                />
+              </View>
+            )}
+          </Card>
+        </View>
+
         {/* AI Service */}
         <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiService}</Text>
@@ -407,6 +539,32 @@ export default function SettingsScreen() {
           </Card>
         </View>
       </ScrollView>
+
+      {/* App lock PIN setup / verification */}
+      <Modal
+        visible={pinModal !== 'none'}
+        onClose={closePinModal}
+        title={
+          pinModal === 'enable1'
+            ? t.settings.enterNewPin
+            : pinModal === 'enable2'
+              ? t.settings.confirmPin
+              : t.settings.enterCurrentPin
+        }
+      >
+        {pinError !== null && (
+          <Text style={[typography.body.sm, { color: colors.error, textAlign: 'center', marginBottom: spacing.md }]}>
+            {pinError}
+          </Text>
+        )}
+        <PinKeypad
+          pinLength={PIN_LENGTH}
+          entered={pinEntry}
+          onDigit={handlePinDigit}
+          onBackspace={() => setPinEntry((prev) => prev.slice(0, -1))}
+        />
+        <View style={{ height: spacing.md }} />
+      </Modal>
     </SafeAreaView>
   );
 }
