@@ -33,6 +33,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const [prompting, setPrompting] = useState(false);
   const promptedOnce = useRef(false);
   const verifying = useRef(false);
+  const promptingRef = useRef(false);
 
   const lockedOut = lockoutUntil !== null && lockoutUntil > now;
   const lockoutRemaining = lockoutUntil
@@ -47,19 +48,27 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   }, [lockedOut]);
 
   const tryBiometric = useCallback(async () => {
-    if (prompting) return;
+    if (promptingRef.current) return;
+    promptingRef.current = true;
     setPrompting(true);
     try {
-      const ok = await authenticateWithBiometrics('Unlock Nusxa');
+      // Race the native prompt against a timeout: on some platforms (notably
+      // the simulator) the biometric call can hang forever, which used to
+      // leave this screen frozen with the button disabled.
+      const ok = await Promise.race([
+        authenticateWithBiometrics('Unlock Nusxa'),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 12_000)),
+      ]);
       if (ok) {
         onUnlock();
       } else {
         setError('Biometric check did not succeed — enter your PIN.');
       }
     } finally {
+      promptingRef.current = false;
       setPrompting(false);
     }
-  }, [onUnlock, prompting]);
+  }, [onUnlock]);
 
   // Auto-prompt biometrics once on mount when the hardware exists and the
   // user opted in.
