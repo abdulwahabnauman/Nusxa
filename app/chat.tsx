@@ -282,7 +282,7 @@ export default function ChatScreen() {
           {messages.length === 0 && (
             <View style={styles.welcomeMessage}>
               <Text style={[typography.body.base, { color: colors.text.secondary, textAlign: 'center' }]}>
-                Hi! I'm your Nusxa companion. Ask me anything about your medicines, schedules, or prescriptions.
+                Hi! I&apos;m your Nusxa companion. Ask me anything about your medicines, schedules, or prescriptions.
               </Text>
               <Text style={[typography.body.sm, { color: colors.text.disabled, textAlign: 'center', marginTop: 8 }]}>
                 I provide general information, not medical advice.

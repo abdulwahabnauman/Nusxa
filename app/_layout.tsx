@@ -186,7 +186,7 @@ function AppContent() {
       }
     }
     init();
-  }, [setProfile, setLoaded, setAppLockEnabled, setLocked]);
+  }, [setProfile, setLoaded, setAppLockEnabled, setLocked, syncLanguage, syncElderlyMode, syncHighContrast, restoreThemePreference]);
 
   // Lock the app as soon as it drops to the background when app lock is on.
   // Reads the store imperatively so the listener never goes stale.
