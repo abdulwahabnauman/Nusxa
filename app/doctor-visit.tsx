@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
+import { withLockExemption } from '../src/utils/appLock';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
@@ -61,11 +62,14 @@ export default function DoctorVisitScreen() {
         schedules,
         notes: questions || undefined,
       });
-      await Sharing.shareAsync(pdfUri, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Share doctor visit report',
-        UTI: 'com.adobe.pdf',
-      });
+      const shareUri = pdfUri;
+      await withLockExemption(() =>
+        Sharing.shareAsync(shareUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share doctor visit report',
+          UTI: 'com.adobe.pdf',
+        })
+      );
     } catch {
       showToast('Failed to generate the PDF report.', 'error');
     } finally {
