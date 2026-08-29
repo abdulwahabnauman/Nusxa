@@ -86,9 +86,10 @@ export function DoseItem({
     opacity: fillScale.value,
   }));
 
-  // Swipe right = taken (pending doses only)
+  // Swipe right = taken (pending doses, and missed ones that can still be corrected)
+  const actionable = status === 'pending' || status === 'missed';
   const swipeX = useSharedValue(0);
-  const swipeEnabled = status === 'pending' && !!onTaken;
+  const swipeEnabled = actionable && !!onTaken;
   const swipeGesture = Gesture.Pan()
     .enabled(swipeEnabled)
     // Axis lock: only claim the gesture after clear horizontal intent, and
@@ -177,7 +178,7 @@ export function DoseItem({
         </View>
       </View>
 
-      {status === 'pending' && (
+      {actionable && (
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.accent.primary, borderRadius: borderRadius.sm }]}

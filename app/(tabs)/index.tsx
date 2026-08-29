@@ -27,7 +27,7 @@ import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
 import { getTodayRange, getLast7Days, getTodayISO, formatTime12h } from '../../src/utils/date';
-import { cancelNotification, snoozeNotificationId, syncRefillNotifications } from '../../src/utils/notifications';
+import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, updateInventory } from '../../src/db/repositories/medicine';
@@ -93,7 +93,7 @@ export default function HomeScreen() {
   const prevStreakRef = useRef<number | null>(null);
   const prevAllDoneRef = useRef<boolean | null>(null);
   useEffect(() => {
-    const allDone = todayItems.length > 0 && todayItems.every((item) => item.status !== 'pending');
+    const allDone = todayItems.length > 0 && todayItems.every((item) => item.status === 'taken' || item.status === 'skipped');
     if (prevStreakRef.current !== null) {
       if ((streak === 7 || streak === 30) && streak > prevStreakRef.current) {
         milestoneHaptic();
@@ -117,6 +117,8 @@ export default function HomeScreen() {
     try {
       const today = getTodayISO();
       const [rangeStart, rangeEnd] = getTodayRange();
+      // Close out expired slots first so the list below already shows them as missed
+      await markOverdueDosesMissed();
       const [schedules, todayRecords] = await Promise.all([
         getActiveSchedules(),
         getTodayDoseRecords(today),
@@ -180,6 +182,8 @@ export default function HomeScreen() {
 
       // Reconcile throttled refill reminders with current inventory
       void syncRefillNotifications();
+      // Keep daily dose reminders armed + today's end-of-window warnings in sync
+      void syncDoseNotifications();
     } catch {
       // Silently handle — offline mode is fine
     }
@@ -197,8 +201,10 @@ export default function HomeScreen() {
 
   const handleTaken = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
-      // The dose is handled — no need for a snoozed re-ring to fire
+      // The dose is handled — no need for a snoozed re-ring or the
+      // end-of-window "not taken yet" warning to fire
       cancelNotification(snoozeNotificationId(scheduleId)).catch(() => {});
+      cancelNotification(missedWarningNotificationId(scheduleId)).catch(() => {});
       const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
       const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
@@ -238,6 +244,7 @@ export default function HomeScreen() {
   const handleSkip = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
       cancelNotification(snoozeNotificationId(scheduleId)).catch(() => {});
+      cancelNotification(missedWarningNotificationId(scheduleId)).catch(() => {});
       const prev = todayItems.find((item) => item.scheduleId === scheduleId);
       const today = getTodayISO();
       const record = await upsertDoseStatus(scheduleId, medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'skipped');
@@ -283,6 +290,7 @@ export default function HomeScreen() {
     try {
       for (const { item } of snapshots) {
         cancelNotification(snoozeNotificationId(item.scheduleId)).catch(() => {});
+        cancelNotification(missedWarningNotificationId(item.scheduleId)).catch(() => {});
         await upsertDoseStatus(item.scheduleId, item.medicineId, `${today}T${new Date().toTimeString().slice(0, 5)}`, 'taken');
         try {
           const med = await getMedicine(item.medicineId);

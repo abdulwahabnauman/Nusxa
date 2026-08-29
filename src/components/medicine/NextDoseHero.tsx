@@ -99,8 +99,10 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
 
   if (items.length === 0) return null;
 
-  // All done for today
+  // All done for today — unless some doses were missed, in which case the
+  // timeline below tells that story better than a green "all done" banner
   if (pending.length === 0) {
+    if (items.some((item) => item.status === 'missed')) return null;
     return (
       <View style={[styles.hero, { backgroundColor: colors.success + '1A', borderColor: colors.success + '33', borderLeftWidth: 3, borderLeftColor: colors.success }]}>
         <View style={[styles.iconBubble, { backgroundColor: colors.success + '26' }]}>

@@ -250,7 +250,6 @@ async function armSchedules(
       dosage: schedule.dosage,
       mealInstruction: schedule.mealInstruction,
       time,
-      date: new Date(),
     });
 
     await createSchedule({
