@@ -13,6 +13,7 @@ import { PinKeypad } from './PinKeypad';
 import {
   PIN_LENGTH,
   authenticateWithBiometrics,
+  biometricDevBypass,
   getBiometricSupport,
   isBiometricPreferred,
   verifyPin,
@@ -47,7 +48,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
     return () => clearInterval(timer);
   }, [lockedOut]);
 
-  const tryBiometric = useCallback(async () => {
+  const tryBiometric = useCallback(async (interactive: boolean) => {
     if (promptingRef.current) return;
     promptingRef.current = true;
     setPrompting(true);
@@ -57,13 +58,21 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       // leave this screen frozen with the button disabled.
       const ok = await Promise.race([
         authenticateWithBiometrics('Unlock Nusxa'),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 12_000)),
+        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 8_000)),
       ]);
       if (ok) {
         onUnlock();
-      } else {
-        setError('Biometric check did not succeed — enter your PIN.');
+        return;
       }
+      // Simulators have no real biometric hardware — a genuine prompt can
+      // never succeed there. In dev builds, let an explicit tap on the
+      // biometric button unlock anyway so the flow is testable; the
+      // automatic prompt on start still falls back to the PIN pad.
+      if (interactive && biometricDevBypass()) {
+        onUnlock();
+        return;
+      }
+      setError('Biometric check did not succeed — enter your PIN.');
     } finally {
       promptingRef.current = false;
       setPrompting(false);
@@ -84,7 +93,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       setBiometricLabel(support.label);
       if (support.available && preferred && !promptedOnce.current) {
         promptedOnce.current = true;
-        void tryBiometric();
+        void tryBiometric(false);
       }
     })();
     return () => {
@@ -162,7 +171,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       {biometricAvailable && !lockedOut && (
         <TouchableOpacity
           style={styles.biometricBtn}
-          onPress={() => void tryBiometric()}
+          onPress={() => void tryBiometric(true)}
           disabled={prompting}
           accessibilityLabel={`Unlock with ${biometricLabel ?? 'biometrics'}`}
         >
