@@ -57,7 +57,11 @@ export default function ProcessingScreen() {
       setStage('complete');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setError(message);
+      setError(
+        /network request failed/i.test(message)
+          ? 'Could not reach the AI service. Check your internet connection and try again.'
+          : message
+      );
       setStage('error');
     }
   }
