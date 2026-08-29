@@ -87,27 +87,146 @@ export const DEFAULT_SCHEDULE_TIMES: Record<string, string[]> = {
   '4': ['08:00', '12:00', '17:00', '21:00'],
 };
 
-/** Medicine interaction rules (simplified for demo) */
-export const MEDICINE_INTERACTIONS = [
+/** Interaction severity levels */
+export type InteractionSeverity = 'low' | 'medium' | 'high';
+
+export interface InteractionRule {
+  /**
+   * Two-sided rule: one medicine matching list `a` combined with one
+   * medicine matching list `b` may interact. Symmetric rules repeat the
+   * same list on both sides.
+   */
+  a: string[];
+  b: string[];
+  severity: InteractionSeverity;
+  description: string;
+}
+
+/**
+ * Medicine interaction rules — a curated, conservative subset of
+ * well-established interactions for on-device guidance only. This is NOT a
+ * clinical decision-support database; it flags common risks so users know
+ * what to ask their doctor or pharmacist about.
+ */
+export const MEDICINE_INTERACTIONS: InteractionRule[] = [
   {
-    medicines: ['warfarin', 'aspirin', 'ibuprofen', 'naproxen'],
+    // Any two of these together raise bleeding risk (symmetric)
+    a: [
+      'warfarin', 'aspirin', 'clopidogrel', 'heparin', 'enoxaparin',
+      'rivaroxaban', 'apixaban', 'ibuprofen', 'naproxen', 'diclofenac',
+    ],
+    b: [
+      'warfarin', 'aspirin', 'clopidogrel', 'heparin', 'enoxaparin',
+      'rivaroxaban', 'apixaban', 'ibuprofen', 'naproxen', 'diclofenac',
+    ],
     severity: 'high',
-    description: 'Increased bleeding risk when combined with blood thinners',
+    description: 'Combining blood thinners, antiplatelets or multiple NSAID painkillers raises the risk of bleeding.',
   },
   {
-    medicines: ['amoxicillin', 'tetracycline', 'methotrexate'],
-    severity: 'medium',
-    description: 'Reduced effectiveness of antibiotics',
-  },
-  {
-    medicines: ['simvastatin', 'gemfibrozil', 'niacin'],
+    a: ['warfarin'],
+    b: ['amiodarone'],
     severity: 'high',
-    description: 'Increased risk of muscle damage (rhabdomyolysis)',
+    description: 'Amiodarone can strengthen warfarin\'s effect and raise bleeding risk — dosing may need medical review.',
   },
   {
-    medicines: ['lisinopril', 'losartan', 'potassium supplements'],
+    // ACE inhibitors / ARBs / potassium-sparing drugs / potassium (symmetric)
+    a: [
+      'lisinopril', 'enalapril', 'ramipril', 'perindopril', 'losartan',
+      'valsartan', 'telmisartan', 'irbesartan', 'candesartan',
+      'spironolactone', 'eplerenone', 'potassium',
+    ],
+    b: [
+      'lisinopril', 'enalapril', 'ramipril', 'perindopril', 'losartan',
+      'valsartan', 'telmisartan', 'irbesartan', 'candesartan',
+      'spironolactone', 'eplerenone', 'potassium',
+    ],
     severity: 'medium',
-    description: 'Risk of hyperkalemia (high potassium levels)',
+    description: 'Risk of hyperkalemia (high potassium levels) when these blood-pressure medicines are combined with potassium-sparing drugs or supplements.',
+  },
+  {
+    a: ['simvastatin', 'atorvastatin', 'lovastatin', 'rosuvastatin'],
+    b: ['clarithromycin', 'erythromycin', 'itraconazole', 'ketoconazole', 'gemfibrozil', 'niacin'],
+    severity: 'high',
+    description: 'Increased risk of muscle damage (rhabdomyolysis) when statins are combined with these antibiotics, antifungals or other cholesterol drugs.',
+  },
+  {
+    a: ['ciprofloxacin', 'levofloxacin', 'ofloxacin', 'norfloxacin', 'doxycycline', 'tetracycline', 'minocycline'],
+    b: ['calcium', 'iron', 'zinc', 'magnesium', 'antacid'],
+    severity: 'medium',
+    description: 'Antacids, calcium, iron, zinc or magnesium can block absorption of these antibiotics — doses are usually spaced at least 2 hours apart.',
+  },
+  {
+    a: ['levothyroxine', 'thyroxine'],
+    b: ['calcium', 'iron'],
+    severity: 'medium',
+    description: 'Calcium and iron reduce levothyroxine absorption — doses are usually spaced about 4 hours apart.',
+  },
+  {
+    a: ['sildenafil', 'tadalafil', 'vardenafil'],
+    b: ['nitroglycerin', 'isosorbide', 'nitrate'],
+    severity: 'high',
+    description: 'Combining nitrates with these medicines can cause a dangerous drop in blood pressure.',
+  },
+  {
+    // Serotonergic combinations (symmetric)
+    a: [
+      'sertraline', 'fluoxetine', 'escitalopram', 'citalopram',
+      'paroxetine', 'fluvoxamine', 'tramadol', 'linezolid',
+    ],
+    b: [
+      'sertraline', 'fluoxetine', 'escitalopram', 'citalopram',
+      'paroxetine', 'fluvoxamine', 'tramadol', 'linezolid',
+    ],
+    severity: 'high',
+    description: 'Risk of serotonin syndrome, a serious reaction, when these medicines are combined.',
+  },
+  {
+    a: ['methotrexate'],
+    b: ['ibuprofen', 'naproxen', 'diclofenac', 'aspirin'],
+    severity: 'high',
+    description: 'NSAID painkillers can let methotrexate build up in the body, raising toxicity risk.',
+  },
+  {
+    a: ['methotrexate'],
+    b: ['amoxicillin', 'penicillin', 'ampicillin'],
+    severity: 'medium',
+    description: 'Penicillin antibiotics can slow the body\'s clearance of methotrexate.',
+  },
+  {
+    a: ['amoxicillin'],
+    b: ['tetracycline'],
+    severity: 'medium',
+    description: 'These antibiotics can reduce each other\'s effectiveness when taken together.',
+  },
+  {
+    a: ['digoxin'],
+    b: ['amiodarone'],
+    severity: 'high',
+    description: 'Amiodarone raises digoxin levels in the blood, risking toxicity.',
+  },
+  {
+    a: ['digoxin'],
+    b: ['furosemide', 'hydrochlorothiazide', 'bumetanide'],
+    severity: 'medium',
+    description: 'Water tablets can lower potassium, which increases the risk of digoxin side effects.',
+  },
+  {
+    a: ['clopidogrel'],
+    b: ['omeprazole', 'esomeprazole'],
+    severity: 'medium',
+    description: 'These stomach-acid medicines can reduce clopidogrel\'s effectiveness.',
+  },
+  {
+    a: ['lithium'],
+    b: ['ibuprofen', 'naproxen', 'diclofenac', 'lisinopril', 'enalapril'],
+    severity: 'high',
+    description: 'NSAIDs and ACE-inhibitor blood-pressure drugs can push lithium levels into the toxic range.',
+  },
+  {
+    a: ['prednisone', 'prednisolone', 'dexamethasone', 'hydrocortisone'],
+    b: ['ibuprofen', 'naproxen', 'diclofenac'],
+    severity: 'medium',
+    description: 'Combining steroids with NSAID painkillers raises the risk of stomach ulcers and bleeding.',
   },
 ];
 
@@ -121,12 +240,14 @@ export function checkMedicineInteraction(medicine1: string, medicine2: string): 
 } {
   const m1Lower = medicine1.toLowerCase();
   const m2Lower = medicine2.toLowerCase();
-  
+
   for (const rule of MEDICINE_INTERACTIONS) {
-    const matches1 = rule.medicines.some(m => m1Lower.includes(m));
-    const matches2 = rule.medicines.some(m => m2Lower.includes(m));
-    
-    if (matches1 && matches2) {
+    const m1InA = rule.a.some((m) => m1Lower.includes(m));
+    const m2InB = rule.b.some((m) => m2Lower.includes(m));
+    const m2InA = rule.a.some((m) => m2Lower.includes(m));
+    const m1InB = rule.b.some((m) => m1Lower.includes(m));
+
+    if ((m1InA && m2InB) || (m2InA && m1InB)) {
       return {
         hasInteraction: true,
         interaction: {
@@ -136,7 +257,7 @@ export function checkMedicineInteraction(medicine1: string, medicine2: string): 
       };
     }
   }
-  
+
   return { hasInteraction: false };
 }
 
