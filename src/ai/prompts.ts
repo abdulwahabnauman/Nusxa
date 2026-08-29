@@ -8,7 +8,6 @@ Rules:
 - Identify and expand common medical abbreviations (e.g., TDS = three times daily, BD = twice daily, OD = once daily, AC = before meals, PC = after meals, HS = at bedtime, PRN = as needed).
 - If the prescription is blurry, partially visible, or hard to read, set lower confidence scores and note this in warnings.
 - Preserve the original text when uncertain about interpretation.
-- If the patient's name is written on the prescription (often labelled "Patient", "Name", "For", or next to an age), extract it into patient_name. Never confuse it with the doctor's name.
 
 Return JSON matching this exact structure:
 {
@@ -16,8 +15,7 @@ Return JSON matching this exact structure:
     "doctor_name": string | null,
     "hospital": string | null,
     "date": string | null,
-    "follow_up_date": string | null,
-    "patient_name": string | null
+    "follow_up_date": string | null
   },
   "medicines": [
     {

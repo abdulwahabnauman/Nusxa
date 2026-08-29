@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Image,
   Alert,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -23,13 +22,10 @@ import {
   analyzePrescriptionDuplicates,
   DuplicateAnalysis,
 } from '../src/utils/savePrescription';
-import { getDistinctPatientNames } from '../src/db/repositories/prescription';
-import { useAuthStore } from '../src/stores/auth-store';
 
 export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
-  const profileName = useAuthStore((s) => s.profile?.name ?? null);
   const { imageUri, prescriptionData, validationData } = useLocalSearchParams<{
     imageUri: string;
     prescriptionData: string;
@@ -55,35 +51,12 @@ export default function ReviewScreen() {
   const [data, setData] = useState<PrescriptionJSON | null>(initialData);
   const [saving, setSaving] = useState(false);
   const [dupes, setDupes] = useState<DuplicateAnalysis | null>(null);
-  // Who this prescription belongs to. Pre-filled from what the AI read on
-  // the prescription; '' means the app's default owner (the profile user).
-  const [patientName, setPatientName] = useState<string>(
-    initialData?.prescription?.patient_name?.trim() ?? ''
-  );
-  const [knownPatients, setKnownPatients] = useState<string[]>([]);
-
-  useEffect(() => {
-    getDistinctPatientNames()
-      .then(setKnownPatients)
-      .catch(() => {});
-  }, []);
-
-  // Quick-pick chips: every patient already on record plus whatever the AI
-  // read off this prescription (if it's a name we haven't seen before).
-  const patientSuggestions = useMemo(() => {
-    const seen = new Set(knownPatients.map((n) => n.toLowerCase()));
-    const aiName = initialData?.prescription?.patient_name?.trim();
-    const extra = aiName && !seen.has(aiName.toLowerCase()) ? [aiName] : [];
-    return [...knownPatients, ...extra];
-  }, [knownPatients, initialData]);
 
   // Flag re-scans up front so the user knows these medicines already exist.
-  // Scoped to the selected patient so the same medicine for two different
-  // people is not mistaken for a duplicate.
   useEffect(() => {
     let cancelled = false;
     if (initialData) {
-      analyzePrescriptionDuplicates(initialData, patientName)
+      analyzePrescriptionDuplicates(initialData)
         .then((result) => {
           if (!cancelled) setDupes(result);
         })
@@ -92,7 +65,7 @@ export default function ReviewScreen() {
     return () => {
       cancelled = true;
     };
-  }, [initialData, patientName]);
+  }, [initialData]);
 
   if (!data) {
     return (
@@ -138,14 +111,9 @@ export default function ReviewScreen() {
 
     setSaving(true);
     try {
-      // Mark all medicines as verified and attach the selected patient so
-      // multi-patient filtering and per-patient dedupe work downstream.
+      // Mark all medicines as verified before handing off to scheduling.
       const verifiedData: PrescriptionJSON = {
         ...data,
-        prescription: {
-          ...data.prescription,
-          patient_name: patientName.trim() || null,
-        },
         verification_status: 'verified',
         medicines: data.medicines.map((m) => ({
           ...m,
@@ -247,49 +215,6 @@ export default function ReviewScreen() {
             </Card>
           </View>
         )}
-
-        {/* Patient */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-            Who is this prescription for?
-          </Text>
-          <Card>
-            <Input
-              label="Patient name"
-              value={patientName}
-              onChangeText={setPatientName}
-              placeholder={profileName ? `${profileName} (you)` : 'Leave empty for yourself'}
-              containerStyle={{ marginBottom: patientSuggestions.length > 0 ? spacing.sm : 0 }}
-            />
-            {patientSuggestions.length > 0 && (
-              <View style={styles.patientChips}>
-                {patientSuggestions.map((name) => {
-                  const selected = patientName.trim().toLowerCase() === name.toLowerCase();
-                  return (
-                    <TouchableOpacity
-                      key={name}
-                      onPress={() => setPatientName(name)}
-                      style={[
-                        styles.patientChip,
-                        {
-                          backgroundColor: selected ? colors.accent.primary : colors.background.subtle,
-                          borderColor: selected ? colors.accent.primary : colors.border.default,
-                        },
-                      ]}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected }}
-                      accessibilityLabel={`Select patient ${name}`}
-                    >
-                      <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>
-                        {name}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            )}
-          </Card>
-        </View>
 
         {/* Prescription Info */}
         <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
@@ -476,17 +401,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     marginTop: 12,
-  },
-  patientChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  patientChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
   },
   actions: {
     marginTop: 32,

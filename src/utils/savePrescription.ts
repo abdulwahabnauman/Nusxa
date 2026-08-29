@@ -31,30 +31,6 @@ const normalize = (s?: string | null) => (s ?? '').trim().toLowerCase().replace(
 /** Lowercase, no spaces/punctuation — "500 mg" and "500mg" compare equal */
 const compact = (s?: string | null) => (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
-/**
- * Canonical patient identity: trimmed + lowercased name, '' for the app's
- * default owner. Prescriptions with no patient name belong to the owner.
- */
-export const patientIdentity = (name?: string | null): string => normalize(name);
-
-/** Map of prescription id → owning patient identity (best-effort) */
-async function patientByPrescriptionId(): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  try {
-    const all = await getAllPrescriptions();
-    for (const p of all) map.set(p.id, patientIdentity(p.patient_name));
-  } catch {
-    // Dedupe stays global when the lookup fails — safer than skipping it
-  }
-  return map;
-}
-
-/** Active medicines belonging to one patient ('' = the default owner) */
-async function getActiveMedicinesForPatient(identity: string): Promise<Medicine[]> {
-  const [active, byRx] = await Promise.all([getActiveMedicines(), patientByPrescriptionId()]);
-  return active.filter((m) => (byRx.get(m.prescription_id) ?? '') === identity);
-}
-
 /** Drop parentheticals: "amoxicillin (himiox)" also matches as "amoxicillin" */
 const stripParens = (s: string) => s.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
 
@@ -156,12 +132,9 @@ export interface DuplicateAnalysis {
 }
 
 export async function analyzePrescriptionDuplicates(
-  prescription: PrescriptionJSON,
-  patientName?: string | null
+  prescription: PrescriptionJSON
 ): Promise<DuplicateAnalysis> {
-  // Scope the comparison to the selected patient so the same medicine for
-  // two different people is never mistaken for a duplicate.
-  const existing = await getActiveMedicinesForPatient(patientIdentity(patientName));
+  const existing = await getActiveMedicines();
   const matched = prescription.medicines.map((med) => !!findExistingMatch(med, existing));
   const matchedCount = matched.filter(Boolean).length;
   const total = prescription.medicines.length;
@@ -196,25 +169,18 @@ export async function analyzePrescriptionDuplicates(
  * Cleanup for duplicates created before fuzzy matching existed. Walks the
  * active list oldest-first; any medicine that fuzzy-matches an older kept
  * one is removed (schedules/dose records cascade-delete, pending
- * notifications are cancelled first). Matching only happens WITHIN the same
- * patient, so two people taking the same medicine keep separate entries.
- * Prescriptions left with no medicines are dropped as well. Idempotent — a
- * no-op once the list is clean.
+ * notifications are cancelled first). Prescriptions left with no medicines
+ * are dropped as well. Idempotent — a no-op once the list is clean.
  */
 export async function dedupeActiveMedicines(): Promise<number> {
   const active = await getActiveMedicines();
-  const byRx = await patientByPrescriptionId();
-  // One kept-list per patient so cross-patient twins never merge
-  const kept = new Map<string, Medicine[]>();
+  const kept: Medicine[] = [];
   let removed = 0;
 
   for (const med of active) {
-    const patient = byRx.get(med.prescription_id) ?? '';
-    const keptForPatient = kept.get(patient) ?? [];
-    const twin = findExistingMatch(med, keptForPatient);
+    const twin = findExistingMatch(med, kept);
     if (!twin) {
-      keptForPatient.push(med);
-      kept.set(patient, keptForPatient);
+      kept.push(med);
       continue;
     }
 
@@ -305,22 +271,19 @@ async function armSchedules(
 
 /**
  * Persist prescription + medicines + schedules and arm reminder notifications.
- * Duplicate-safe: a medicine that already exists in the SAME patient's active
- * list (same name + strength/form) is updated in place and re-scheduled
+ * Duplicate-safe: a medicine that already exists in the active list
+ * (same name + strength/form) is updated in place and re-scheduled
  * instead of being inserted again, so scanning the same prescription twice
- * never produces redundant entries — while different patients keep their own
- * copies of identically-named medicines.
+ * never produces redundant entries.
  */
 export async function savePrescription(
   prescription: PrescriptionJSON,
   schedules: ScheduleDraft[],
-  imageUri?: string | null,
-  patientName?: string | null
+  imageUri?: string | null
 ): Promise<{ added: number; updated: number }> {
   const today = getTodayISO();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  const patient = (patientName ?? '').trim();
-  const existing = await getActiveMedicinesForPatient(patientIdentity(patient));
+  const existing = await getActiveMedicines();
 
   let prescriptionId: string | null = null;
   let added = 0;
@@ -376,7 +339,6 @@ export async function savePrescription(
         verification_status: 'verified',
         overall_confidence: prescription.overall_confidence ?? 0,
         patient_notes: null,
-        patient_name: patient || null,
         treatment_status: 'active',
       });
     }

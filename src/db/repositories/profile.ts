@@ -28,7 +28,6 @@ function parseProfile(row: Record<string, unknown>): Profile {
       row.theme_preference === 'light' || row.theme_preference === 'dark'
         ? row.theme_preference
         : 'system',
-    active_patient: (row.active_patient as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -148,10 +147,6 @@ export async function updateProfile(
   if (data.theme_preference !== undefined) {
     fields.push('theme_preference = ?');
     values.push(data.theme_preference);
-  }
-  if (data.active_patient !== undefined) {
-    fields.push('active_patient = ?');
-    values.push(data.active_patient);
   }
 
   fields.push('updated_at = ?');

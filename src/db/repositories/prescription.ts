@@ -14,7 +14,6 @@ function parsePrescription(row: Record<string, unknown>): Prescription {
     verification_status: row.verification_status as Prescription['verification_status'],
     overall_confidence: row.overall_confidence as number,
     patient_notes: row.patient_notes as string | null,
-    patient_name: (row.patient_name as string | null) ?? null,
     treatment_status: row.treatment_status as Prescription['treatment_status'],
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
@@ -28,8 +27,8 @@ export async function createPrescription(
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO prescriptions (id, doctor_name, hospital, date, follow_up_date, source_image_uri, verification_status, overall_confidence, patient_notes, patient_name, treatment_status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO prescriptions (id, doctor_name, hospital, date, follow_up_date, source_image_uri, verification_status, overall_confidence, patient_notes, treatment_status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       data.id,
       data.doctor_name,
@@ -40,7 +39,6 @@ export async function createPrescription(
       data.verification_status,
       data.overall_confidence,
       data.patient_notes,
-      data.patient_name,
       data.treatment_status,
       now,
       now,
@@ -85,7 +83,7 @@ export async function getAllPrescriptions(status?: string): Promise<Prescription
 
 export async function updatePrescription(
   id: string,
-  data: Partial<Pick<Prescription, 'doctor_name' | 'hospital' | 'date' | 'follow_up_date' | 'verification_status' | 'overall_confidence' | 'patient_notes' | 'treatment_status' | 'source_image_uri' | 'patient_name'>>
+  data: Partial<Pick<Prescription, 'doctor_name' | 'hospital' | 'date' | 'follow_up_date' | 'verification_status' | 'overall_confidence' | 'patient_notes' | 'treatment_status' | 'source_image_uri'>>
 ): Promise<void> {
   const db = getDatabase();
   const now = new Date().toISOString();
@@ -124,15 +122,4 @@ export async function searchPrescriptions(query: string): Promise<Prescription[]
     [`%${query}%`, `%${query}%`, `%${query}%`]
   );
   return rows.map(parsePrescription);
-}
-
-/** Every distinct patient name on record (empty list = single-owner device) */
-export async function getDistinctPatientNames(): Promise<string[]> {
-  const db = getDatabase();
-  const rows = await db.getAllAsync<{ name: string }>(
-    `SELECT DISTINCT patient_name AS name FROM prescriptions
-     WHERE patient_name IS NOT NULL AND TRIM(patient_name) != ''
-     ORDER BY name COLLATE NOCASE ASC;`
-  );
-  return rows.map((r) => r.name.trim());
 }
