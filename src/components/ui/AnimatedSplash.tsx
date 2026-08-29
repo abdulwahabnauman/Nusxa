@@ -77,7 +77,7 @@ export function AnimatedSplash({ backgroundColor, onAnimationDone }: AnimatedSpl
         />
       </Animated.View>
       <Animated.Text
-        style={[nameStyle, typography.heading.h2, { color: colors.text.primary, marginTop: 14, letterSpacing: 1.5 }]}
+        style={[nameStyle, typography.heading.h2, { color: colors.text.primary, marginTop: -52, letterSpacing: 1.5 }]}
       >
         Nusxa
       </Animated.Text>
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logo: {
-    width: 160,
-    height: 160,
+    width: 210,
+    height: 210,
   },
 });
