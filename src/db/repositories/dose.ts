@@ -87,6 +87,36 @@ export async function getDoseRecordsForDateRange(
   return rows.map(parseDoseRecord);
 }
 
+/** Every dose record ever recorded (used by the full backup export). */
+export async function getAllDoseRecords(): Promise<DoseRecord[]> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM dose_records ORDER BY scheduled_time ASC;'
+  );
+  return rows.map(parseDoseRecord);
+}
+
+/**
+ * Per-day adherence rollup in a single query (replaces N per-day stat
+ * queries). Returns rows oldest-first since `fromDate` (YYYY-MM-DD).
+ */
+export async function getDailyAdherence(
+  fromDate: string
+): Promise<Array<{ date: string; taken: number; total: number }>> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<{ day: string; taken: number; total: number }>(
+    `SELECT substr(scheduled_time, 1, 10) AS day,
+            SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) AS taken,
+            COUNT(*) AS total
+     FROM dose_records
+     WHERE scheduled_time >= ?
+     GROUP BY day
+     ORDER BY day ASC;`,
+    [`${fromDate}T00:00:00`]
+  );
+  return rows.map((r) => ({ date: r.day, taken: r.taken, total: r.total }));
+}
+
 export async function updateDoseRecord(
   id: string,
   data: Partial<Pick<DoseRecord, 'actual_time' | 'status' | 'notes'>>

@@ -303,7 +303,8 @@ schedule.tsx → scheduleDoseNotification() (expo-notifications)
 ```
 Settings → Export data: exportAsJSON() builds a versioned snapshot
   (exportFormat/exportVersion markers + profile, prescriptions,
-   medicines, schedules, doseRecords) → shared as a JSON file
+   medicines, schedules, FULL dose history, reminder KV state)
+  → shared as a JSON file
 Settings → Import data: expo-document-picker picks the JSON file
   → parseExport() validates it (rejects non-Nusxa files with a friendly error)
   → importFromJSON() wipes + restores everything inside ONE SQLite

@@ -1,6 +1,11 @@
 /** SQL statements for creating the Nusxa database schema (version 1) */
 
-export const SCHEMA_VERSION = 3;
+/**
+ * Single source of truth for the database schema version. Every migration
+ * updates the stored `schema_version` row to its own version, so after all
+ * migrations run the stored value always equals this constant.
+ */
+export const CURRENT_SCHEMA_VERSION = 15;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (

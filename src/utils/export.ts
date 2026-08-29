@@ -1,33 +1,46 @@
+import Constants from 'expo-constants';
 import { getDatabase } from '../db/database';
 import { getProfile } from '../db/repositories/profile';
 import { getActiveMedicines } from '../db/repositories/medicine';
 import { getActiveSchedules } from '../db/repositories/schedule';
-import { getTodayDoseRecords } from '../db/repositories/dose';
+import { getAllDoseRecords } from '../db/repositories/dose';
 import { getAllPrescriptions } from '../db/repositories/prescription';
-import { getTodayISO } from './date';
 import type { Medicine, DoseRecord } from '../types/models';
 
-/** Export all app data as a JSON object */
+/** Export all app data as a JSON object (full dose history — a real backup) */
 export async function exportAsJSON(): Promise<Record<string, unknown>> {
-  const [profile, prescriptions, medicines, schedules, doseRecords] = await Promise.all([
+  const [profile, prescriptions, medicines, schedules, doseRecords, kvRows] = await Promise.all([
     getProfile(),
     getAllPrescriptions(),
     getActiveMedicines(),
     getActiveSchedules(),
-    getTodayDoseRecords(getTodayISO()),
+    getAllDoseRecords(),
+    getKVState(),
   ]);
 
   return {
     exportFormat: 'nusxa-export',
-    exportVersion: 1,
+    exportVersion: 2,
     exportDate: new Date().toISOString(),
-    appVersion: '1.0.0',
+    appVersion: Constants.expoConfig?.version ?? '0.0.0',
     profile,
     prescriptions,
     medicines,
     schedules,
     doseRecords,
+    kv: kvRows,
   };
+}
+
+/** Reminder/bookmark key-value state (reminders_state table) */
+async function getKVState(): Promise<Array<{ key: string; value: string }>> {
+  try {
+    return await getDatabase().getAllAsync<{ key: string; value: string }>(
+      'SELECT key, value FROM reminders_state;'
+    );
+  } catch {
+    return [];
+  }
 }
 
 /** Shape of a Nusxa JSON export file (fields are untrusted until validated) */
@@ -39,6 +52,7 @@ interface NusxaExport {
   medicines?: Record<string, unknown>[];
   schedules?: Record<string, unknown>[];
   doseRecords?: Record<string, unknown>[];
+  kv?: Record<string, unknown>[];
 }
 
 export interface ImportResult {
@@ -224,6 +238,23 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
           asString(d.updated_at) ?? now,
         ]
       );
+    }
+
+    // Restore reminder/bookmark key-value state when the export includes it
+    if (Array.isArray(data.kv) && data.kv.length > 0) {
+      try {
+        await db.execAsync('DELETE FROM reminders_state;');
+        for (const row of data.kv) {
+          const key = asString(row.key);
+          if (!key) continue;
+          await db.runAsync(
+            'INSERT OR REPLACE INTO reminders_state (key, value) VALUES (?, ?);',
+            [key, asString(row.value) ?? '']
+          );
+        }
+      } catch {
+        // reminders_state missing on very old installs — skip silently
+      }
     }
 
     // Restore the profile last so the app state reflects the imported data.

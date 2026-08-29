@@ -1,6 +1,6 @@
 import { type SQLiteDatabase } from 'expo-sqlite';
 import {
-  SCHEMA_VERSION,
+  CURRENT_SCHEMA_VERSION,
   CREATE_PROFILE_TABLE,
   CREATE_PRESCRIPTIONS_TABLE,
   CREATE_MEDICINES_TABLE,
@@ -41,7 +41,7 @@ const migration_v1: Migration = {
       await db.execAsync(indexSql);
     }
 
-    await db.execAsync(`INSERT INTO schema_version (version) VALUES (${SCHEMA_VERSION});`);
+    await db.execAsync(`INSERT INTO schema_version (version) VALUES (1);`);
   },
 };
 
@@ -50,6 +50,7 @@ const migration_v2: Migration = {
   version: 2,
   up: async (db) => {
     await db.execAsync(ALTER_PROFILE_ADD_LANGUAGE);
+    await db.runAsync('UPDATE schema_version SET version = 2;');
   },
 };
 
@@ -69,6 +70,7 @@ const migration_v3: Migration = {
     } catch {
       // Ignore if exists
     }
+    await db.runAsync('UPDATE schema_version SET version = 3;');
   },
 };
 
@@ -86,7 +88,12 @@ const migration_v4: Migration = {
   },
 };
 
-/** Version 5: Education schema consistency */
+/**
+ * Version 5: Education schema consistency.
+ * Repair pass for devices whose stored version got stuck at 3 by the early
+ * v2/v3 migrations (which never bumped the row): normalize the stored value
+ * so version checks can trust it from this point on.
+ */
 const migration_v5: Migration = {
   version: 5,
   up: async (db) => {
@@ -405,6 +412,8 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
       await migration.up(db);
     }
   }
-}
 
-export const CURRENT_SCHEMA_VERSION = 15;
+  // Normalize the stored version: after all migrations run it must equal the
+  // constant, even on installs upgraded from the buggy v2/v3 era.
+  await db.runAsync('UPDATE schema_version SET version = ?;', [CURRENT_SCHEMA_VERSION]);
+}
