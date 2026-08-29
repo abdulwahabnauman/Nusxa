@@ -95,8 +95,8 @@ export function MedicineCard({
               {name}
             </Text>
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-              {dosage ?? '?'} — {frequency ?? '?'}
-              {mealInstruction && mealInstruction !== 'none' ? ` — ${mealInstruction} meals` : ''}
+              {dosage ?? '?'}, {frequency ?? '?'}
+              {mealInstruction && mealInstruction !== 'none' ? `, ${mealInstruction} meals` : ''}
             </Text>
             {!!strength && (
               <Text style={[typography.body.xs, { color: strengthColor(strength) ?? colors.text.secondary, marginTop: 2, fontWeight: '600' }]}>

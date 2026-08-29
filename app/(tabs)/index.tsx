@@ -237,7 +237,7 @@ export default function HomeScreen() {
         } catch { /* undo is best-effort */ }
       });
     } catch {
-      showToast('Could not record dose. Please try again.', 'error');
+      showToast(t.toasts.recordDoseFailed, 'error');
     }
   }, [loadData, todayItems, showUndoToast]);
 
@@ -262,7 +262,7 @@ export default function HomeScreen() {
         } catch { /* undo is best-effort */ }
       });
     } catch {
-      showToast('Could not record dose. Please try again.', 'error');
+      showToast(t.toasts.recordDoseFailed, 'error');
     }
   }, [loadData, todayItems, showUndoToast]);
 
@@ -326,7 +326,7 @@ export default function HomeScreen() {
         }
       );
     } catch {
-      showToast('Could not record doses. Please try again.', 'error');
+      showToast(t.toasts.recordDosesFailed, 'error');
     }
   }, [takeAllGroup, loadData, showUndoToast, t]);
 

@@ -36,7 +36,7 @@ export function VerificationField({
         error={isMissing ? `${label} is required` : undefined}
         helper={
           isLowConfidence
-            ? `Low confidence (${Math.round((confidence ?? 0) * 100)}%) — please verify`
+            ? `Low confidence (${Math.round((confidence ?? 0) * 100)}%). Please verify`
             : undefined
         }
       />

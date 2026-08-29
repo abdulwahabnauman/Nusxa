@@ -161,7 +161,7 @@ export default function MedicinesScreen() {
             );
           })}
           <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 8 }]}>
-            Automated guidance only — always confirm with your doctor or pharmacist.
+            Automated guidance only. Always confirm with your doctor or pharmacist.
           </Text>
         </View>
       )}
@@ -182,8 +182,8 @@ export default function MedicinesScreen() {
           <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.warning} />
           <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
             {lowStockCount === 1
-              ? '1 medicine is running low — plan a refill soon.'
-              : `${lowStockCount} medicines are running low — plan a refill soon.`}
+              ? '1 medicine is running low. Plan a refill soon.'
+              : `${lowStockCount} medicines are running low. Plan a refill soon.`}
           </Text>
         </View>
       )}

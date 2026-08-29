@@ -81,15 +81,15 @@ export default function ScheduleScreen() {
       // Toast lives in the root layout, so it stays visible after navigating
       showToast(
         outcome.updated > 0
-          ? `Schedule confirmed — ${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list, so reminders were refreshed with the new times instead of adding duplicates.`
-          : 'Schedule confirmed — your medication schedule has been set up. You will receive reminders at the scheduled times.',
+          ? t.toasts.scheduleConfirmedUpdated.replace('{updated}', String(outcome.updated))
+          : t.toasts.scheduleConfirmedDefault,
         'success',
         6000,
       );
       router.replace('/(tabs)');
     } catch (err) {
       console.error('Schedule confirmation error:', err);
-      showToast('Failed to save schedule. Please try again.', 'error');
+      showToast(t.toasts.saveScheduleFailed, 'error');
     } finally {
       setConfirming(false);
     }
@@ -148,8 +148,8 @@ export default function ScheduleScreen() {
                     {schedule.medicineName}
                   </Text>
                   <Text style={[typography.body.sm, { color: colors.text.secondary }]}>
-                    {schedule.dosage} — {schedule.frequency}
-                    {schedule.mealInstruction !== 'none' && ` — ${schedule.mealInstruction} meals`}
+                    {schedule.dosage}, {schedule.frequency}
+                    {schedule.mealInstruction !== 'none' && `, ${schedule.mealInstruction} meals`}
                   </Text>
                 </View>
               </View>

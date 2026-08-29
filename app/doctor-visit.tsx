@@ -71,7 +71,7 @@ export default function DoctorVisitScreen() {
         })
       );
     } catch {
-      showToast('Failed to generate the PDF report.', 'error');
+      showToast(t.toasts.pdfFailed, 'error');
     } finally {
       // The share sheet copies the file out, so the temp PDF can go afterwards
       if (pdfUri) {
@@ -121,7 +121,7 @@ export default function DoctorVisitScreen() {
                       {med.name ?? 'Unknown'} {med.strength ? `(${med.strength})` : ''}
                     </Text>
                     <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                      {med.dosage ?? '?'} — {med.frequency ?? '?'} — {med.duration ?? '?'}
+                      {med.dosage ?? '?'}, {med.frequency ?? '?'}, {med.duration ?? '?'}
                     </Text>
                   </View>
                 ))}

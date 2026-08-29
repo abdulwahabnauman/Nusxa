@@ -13,7 +13,7 @@ function esc(value: string | null | undefined): string {
     .replace(/"/g, '&quot;');
 }
 
-const dash = (value: string | null | undefined): string => (value && value.trim() ? esc(value) : '&mdash;');
+const dash = (value: string | null | undefined): string => (value && value.trim() ? esc(value) : 'Not set');
 
 /** Minimal markdown renderer for free-text notes: escapes first, then applies
  * bold/italic/code, bullet lists, headings and paragraphs. */
@@ -104,10 +104,10 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       if (!med) return '';
       return `
         <tr>
-          <td class="mono">${esc(getTimeRangeParts(s.time, s.window_minutes ?? 120).join(' – '))}</td>
+          <td class="mono">${esc(getTimeRangeParts(s.time, s.window_minutes ?? 120).join(' to '))}</td>
           <td>${dash(med.name)}${med.strength ? ` <span class="muted">(${esc(med.strength)})</span>` : ''}</td>
           <td>${dash(med.dosage)}</td>
-          <td>${esc(MEAL_LABELS[s.meal_instruction ?? 'none'] ?? '—')}</td>
+          <td>${esc(MEAL_LABELS[s.meal_instruction ?? 'none'] ?? 'Not set')}</td>
         </tr>`;
     })
     .join('');
@@ -118,7 +118,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
         <td><strong>${dash(m.name)}</strong>${m.strength ? `<br /><span class="muted">${esc(m.strength)}</span>` : ''}</td>
         <td>${dash(m.dosage)}</td>
         <td>${dash(m.frequency)}</td>
-        <td>${esc(MEAL_LABELS[m.meal_instruction ?? 'none'] ?? '—')}</td>
+        <td>${esc(MEAL_LABELS[m.meal_instruction ?? 'none'] ?? 'Not set')}</td>
         <td>${dash(m.duration)}</td>
         <td class="muted">${dash(m.purpose)}</td>
       </tr>`)
@@ -303,7 +303,7 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
           <td>${d.taken}</td>
           <td>${d.missed}</td>
           <td>${d.skipped}</td>
-          <td>${dayRate === null ? '&mdash;' : `${dayRate}%`}</td>
+          <td>${dayRate === null ? 'No data' : `${dayRate}%`}</td>
         </tr>`;
     })
     .join('');

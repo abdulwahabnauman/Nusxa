@@ -72,7 +72,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
         onUnlock();
         return;
       }
-      setError('Biometric check did not succeed — enter your PIN.');
+      setError('Biometric check did not succeed. Enter your PIN.');
     } finally {
       promptingRef.current = false;
       setPrompting(false);
@@ -125,7 +125,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
           setNow(Date.now());
         } else {
           setAttemptsLeft(remaining);
-          setError(`Wrong PIN — ${remaining} attempt${remaining === 1 ? '' : 's'} left.`);
+          setError(`Wrong PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} left.`);
         }
       } finally {
         verifying.current = false;
@@ -148,7 +148,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       <Text style={[typ.heading.h3, { color: colors.text.primary }]}>Nusxa is locked</Text>
       <Text style={[typ.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
         {lockedOut
-          ? `Too many attempts — try again in ${lockoutRemaining}s`
+          ? `Too many attempts. Try again in ${lockoutRemaining}s`
           : 'Enter your PIN to continue'}
       </Text>
 

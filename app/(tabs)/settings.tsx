@@ -33,6 +33,94 @@ import { formatDigits } from '../../src/utils/numerals';
 import { useSuccessMorph } from '../../src/hooks/useSuccessMorph';
 import { useI18n } from '../../src/i18n';
 
+interface ApiKeyFieldProps {
+  description: string;
+  url: string;
+  placeholder: string;
+  savedPlaceholder: string;
+  keyLabel: string;
+  loadKey: () => Promise<string | null>;
+  saveKey: (key: string) => Promise<void>;
+  deleteKey: () => Promise<void>;
+}
+
+/** One AI-provider key card: input, save button with success morph, and a
+ * remove link. Shared by Gemini, OpenRouter and Groq. */
+function ApiKeyField({
+  description,
+  url,
+  placeholder,
+  savedPlaceholder,
+  keyLabel,
+  loadKey,
+  saveKey,
+  deleteKey,
+}: ApiKeyFieldProps) {
+  const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
+  const morph = useSuccessMorph();
+  const [input, setInput] = useState('');
+  const [hasStored, setHasStored] = useState(false);
+
+  useEffect(() => {
+    loadKey().then((key) => setHasStored(!!key));
+  }, [loadKey]);
+
+  return (
+    <Card>
+      <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>
+        {`${description}\n${url}`}
+      </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <TextInput
+          style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]}
+          value={input}
+          onChangeText={setInput}
+          placeholder={hasStored ? savedPlaceholder : placeholder}
+          placeholderTextColor={colors.text.disabled}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel={`${keyLabel} API key`}
+        />
+        <TouchableOpacity
+          style={[styles.saveKeyBtn, { backgroundColor: morph.active ? colors.success : colors.accent.primary, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
+          onPress={async () => {
+            if (!input.trim()) return;
+            await saveKey(input.trim());
+            setInput('');
+            setHasStored(true);
+            morph.trigger();
+          }}
+          accessibilityLabel={`Save ${keyLabel} API key`}
+        >
+          {morph.active ? (
+            <>
+              <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
+              <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.saved}</Text>
+            </>
+          ) : (
+            <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+      {hasStored && (
+        <TouchableOpacity
+          style={{ marginTop: spacing.sm }}
+          onPress={async () => {
+            await deleteKey();
+            setHasStored(false);
+            showToast(t.toasts.apiKeyRemoved, 'info');
+          }}
+          accessibilityLabel={`Remove stored ${keyLabel} API key`}
+        >
+          <Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text>
+        </TouchableOpacity>
+      )}
+    </Card>
+  );
+}
+
 export default function SettingsScreen() {
   const { colors, typography, spacing } = useTheme();
   const themePref = useThemeStore((s) => s.preference);
@@ -56,17 +144,8 @@ export default function SettingsScreen() {
   const setAppLockEnabled = useAuthStore((s) => s.setAppLockEnabled);
   const setLocked = useAuthStore((s) => s.setLocked);
   const { t, language, setLanguage } = useI18n();
-  const geminiKeyMorph = useSuccessMorph();
-  const openRouterKeyMorph = useSuccessMorph();
-  const groqKeyMorph = useSuccessMorph();
   const nameMorph = useSuccessMorph();
   const lockMorph = useSuccessMorph();
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [hasStoredKey, setHasStoredKey] = useState(false);
-  const [openRouterKeyInput, setOpenRouterKeyInput] = useState('');
-  const [hasStoredOpenRouterKey, setHasStoredOpenRouterKey] = useState(false);
-  const [groqKeyInput, setGroqKeyInput] = useState('');
-  const [hasStoredGroqKey, setHasStoredGroqKey] = useState(false);
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
@@ -87,18 +166,6 @@ export default function SettingsScreen() {
   }, []);
 
   useEffect(() => {
-    async function checkKey() {
-      const key = await getApiKey();
-      setHasStoredKey(!!key);
-      const openRouterKey = await getOpenRouterKey();
-      setHasStoredOpenRouterKey(!!openRouterKey);
-      const groqKey = await getGroqKey();
-      setHasStoredGroqKey(!!groqKey);
-    }
-    checkKey();
-  }, []);
-
-  useEffect(() => {
     setNameInput(profile?.name ?? '');
   }, [profile]);
 
@@ -110,7 +177,7 @@ export default function SettingsScreen() {
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete everything', style: 'destructive', onPress: async () => {
           try { await deleteProfile(); }
-          catch (err) { showToast('Failed to delete data. Please try again.', 'error'); }
+          catch (err) { showToast(t.toasts.deleteDataFailed, 'error'); }
         }}
       ]
     );
@@ -145,13 +212,16 @@ export default function SettingsScreen() {
               } catch { /* profile section refreshes on next load */ }
 
               showToast(
-                `Import complete — restored ${counts.medicines} medicine${counts.medicines !== 1 ? 's' : ''}, ${counts.schedules} schedule${counts.schedules !== 1 ? 's' : ''} and ${counts.doseRecords} dose record${counts.doseRecords !== 1 ? 's' : ''}.`,
+                t.toasts.importComplete
+                  .replace('{medicines}', String(counts.medicines))
+                  .replace('{schedules}', String(counts.schedules))
+                  .replace('{doseRecords}', String(counts.doseRecords)),
                 'success',
                 6000,
               );
             } catch (err) {
               const message = err instanceof Error ? err.message : 'The file could not be imported.';
-              showToast(`Import failed — ${message}`, 'error', 6000);
+              showToast(t.toasts.importFailed.replace('{error}', message), 'error', 6000);
             } finally {
               setImporting(false);
             }
@@ -190,7 +260,7 @@ export default function SettingsScreen() {
           setAppLockEnabled(true);
           lockMorph.trigger();
         } catch {
-          showToast('Failed to enable app lock. Please try again.', 'error');
+          showToast(t.toasts.appLockEnableFailed, 'error');
         }
         closePinModal();
       } else {
@@ -272,11 +342,11 @@ export default function SettingsScreen() {
                               setEditingName(false);
                               nameMorph.trigger();
                             } catch {
-                              showToast('Database not ready. Please try again later.', 'error');
+                              showToast(t.toasts.databaseNotReady, 'error');
                             }
                           }, 1000);
                         } else {
-                          showToast('Failed to save name. Please try again.', 'error');
+                          showToast(t.toasts.saveNameFailed, 'error');
                         }
                       } finally { setSavingName(false); }
                     }}
@@ -442,7 +512,7 @@ export default function SettingsScreen() {
                         (await authenticateWithBiometrics('Confirm biometric unlock')) ||
                         biometricDevBypass();
                       if (!ok) {
-                        showToast('Biometric check did not succeed — PIN will be used.', 'error');
+                        showToast(t.toasts.biometricFallback, 'error');
                         return;
                       }
                     }
@@ -476,63 +546,38 @@ export default function SettingsScreen() {
             </Card>
           ) : (
             <>
-          <Card>
-            <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiServiceDesc}\nhttps://aistudio.google.com/app/apikey</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]} value={apiKeyInput} onChangeText={setApiKeyInput} placeholder={hasStoredKey ? t.settings.apiKeySaved : t.settings.apiKeyPlaceholder} placeholderTextColor={colors.text.disabled} secureTextEntry autoCapitalize="none" autoCorrect={false} accessibilityLabel="Gemini API key" />
-              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: geminiKeyMorph.active ? colors.success : colors.accent.primary, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }]} onPress={async () => { if (!apiKeyInput.trim()) return; await saveApiKey(apiKeyInput.trim()); setApiKeyInput(''); setHasStoredKey(true); geminiKeyMorph.trigger(); }} accessibilityLabel="Save API key">
-                {geminiKeyMorph.active ? (
-                  <>
-                    <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-                    <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.saved}</Text>
-                  </>
-                ) : (
-                  <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-            {hasStoredKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteApiKey(); setHasStoredKey(false); showToast('API key removed.', 'info'); }} accessibilityLabel="Remove stored API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
-          </Card>
-
-          <View style={{ height: spacing.sm }} />
-
-          <Card>
-            <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.openRouterServiceDesc}\nhttps://openrouter.ai/keys</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]} value={openRouterKeyInput} onChangeText={setOpenRouterKeyInput} placeholder={hasStoredOpenRouterKey ? t.settings.apiKeySaved : t.settings.openRouterKeyPlaceholder} placeholderTextColor={colors.text.disabled} secureTextEntry autoCapitalize="none" autoCorrect={false} accessibilityLabel="OpenRouter API key" />
-              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: openRouterKeyMorph.active ? colors.success : colors.accent.primary, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }]} onPress={async () => { if (!openRouterKeyInput.trim()) return; await saveOpenRouterKey(openRouterKeyInput.trim()); setOpenRouterKeyInput(''); setHasStoredOpenRouterKey(true); openRouterKeyMorph.trigger(); }} accessibilityLabel="Save OpenRouter API key">
-                {openRouterKeyMorph.active ? (
-                  <>
-                    <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-                    <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.saved}</Text>
-                  </>
-                ) : (
-                  <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-            {hasStoredOpenRouterKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteOpenRouterKey(); setHasStoredOpenRouterKey(false); showToast('API key removed.', 'info'); }} accessibilityLabel="Remove stored OpenRouter API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
-          </Card>
-
-          <View style={{ height: spacing.sm }} />
-
-          <Card>
-            <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.groqServiceDesc}\nhttps://console.groq.com/keys</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <TextInput style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]} value={groqKeyInput} onChangeText={setGroqKeyInput} placeholder={hasStoredGroqKey ? t.settings.apiKeySaved : t.settings.groqKeyPlaceholder} placeholderTextColor={colors.text.disabled} secureTextEntry autoCapitalize="none" autoCorrect={false} accessibilityLabel="Groq API key" />
-              <TouchableOpacity style={[styles.saveKeyBtn, { backgroundColor: groqKeyMorph.active ? colors.success : colors.accent.primary, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }]} onPress={async () => { if (!groqKeyInput.trim()) return; await saveGroqKey(groqKeyInput.trim()); setGroqKeyInput(''); setHasStoredGroqKey(true); groqKeyMorph.trigger(); }} accessibilityLabel="Save Groq API key">
-                {groqKeyMorph.active ? (
-                  <>
-                    <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-                    <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.saved}</Text>
-                  </>
-                ) : (
-                  <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
-                )}
-              </TouchableOpacity>
-            </View>
-            {hasStoredGroqKey && (<TouchableOpacity style={{ marginTop: spacing.sm }} onPress={async () => { await deleteGroqKey(); setHasStoredGroqKey(false); showToast('API key removed.', 'info'); }} accessibilityLabel="Remove stored Groq API key"><Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text></TouchableOpacity>)}
-          </Card>
+              <ApiKeyField
+                description={t.settings.aiServiceDesc}
+                url="https://aistudio.google.com/app/apikey"
+                placeholder={t.settings.apiKeyPlaceholder}
+                savedPlaceholder={t.settings.apiKeySaved}
+                keyLabel="Gemini"
+                loadKey={getApiKey}
+                saveKey={saveApiKey}
+                deleteKey={deleteApiKey}
+              />
+              <View style={{ height: spacing.sm }} />
+              <ApiKeyField
+                description={t.settings.openRouterServiceDesc}
+                url="https://openrouter.ai/keys"
+                placeholder={t.settings.openRouterKeyPlaceholder}
+                savedPlaceholder={t.settings.apiKeySaved}
+                keyLabel="OpenRouter"
+                loadKey={getOpenRouterKey}
+                saveKey={saveOpenRouterKey}
+                deleteKey={deleteOpenRouterKey}
+              />
+              <View style={{ height: spacing.sm }} />
+              <ApiKeyField
+                description={t.settings.groqServiceDesc}
+                url="https://console.groq.com/keys"
+                placeholder={t.settings.groqKeyPlaceholder}
+                savedPlaceholder={t.settings.apiKeySaved}
+                keyLabel="Groq"
+                loadKey={getGroqKey}
+                saveKey={saveGroqKey}
+                deleteKey={deleteGroqKey}
+              />
             </>
           )}
         </View>
@@ -560,7 +605,7 @@ export default function SettingsScreen() {
                     })
                   );
                 } catch {
-                  showToast('Failed to export data.', 'error');
+                  showToast(t.toasts.exportFailed, 'error');
                 }
               }}
               accessibilityLabel="Export data as JSON"

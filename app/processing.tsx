@@ -100,20 +100,25 @@ export default function ProcessingScreen() {
         })),
       };
       const outcome = await savePrescription(verified, buildDefaultSchedules(verified), imageUri);
+      const bodyParts: string[] = [];
+      if (outcome.updated > 0) {
+        bodyParts.push(t.toasts.approvedUpdatedBody.replace('{updated}', String(outcome.updated)));
+        if (outcome.added > 0) {
+          bodyParts.push(t.toasts.approvedAddedBody.replace('{added}', String(outcome.added)));
+        }
+      } else {
+        bodyParts.push(t.toasts.approvedDefaultBody);
+      }
       const title =
         outcome.updated > 0 && outcome.added === 0
-          ? 'Already in your list'
-          : 'Medicines added';
-      const body =
-        outcome.updated > 0
-          ? `${outcome.updated} medicine${outcome.updated === 1 ? ' was' : 's were'} already in your list — the details and reminders were refreshed instead of adding duplicates.${outcome.added > 0 ? ` ${outcome.added} new medicine${outcome.added === 1 ? ' was' : 's were'} added.` : ''}`
-          : 'Your prescription was approved. Medicines are loaded with default reminder times — adjust them anytime from the medicine details.';
+          ? t.toasts.approvedUpdatedTitle
+          : t.toasts.approvedAddedTitle;
       // Toast lives in the root layout, so it stays visible after navigating
-      showToast(`${title} — ${body}`, 'success', 6000);
+      showToast(`${title}. ${bodyParts.join(' ')}`, 'success', 6000);
       router.replace('/(tabs)');
     } catch (err) {
       console.error('Approve prescription error:', err);
-      showToast('Failed to save your medicines. Please try again.', 'error');
+      showToast(t.toasts.saveMedicinesFailed, 'error');
     } finally {
       setSaving(false);
     }
@@ -183,7 +188,7 @@ export default function ProcessingScreen() {
             <Text style={[typography.body.sm, { color: colors.success, textAlign: 'center', marginBottom: spacing.base }]}>
               {result.data.medicines.length} medicine{result.data.medicines.length !== 1 ? 's' : ''} detected
               {result.validation.warnings.length > 0 &&
-                ` — ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
+                `, ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
             </Text>
             <View style={{ width: '100%', flexDirection: 'row', gap: spacing.md }}>
               <Button 

@@ -16,6 +16,7 @@ import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Badge } from '../src/components/ui/Badge';
 import { showToast } from '../src/components/ui/GlobalToast';
+import { useI18n } from '../src/i18n';
 import { PrescriptionJSON, MedicineJSON, ValidationResult } from '../src/ai/types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../src/constants/config';
 import {
@@ -31,6 +32,7 @@ import type { Medicine } from '../src/types/models';
 
 export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const { imageUri, prescriptionData, validationData } = useLocalSearchParams<{
     imageUri: string;
@@ -128,7 +130,7 @@ export default function ReviewScreen() {
     });
 
     if (missing.length > 0) {
-      showToast(`Required fields missing — please fill in: ${missing.join(', ')}`, 'warning', 5000);
+      showToast(t.toasts.requiredFieldsMissing.replace('{fields}', missing.join(', ')), 'warning', 5000);
       return;
     }
 
@@ -154,7 +156,7 @@ export default function ReviewScreen() {
         },
       });
     } catch (err) {
-      showToast('Failed to save prescription. Please try again.', 'error');
+      showToast(t.toasts.savePrescriptionFailed, 'error');
     } finally {
       setSaving(false);
     }
@@ -207,8 +209,8 @@ export default function ReviewScreen() {
                   </Text>
                   <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
                     {dupes.samePrescriptionOnRecord
-                      ? 'This prescription was scanned before and all of its medicines are already being tracked. Continuing will refresh their reminders — nothing will be added twice.'
-                      : `All ${dupes.total} medicine${dupes.total === 1 ? '' : 's'} on this prescription ${dupes.total === 1 ? 'is' : 'are'} already in your list. Continuing will refresh ${dupes.total === 1 ? 'its' : 'their'} reminders — nothing will be added twice.`}
+                      ? 'This prescription was scanned before and all of its medicines are already being tracked. Continuing will refresh their reminders. Nothing will be added twice.'
+                      : `All ${dupes.total} medicine${dupes.total === 1 ? '' : 's'} on this prescription ${dupes.total === 1 ? 'is' : 'are'} already in your list. Continuing will refresh ${dupes.total === 1 ? 'its' : 'their'} reminders. Nothing will be added twice.`}
                   </Text>
                 </View>
               </View>
@@ -251,8 +253,8 @@ export default function ReviewScreen() {
                   </Text>
                   <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
                     {interactions.length === 1
-                      ? '1 combination below may interact — please review it before saving.'
-                      : `${interactions.length} combinations below may interact — please review them before saving.`}
+                      ? '1 combination below may interact. Please review it before saving.'
+                      : `${interactions.length} combinations below may interact. Please review them before saving.`}
                   </Text>
                 </View>
               </View>

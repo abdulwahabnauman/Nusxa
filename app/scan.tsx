@@ -225,7 +225,7 @@ export default function ScanScreen() {
         setCameraActive(false);
       }
     } catch (error) {
-      showToast('Failed to capture photo. Please try again.', 'error');
+      showToast(t.toasts.captureFailed, 'error');
     }
   };
 
@@ -308,7 +308,7 @@ export default function ScanScreen() {
         setCapturedImage(persistentUri ?? normalizedUri);
       }
     } catch (error) {
-      showToast('Failed to select image. Please try again.', 'error');
+      showToast(t.toasts.imagePickFailed, 'error');
     }
   };
 
@@ -333,7 +333,7 @@ export default function ScanScreen() {
     if (!imageDims) {
       const dims = await getImageDims(capturedImage);
       if (!dims) {
-        showToast('Failed to load the image for cropping.', 'error');
+        showToast(t.toasts.cropLoadFailed, 'error');
         return;
       }
       setImageDims(dims);
@@ -398,7 +398,7 @@ export default function ScanScreen() {
       setCropStage(false);
     } catch (error) {
       console.error('Crop failed:', error);
-      showToast('Failed to crop the image. Please try again.', 'error');
+      showToast(t.toasts.cropFailed, 'error');
     } finally {
       setCropping(false);
     }

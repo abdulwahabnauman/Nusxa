@@ -304,8 +304,8 @@ export const ADDITIONAL_CONTENT: EducationContentSeed[] = [
     slug: 'paracetamol-safety',
     title_en: 'Paracetamol Safety: The Hidden Overdose Risk',
     title_ur: 'پیراسیٹامول کی حفاظت: چھپا ہوا اوور ڈوز خطرہ',
-    summary_en: 'Paracetamol is in many cold and flu combos — doubling up can damage the liver.',
-    summary_ur: 'پیراسیٹامول بہت سی زکام کی ادویات میں موجود ہے — زیادہ مقدار جگر کو نقصان پہنچا سکتی ہے۔',
+    summary_en: 'Paracetamol is in many cold and flu combos. Doubling up can damage the liver.',
+    summary_ur: 'پیراسیٹامول بہت سی زکام کی ادویات میں موجود ہے۔ زیادہ مقدار جگر کو نقصان پہنچا سکتی ہے۔',
     content_en: `<h1>Why It Is Risky Without Anyone Knowing</h1>
 <p>Paracetamol is safe at the prescribed dose, but it also hides in many cough, cold and flu combination products. Taking both can silently exceed the safe daily limit.</p>
 <h2>Safety Rules</h2>
@@ -326,8 +326,8 @@ export const ADDITIONAL_CONTENT: EducationContentSeed[] = [
     slug: 'nsaids-and-stomach',
     title_en: 'Painkillers Like Ibuprofen: Protecting Your Stomach',
     title_ur: 'آئیبوپروفین جیسی درد کی دوائیں: معدے کی حفاظت',
-    summary_en: 'NSAIDs can irritate the stomach lining — learn how to take them safely.',
-    summary_ur: 'NSAIDs معدے کو خراب کر سکتی ہیں — انہیں محفوظ طریقے سے لینے کے طریقے جانیں۔',
+    summary_en: 'NSAIDs can irritate the stomach lining. Learn how to take them safely.',
+    summary_ur: 'NSAIDs معدے کو خراب کر سکتی ہیں۔ انہیں محفوظ طریقے سے لینے کے طریقے جانیں۔',
     content_en: `<h1>NSAIDs and Your Stomach</h1>
 <p>Non-steroidal anti-inflammatories (like ibuprofen) reduce pain and swelling but can irritate the stomach lining, especially with long use.</p>
 <h2>Protection Tips</h2>
@@ -370,8 +370,8 @@ export const ADDITIONAL_CONTENT: EducationContentSeed[] = [
     slug: 'iron-supplements-guide',
     title_en: 'Iron Supplements: Getting the Absorption Right',
     title_ur: 'آئرن سپلیمنٹس: صحیح جذب کے طریقے',
-    summary_en: 'Tea, coffee and dairy block iron absorption — timing matters more than the brand.',
-    summary_ur: 'چائے، کافی اور دودھ آئرن کے جذب کو روکتے ہیں — وقت کا انتخاب برانڈ سے زیادہ اہم ہے۔',
+    summary_en: 'Tea, coffee and dairy block iron absorption. Timing matters more than the brand.',
+    summary_ur: 'چائے، کافی اور دودھ آئرن کے جذب کو روکتے ہیں۔ وقت کا انتخاب برانڈ سے زیادہ اہم ہے۔',
     content_en: `<h1>Making Iron Work</h1>
 <p>Iron treats anaemia, but absorption is easily blocked. Timing is everything.</p>
 <h2>Absorption Rules</h2>
@@ -392,8 +392,8 @@ export const ADDITIONAL_CONTENT: EducationContentSeed[] = [
     slug: 'why-adherence-matters',
     title_en: 'Why Taking Medicines on Time Changes Outcomes',
     title_ur: 'ادویات وقت پر لینے سے نتائج کیسے بدلتے ہیں',
-    summary_en: 'Steady medicine levels in the body are what make treatment work — and how reminders help.',
-    summary_ur: 'جسم میں دوا کی مستقل سطح علاج کو مؤثر بناتی ہے — یاد دہانیوں کا کردار جانیں۔',
+    summary_en: 'Steady medicine levels in the body are what make treatment work, and how reminders help.',
+    summary_ur: 'جسم میں دوا کی مستقل سطح علاج کو مؤثر بناتی ہے۔ یاد دہانیوں کا کردار جانیں۔',
     content_en: `<h1>Steady Levels, Real Results</h1>
 <p>Most medicines only work while their level in your blood stays in a target range. Missed doses create gaps; double doses create spikes. Both reduce safety and effect.</p>
 <h2>Habits That Help</h2>
@@ -414,8 +414,8 @@ export const ADDITIONAL_CONTENT: EducationContentSeed[] = [
     slug: 'safe-storage-of-medicines',
     title_en: 'Storing Medicines Safely at Home',
     title_ur: 'گھر میں ادویات کی محفوظ ذخیرہ اندوزی',
-    summary_en: 'Heat, humidity and curious children — the three risks every household should fix.',
-    summary_ur: 'گرمی، نمی اور بچوں کی رسائی — تین خطرات جنہیں ہر گھر کو ٹھیک کرنا چاہیے۔',
+    summary_en: 'Heat, humidity and curious children. The three risks every household should fix.',
+    summary_ur: 'گرمی، نمی اور بچوں کی رسائی۔ تین خطرات جنہیں ہر گھر کو ٹھیک کرنا چاہیے۔',
     content_en: `<h1>The Three Risks</h1>
 <ul>
 <li><strong>Heat & humidity:</strong> bathrooms and cars degrade medicines. Use a cool, dry cupboard.</li>

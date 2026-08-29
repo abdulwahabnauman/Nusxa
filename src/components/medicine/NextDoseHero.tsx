@@ -234,7 +234,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
             style={[typ.heading.h4, { color: colors.text.primary }]}
           >
             {next.medicineName}
-            {next.dosage ? ` — ${next.dosage}` : ''}
+            {next.dosage ? `, ${next.dosage}` : ''}
           </Text>
           <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
             {isSnoozed && snoozeEntry

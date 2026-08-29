@@ -71,7 +71,7 @@ export default function OnboardingScreen() {
       router.replace('/');
     } catch (error) {
       console.error('Onboarding error:', error);
-      showToast('Failed to set up your profile. Please try again.', 'error');
+      showToast(t.toasts.profileSetupFailed, 'error');
     } finally {
       setLoading(false);
     }

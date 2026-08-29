@@ -128,7 +128,7 @@ export default function EmergencyCardScreen() {
       savedMorph.trigger();
       setTimeout(() => setEditing(false), 1200);
     } catch (err) {
-      showToast('Failed to save. Please try again.', 'error');
+      showToast(t.toasts.saveFailed, 'error');
     } finally {
       setSaving(false);
     }
@@ -201,7 +201,7 @@ export default function EmergencyCardScreen() {
                   </View>
                 ) : (
                   <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>
-                    {emergencyName && emergencyPhone ? `${emergencyName} — ${emergencyPhone}` : t.common.notSet}
+                    {emergencyName && emergencyPhone ? `${emergencyName}, ${emergencyPhone}` : t.common.notSet}
                   </Text>
                 )}
               </View>

@@ -71,7 +71,7 @@ const PrescriptionRow = memo(function PrescriptionRow({
               {rx.doctor_name ?? 'Unknown doctor'}
             </Text>
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-              {rx.date ?? 'No date'} — {rx.medicineCount} {rx.medicineCount === 1 ? 'medicine' : 'medicines'}
+              {rx.date ?? 'No date'}, {rx.medicineCount} {rx.medicineCount === 1 ? 'medicine' : 'medicines'}
             </Text>
             {rx.hospital && (
               <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 2 }]}>

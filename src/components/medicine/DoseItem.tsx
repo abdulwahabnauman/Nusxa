@@ -168,7 +168,7 @@ export function DoseItem({
             {timeLabel}
           </Text>
           <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-            {medicineName} {dosage ? `— ${dosage}` : ''}
+            {medicineName} {dosage ? `, ${dosage}` : ''}
           </Text>
           {mealInstruction && mealInstruction !== 'none' && (
             <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 1 }]}>

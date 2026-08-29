@@ -28,23 +28,23 @@ interface ReminderCopy {
 const REMINDER_COPY: Record<'en' | 'ur', ReminderCopy> = {
   en: {
     doseTitle: 'Medicine reminder',
-    doseBody: (name, dosage, mealText) => `It is time to take ${name}${dosage ? ` — ${dosage}` : ''}${mealText}.`,
+    doseBody: (name, dosage, mealText) => `It is time to take ${name}${dosage ? `, ${dosage}` : ''}${mealText}.`,
     snoozeTitle: 'Medicine reminder (snoozed)',
-    snoozeBody: (name) => `Time to take ${name} — you snoozed this reminder.`,
+    snoozeBody: (name) => `Time to take ${name}. You snoozed this reminder.`,
     warningTitle: 'Medicine not taken yet',
-    warningBody: (name) => `You have not taken ${name} yet. Please take it now — once the reminder window ends, it will be marked as not taken.`,
+    warningBody: (name) => `You have not taken ${name} yet. Please take it now. Once the reminder window ends, it will be marked as not taken.`,
     refillTitle: 'Running low on medicine',
-    refillBody: (name, days) => `You have about ${days} day${days === 1 ? '' : 's'} of ${name} left — plan a refill soon.`,
+    refillBody: (name, days) => `You have about ${days} day${days === 1 ? '' : 's'} of ${name} left. Plan a refill soon.`,
   },
   ur: {
     doseTitle: 'دوا کی یاد دہانی',
     doseBody: (name, dosage) => `${name}${dosage ? ` (${dosage})` : ''} لینے کا وقت ہو گیا ہے۔`,
     snoozeTitle: 'دوا کی یاد دہانی (اسنوز)',
-    snoozeBody: (name) => `${name} لینے کا وقت — آپ نے یہ یاد دہانی ملتوی کی تھی۔`,
+    snoozeBody: (name) => `${name} لینے کا وقت۔ آپ نے یہ یاد دہانی ملتوی کی تھی۔`,
     warningTitle: 'دوا ابھی تک نہیں لی گئی',
-    warningBody: (name) => `آپ نے ابھی تک ${name} نہیں لی۔ براہ کرم ابھی لے لیں — یاد دہانی کا وقت ختم ہونے پر یہ نہ لی گئی دوا شمار ہوگی۔`,
+    warningBody: (name) => `آپ نے ابھی تک ${name} نہیں لی۔ براہ کرم ابھی لے لیں۔ یاد دہانی کا وقت ختم ہونے پر یہ نہ لی گئی دوا شمار ہوگی۔`,
     refillTitle: 'دوا کم ہو رہی ہے',
-    refillBody: (name, days) => `${name} تقریباً ${days} دن کے لیے باقی ہے — جلد نئی خریداری کا منصوبہ بنائیں۔`,
+    refillBody: (name, days) => `${name} تقریباً ${days} دن کے لیے باقی ہے۔ جلد نئی خریداری کا منصوبہ بنائیں۔`,
   },
 };
 

@@ -126,7 +126,7 @@ export const MEDICINE_INTERACTIONS: InteractionRule[] = [
     a: ['warfarin'],
     b: ['amiodarone'],
     severity: 'high',
-    description: 'Amiodarone can strengthen warfarin\'s effect and raise bleeding risk — dosing may need medical review.',
+    description: 'Amiodarone can strengthen warfarin\'s effect and raise bleeding risk. Dosing may need medical review.',
   },
   {
     // ACE inhibitors / ARBs / potassium-sparing drugs / potassium (symmetric)
@@ -153,13 +153,13 @@ export const MEDICINE_INTERACTIONS: InteractionRule[] = [
     a: ['ciprofloxacin', 'levofloxacin', 'ofloxacin', 'norfloxacin', 'doxycycline', 'tetracycline', 'minocycline'],
     b: ['calcium', 'iron', 'zinc', 'magnesium', 'antacid'],
     severity: 'medium',
-    description: 'Antacids, calcium, iron, zinc or magnesium can block absorption of these antibiotics — doses are usually spaced at least 2 hours apart.',
+    description: 'Antacids, calcium, iron, zinc or magnesium can block absorption of these antibiotics. Doses are usually spaced at least 2 hours apart.',
   },
   {
     a: ['levothyroxine', 'thyroxine'],
     b: ['calcium', 'iron'],
     severity: 'medium',
-    description: 'Calcium and iron reduce levothyroxine absorption — doses are usually spaced about 4 hours apart.',
+    description: 'Calcium and iron reduce levothyroxine absorption. Doses are usually spaced about 4 hours apart.',
   },
   {
     a: ['sildenafil', 'tadalafil', 'vardenafil'],
