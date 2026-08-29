@@ -97,6 +97,13 @@ export const ur: TranslationKeys = {
     cameraNote: 'جب آپ اپنا پہلا نسخہ اسکین کریں گے تو کیمرے تک رسائی کی درخواست کی جائے گی۔',
     setUp: 'نسخہ سیٹ اپ کریں',
     nameRequired: 'نام درکار ہے',
+    healthTitle: 'آپ کے بارے میں چند معلومات',
+    healthDesc: 'تاریخ پیدائش اور بلڈ گروپ ہنگامی حالات اور ڈاکٹر کے دوروں میں مدد دیتے ہیں۔ دونوں اختیاری ہیں۔',
+    dobLabel: 'تاریخ پیدائش',
+    dobPlaceholder: 'YYYY-MM-DD',
+    dobInvalid: 'براہ کرم درست تاریخ درج کریں (YYYY-MM-DD)',
+    bloodGroupLabel: 'بلڈ گروپ',
+    skipStep: 'ابھی چھوڑ دیں',
   },
   settings: {
     title: 'ترتیبات',

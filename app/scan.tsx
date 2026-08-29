@@ -4,9 +4,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   Image,
   Platform,
   Linking,
+  type GestureResponderEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -47,6 +49,12 @@ export default function ScanScreen() {
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null);
+  // Toggling autofocus 'on' forces the camera to run one fresh AF pass
+  // (expo-camera exposes no coordinate-based tap-focus API), then flipping
+  // back to 'off' returns it to focus-as-needed. This is what makes a tap
+  // actually re-focus instead of just showing a ring.
+  const [focusBoost, setFocusBoost] = useState(false);
+  const focusBoostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cameraRef = useRef<ExpoCameraView>(null);
   // Live camera view size — maps the centered focus box onto the captured
   // photo's pixel dimensions so everything outside the box is discarded.
@@ -404,22 +412,17 @@ export default function ScanScreen() {
     }
   };
 
-  // Handle tap to focus
-  const handleCameraTap = (e: any) => {
-    if (!cameraRef.current) return;
-    
-    const layout = (e.nativeEvent as any).layout;
-    
-    // Show focus indicator
-    setFocusPoint({ x: layout.x + layout.width / 2, y: layout.y + 100 });
-    
-    // Focus on tapped area
-    try {
-      (cameraRef.current as unknown as { focusAsync?: () => Promise<void> }).focusAsync?.();
-    } catch (error) {
-      console.log('Auto-focus not supported on this device');
-    }
-    
+  // Handle tap to focus: the ring appears exactly where the finger tapped
+  // (locationX/Y are view-relative — no magic offsets), and the autofocus
+  // mode toggle forces the camera to run a fresh focus pass.
+  const handleCameraTap = (e: GestureResponderEvent) => {
+    const { locationX, locationY } = e.nativeEvent;
+    setFocusPoint({ x: locationX, y: locationY });
+
+    if (focusBoostTimer.current) clearTimeout(focusBoostTimer.current);
+    setFocusBoost(true);
+    focusBoostTimer.current = setTimeout(() => setFocusBoost(false), 1200);
+
     // Hide indicator after animation
     setTimeout(() => setFocusPoint(null), 800);
   };
@@ -567,12 +570,12 @@ export default function ScanScreen() {
           style={StyleSheet.absoluteFill}
           facing="back"
           enableTorch={false}
+          autofocus={focusBoost ? 'on' : 'off'}
         />
-        {/* Tap to focus handler */}
-        <TouchableOpacity
+        {/* Tap to focus handler — Pressable exposes the tap coordinates */}
+        <Pressable
           style={StyleSheet.absoluteFill}
           onPress={handleCameraTap}
-          activeOpacity={1}
         />
         {/* Overlay guide */}
         <View style={styles.overlay}>
@@ -580,6 +583,11 @@ export default function ScanScreen() {
           <View style={styles.overlayMiddle}>
             <View style={styles.overlaySide} />
             <View style={[styles.scanFrame, { borderColor: colors.accent.primary }]}>
+              {/* Corner guides — classic scanner brackets at each corner */}
+              <View style={[styles.cornerGuide, styles.cornerTL, { borderColor: '#FFFFFF' }]} />
+              <View style={[styles.cornerGuide, styles.cornerTR, { borderColor: '#FFFFFF' }]} />
+              <View style={[styles.cornerGuide, styles.cornerBL, { borderColor: '#FFFFFF' }]} />
+              <View style={[styles.cornerGuide, styles.cornerBR, { borderColor: '#FFFFFF' }]} />
               <Text style={[styles.scanHint, { color: '#FFFFFF' }]}>
                 {t.scanner.alignGuide}
               </Text>
@@ -604,14 +612,13 @@ export default function ScanScreen() {
           </View>
         </View>
 
-        {/* Focus Indicator Overlay */}
+        {/* Focus Indicator Overlay — ring sits exactly on the tap point */}
         {focusPoint && (
           <View style={styles.focusOverlay}>
-            <View style={[styles.focusCircle, { left: focusPoint.x - 40, top: focusPoint.y - 40 }]}>
-              <View style={styles.crosshairHorizontal} />
-              <View style={styles.crosshairVertical} />
+            <View style={[styles.focusCircle, { left: focusPoint.x - 40, top: focusPoint.y - 40, borderColor: colors.accent.primary }]}>
+              <View style={[styles.crosshairHorizontal, { backgroundColor: colors.accent.primary }]} />
+              <View style={[styles.crosshairVertical, { backgroundColor: colors.accent.primary }]} />
             </View>
-            <Text style={styles.focusHint}>{t.scanner.tapToFocus}</Text>
           </View>
         )}
       </View>
@@ -711,6 +718,39 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     overflow: 'hidden',
   },
+  cornerGuide: {
+    position: 'absolute',
+    width: 28,
+    height: 28,
+  },
+  cornerTL: {
+    top: -2,
+    left: -2,
+    borderTopWidth: 4,
+    borderLeftWidth: 4,
+    borderTopLeftRadius: 12,
+  },
+  cornerTR: {
+    top: -2,
+    right: -2,
+    borderTopWidth: 4,
+    borderRightWidth: 4,
+    borderTopRightRadius: 12,
+  },
+  cornerBL: {
+    bottom: -2,
+    left: -2,
+    borderBottomWidth: 4,
+    borderLeftWidth: 4,
+    borderBottomLeftRadius: 12,
+  },
+  cornerBR: {
+    bottom: -2,
+    right: -2,
+    borderBottomWidth: 4,
+    borderRightWidth: 4,
+    borderBottomRightRadius: 12,
+  },
   overlayBottom: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -797,22 +837,10 @@ const styles = StyleSheet.create({
   crosshairHorizontal: {
     width: '100%',
     height: 2,
-    backgroundColor: '#FF4400',
   },
   crosshairVertical: {
     width: 2,
     height: '100%',
-    backgroundColor: '#FF4400',
     position: 'absolute',
-  },
-  focusHint: {
-    marginTop: 60,
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
   },
 });

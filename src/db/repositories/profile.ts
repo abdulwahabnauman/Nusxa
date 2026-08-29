@@ -176,16 +176,33 @@ export async function completeOnboarding(): Promise<void> {
  * and a legacy bug could leave a nameless row behind), in which case a plain
  * INSERT would fail on the `id = 1` uniqueness constraint and trap the user
  * on the onboarding screen forever.
+ * `extras` carries the optional (skippable) health details collected during
+ * onboarding — date of birth and blood group.
  */
-export async function upsertProfileForOnboarding(name: string, language: string): Promise<Profile> {
+export async function upsertProfileForOnboarding(
+  name: string,
+  language: string,
+  extras?: { date_of_birth?: string | null; blood_group?: string | null }
+): Promise<Profile> {
   const existing = await getProfile();
   if (existing) {
-    await updateProfile({ name, language, onboarding_complete: true });
+    await updateProfile({
+      name,
+      language,
+      onboarding_complete: true,
+      ...(extras?.date_of_birth !== undefined ? { date_of_birth: extras.date_of_birth } : {}),
+      ...(extras?.blood_group !== undefined ? { blood_group: extras.blood_group } : {}),
+    });
     const profile = await getProfile();
     if (!profile) throw new Error('Failed to update profile');
     return profile;
   }
-  const profile = await createProfile({ name, language });
+  const profile = await createProfile({
+    name,
+    language,
+    date_of_birth: extras?.date_of_birth ?? null,
+    blood_group: extras?.blood_group ?? null,
+  });
   await completeOnboarding();
   return { ...profile, onboarding_complete: true };
 }

@@ -99,6 +99,13 @@ export const en = {
     cameraNote: 'Camera access will be requested when you scan your first prescription.',
     setUp: 'Set up Nusxa',
     nameRequired: 'Name required',
+    healthTitle: 'A little about you',
+    healthDesc: 'Date of birth and blood group help on emergencies and doctor visits. Both are optional.',
+    dobLabel: 'Date of birth',
+    dobPlaceholder: 'YYYY-MM-DD',
+    dobInvalid: 'Please enter a valid date (YYYY-MM-DD)',
+    bloodGroupLabel: 'Blood group',
+    skipStep: 'Skip for now',
   },
   // Settings
   settings: {

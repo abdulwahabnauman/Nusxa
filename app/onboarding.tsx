@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,15 +22,22 @@ import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { useI18n } from '../src/i18n';
+import { isValidDate } from '../src/utils/date';
 
-type OnboardingStep = 'welcome' | 'profile' | 'permissions' | 'done';
+// No 'done' step: setup finishes on the permissions step and navigates
+// straight into the app (the old 'done' branch was dead code).
+type OnboardingStep = 'welcome' | 'profile' | 'health' | 'permissions';
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function OnboardingScreen() {
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
   const { setProfile } = useAuthStore();
   const [step, setStep] = useState<OnboardingStep>('welcome');
   const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [bloodGroup, setBloodGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const { t } = useI18n();
 
@@ -43,6 +51,16 @@ export default function OnboardingScreen() {
       return;
     }
     // Don't save yet - wait until permissions step
+    setStep('health');
+  };
+
+  // Optional health step: both fields can be left empty / skipped entirely
+  const handleHealthSave = () => {
+    const trimmedDob = dob.trim();
+    if (trimmedDob && !isValidDate(trimmedDob)) {
+      showToast(t.onboarding.dobInvalid, 'warning');
+      return;
+    }
     setStep('permissions');
   };
 
@@ -63,8 +81,13 @@ export default function OnboardingScreen() {
       // Create or update the profile (upsert — a row may already exist on
       // upgrade installs), then mark onboarding complete. Keep whatever
       // language is active right now so a chosen language survives setup.
+      // DOB/blood group come from the optional health step (empty = not set).
       const currentLanguage = useSettingsStore.getState().language;
-      const profile = await upsertProfileForOnboarding(name.trim(), currentLanguage);
+      const trimmedDob = dob.trim();
+      const profile = await upsertProfileForOnboarding(name.trim(), currentLanguage, {
+        date_of_birth: trimmedDob || null,
+        blood_group: bloodGroup,
+      });
       setProfile(profile);
 
       // Navigate to main tabs after successful setup
@@ -149,6 +172,60 @@ export default function OnboardingScreen() {
             </View>
           )}
 
+          {step === 'health' && (
+            <View style={styles.stepContainer}>
+              <Text style={[typography.heading.h2, { color: colors.text.primary, textAlign: 'center' }]}>
+                {t.onboarding.healthTitle}
+              </Text>
+              <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center' }]}>
+                {t.onboarding.healthDesc}
+              </Text>
+              <View style={{ marginTop: spacing.xl, width: '100%' }}>
+                <Input
+                  label={t.onboarding.dobLabel}
+                  value={dob}
+                  onChangeText={setDob}
+                  placeholder={t.onboarding.dobPlaceholder}
+                  keyboardType="numbers-and-punctuation"
+                />
+                <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+                  {t.onboarding.bloodGroupLabel}
+                </Text>
+                <View style={styles.bloodGroupGrid}>
+                  {BLOOD_GROUPS.map((group) => {
+                    const selected = bloodGroup === group;
+                    return (
+                      <TouchableOpacity
+                        key={group}
+                        onPress={() => setBloodGroup(selected ? null : group)}
+                        style={[
+                          styles.bloodGroupChip,
+                          {
+                            borderRadius: borderRadius.md,
+                            borderColor: selected ? colors.accent.primary : colors.border.default,
+                            backgroundColor: selected ? colors.accent.subtle : colors.background.surface,
+                          },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={group}
+                      >
+                        <Text style={[typography.label.base, { color: selected ? colors.accent.primary : colors.text.primary }]}>
+                          {group}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </View>
+              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
+                <Button title={t.common.next} onPress={handleHealthSave} size="lg" />
+                {/* The whole step is optional — skip keeps DOB/blood unset */}
+                <Button title={t.onboarding.skipStep} onPress={() => setStep('permissions')} variant="ghost" />
+              </View>
+            </View>
+          )}
+
           {step === 'permissions' && (
             <View style={styles.stepContainer}>
               <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
@@ -218,6 +295,18 @@ const styles = StyleSheet.create({
   },
   featureRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bloodGroupGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  bloodGroupChip: {
+    minWidth: 64,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
     alignItems: 'center',
   },
   permissionNote: {
