@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, memo } from 'react';
+import React, { useCallback, useState, useEffect, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { getActiveMedicines } from '../../src/db/repositories/medicine';
 import { getSchedulesByMedicine } from '../../src/db/repositories/schedule';
 import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
+import { findInteractionPairs } from '../../src/utils/interactions';
 import type { Medicine } from '../../src/types/models';
 
 interface MedicineWithInfo extends Medicine {
@@ -106,6 +107,8 @@ export default function MedicinesScreen() {
     (med) => med.daysUntilRefill !== null && med.daysUntilRefill <= 7,
   ).length;
 
+  const interactions = useMemo(() => findInteractionPairs(medicines), [medicines]);
+
   const listHeader = (
     <>
       <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
@@ -116,6 +119,50 @@ export default function MedicinesScreen() {
           Your active medications
         </Text>
       </View>
+      {!loading && interactions.length > 0 && (
+        <View
+          style={{
+            backgroundColor: colors.error + '0D',
+            borderColor: colors.error + '4D',
+            borderWidth: 1,
+            borderRadius: 12,
+            padding: 12,
+            marginTop: 12,
+          }}
+          accessibilityLabel={`${interactions.length} possible medicine interactions in your regimen`}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <MaterialCommunityIcons name="pill-multiple" size={20} color={colors.error} />
+            <Text style={[typography.label.base, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+              Possible interactions in your regimen
+            </Text>
+          </View>
+          {interactions.map((hit, i) => {
+            const tone = hit.severity === 'high' ? colors.error : colors.warning;
+            return (
+              <View key={`${hit.first}-${hit.second}-${i}`} style={{ flexDirection: 'row', marginTop: 8 }}>
+                <MaterialCommunityIcons
+                  name={hit.severity === 'high' ? 'alert-octagon' : 'alert-outline'}
+                  size={16}
+                  color={tone}
+                  style={{ marginTop: 2 }}
+                />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={[typography.label.sm, { color: colors.text.primary }]}>
+                    {hit.first} + {hit.second}
+                  </Text>
+                  <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                    {hit.description}
+                  </Text>
+                </View>
+              </View>
+            );
+          })}
+          <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 8 }]}>
+            Automated guidance only — always confirm with your doctor or pharmacist.
+          </Text>
+        </View>
+      )}
       {!loading && lowStockCount > 0 && (
         <View
           style={{
