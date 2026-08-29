@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, LogBox } from 'react-native';
+import { View, StyleSheet, LogBox, AppState } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -19,8 +19,10 @@ import { dedupeActiveMedicines } from '../src/utils/savePrescription';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
+import { BiometricLock } from '../src/components/ui/BiometricLock';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { GlobalToast } from '../src/components/ui/GlobalToast';
+import { isAppLockEnabled } from '../src/utils/appLock';
 import type { Profile } from '../src/types/models';
 
 // keep the native splash up until we've swapped over to our own animated one
@@ -52,6 +54,10 @@ const queryClient = new QueryClient({
 function AppContent() {
   const { colors, mode } = useTheme();
   const { setProfile, setLoaded, profile, isLoaded } = useAuthStore();
+  const appLockEnabled = useAuthStore((s) => s.appLockEnabled);
+  const isLocked = useAuthStore((s) => s.isLocked);
+  const setAppLockEnabled = useAuthStore((s) => s.setAppLockEnabled);
+  const setLocked = useAuthStore((s) => s.setLocked);
   const [dbReady, setDbReady] = useState(false);
   const [splashAnimationDone, setSplashAnimationDone] = useState(false);
   const syncLanguage = useSettingsStore((s) => s.setLanguage);
@@ -99,6 +105,17 @@ function AppContent() {
           await hydrateSettings();
         } catch (hydrateError) {
           console.error('[Init] Settings hydration failed:', hydrateError);
+        }
+
+        // App lock lives in SecureStore (independent of the DB). When it is
+        // set up, every cold start begins behind the lock gate.
+        try {
+          if (await isAppLockEnabled()) {
+            setAppLockEnabled(true);
+            setLocked(true);
+          }
+        } catch (lockError) {
+          console.error('[Init] App lock check failed:', lockError);
         }
 
         // Remove duplicate medicines left over from re-scans that happened
@@ -169,7 +186,18 @@ function AppContent() {
       }
     }
     init();
-  }, [setProfile, setLoaded]);
+  }, [setProfile, setLoaded, setAppLockEnabled, setLocked]);
+
+  // Lock the app as soon as it drops to the background when app lock is on.
+  // Reads the store imperatively so the listener never goes stale.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'background' && useAuthStore.getState().appLockEnabled) {
+        useAuthStore.getState().setLocked(true);
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   if (!dbReady || !isLoaded || !splashAnimationDone || !fontsLoaded) {
     return (
@@ -184,9 +212,16 @@ function AppContent() {
 
   const showOnboarding = !profile || !profile.onboarding_complete || !profile.name;
 
+  // Lock gate replaces the entire navigation stack — nothing underneath is
+  // reachable (or visible) until the user unlocks.
+  const lockGateActive = appLockEnabled && isLocked && !!profile;
+
   return (
     <View style={{ flex: 1, direction: language === 'ur' ? 'rtl' : 'ltr' }}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      {lockGateActive ? (
+        <BiometricLock onUnlock={() => setLocked(false)} />
+      ) : (
       <Stack
         screenOptions={{
           headerShown: false,
@@ -209,6 +244,7 @@ function AppContent() {
         <Stack.Screen name="doctor-visit" options={{ presentation: 'card' }} />
         <Stack.Screen name="analytics" options={{ presentation: 'card' }} />
       </Stack>
+      )}
     </View>
   );
 }
