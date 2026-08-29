@@ -22,7 +22,7 @@ import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
 import { BiometricLock } from '../src/components/ui/BiometricLock';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { GlobalToast } from '../src/components/ui/GlobalToast';
-import { isAppLockEnabled } from '../src/utils/appLock';
+import { isAppLockEnabled, isLockExemptOverlay } from '../src/utils/appLock';
 import type { Profile } from '../src/types/models';
 
 // keep the native splash up until we've swapped over to our own animated one
@@ -190,10 +190,16 @@ function AppContent() {
   }, [setProfile, setLoaded, setAppLockEnabled, setLocked, syncLanguage, syncElderlyMode, syncHighContrast, restoreThemePreference]);
 
   // Lock the app as soon as it drops to the background when app lock is on.
-  // Reads the store imperatively so the listener never goes stale.
+  // Reads the store imperatively so the listener never goes stale. Transient
+  // OS sheets (pickers, share sheets) are exempt — they background the app
+  // for a moment and must not land the user on the PIN pad on return.
   useEffect(() => {
     const sub = AppState.addEventListener('change', (state) => {
-      if (state === 'background' && useAuthStore.getState().appLockEnabled) {
+      if (
+        state === 'background' &&
+        useAuthStore.getState().appLockEnabled &&
+        !isLockExemptOverlay()
+      ) {
         useAuthStore.getState().setLocked(true);
       }
     });
