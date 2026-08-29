@@ -16,6 +16,25 @@ export function biometricDevBypass(): boolean {
   return __DEV__ && Constants.isDevice === false;
 }
 
+/* OS sheets (image picker, camera, share sheet, document picker) push the
+ * app to the background for a moment. That transient backgrounding must not
+ * trip the app lock, or returning from picking a photo lands on the PIN pad. */
+let overlayExempt = false;
+
+export function isLockExemptOverlay(): boolean {
+  return overlayExempt;
+}
+
+/** Run an OS overlay call without the background lock triggering on return. */
+export async function withLockExemption<T>(fn: () => Promise<T>): Promise<T> {
+  overlayExempt = true;
+  try {
+    return await fn();
+  } finally {
+    overlayExempt = false;
+  }
+}
+
 const ENABLED_KEY = 'nusxa_app_lock_enabled';
 const PIN_KEY = 'nusxa_app_lock_pin';
 const BIOMETRIC_KEY = 'nusxa_app_lock_biometric';
