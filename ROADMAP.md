@@ -1,7 +1,7 @@
 # 🎯 NUSXA - FEATURE ROADMAP & PROGRESS
 
-**Last Updated**: August 25, 2026 (Session 2)
-**Current Version**: v4.0 (Education Foundation + Bug Fixes)
+**Last Updated**: August 29, 2026 (Session 3)
+**Current Version**: v5.0 (Interaction checker + real app lock + analytics export; multi-patient removed)
 
 ---
 
@@ -56,69 +56,48 @@
 
 ## 📋 PENDING FEATURES (Not Started)
 
-### Feature #2: Analytics Dashboard 🔮 MEDIUM PRIORITY
+### Feature #2: Analytics Dashboard ✅ COMPLETE (August 29, 2026)
 
-**Planned Implementation:**
-- Chart integration (Victory Native or react-native-svg-charts)
-- Adherence rate aggregation (daily/weekly/monthly)
-- Missed dose pattern analysis
-- Exportable reports (PDF/image share)
-- Streak visualization with trends
-
-**Why Important:**
-Users want insights into their medication patterns to improve adherence
-
-**Estimated Effort**: 10-15 hours
+**Shipped:**
+- Dashboard on live SQLite dose-record data (adherence ring, activity chart, month calendar)
+- Exportable report: on-device PDF (adherence %, taken/missed/skipped, daily breakdown) shared via the system share sheet
+- Image-share variant intentionally skipped (would need an extra snapshot dependency)
 
 ---
 
-### Feature #3: Firebase Push Notifications 🔔 HIGH PRIORITY
+### Feature #3: Firebase Push Notifications ⏸️ DEFERRED (decision, August 29, 2026)
 
-**Planned Implementation:**
-- Firebase project setup + credentials
-- expo-notifications dependency installation
-- Background notification service configuration
-- Scheduled reminders via FCM triggers
-- Deep linking to medicine details from notifications
+**Decision:** Skip for now. The original premise was that local notifications
+don't work when the app is fully closed — on Android that is largely wrong:
+scheduled local notifications are delivered by the OS even when the app
+process is dead. The real gaps are device reboots and aggressive OEM battery
+savers, neither of which FCM alone fixes.
 
-**Why Important:**
-True background alerts when app is fully closed (not just foregrounded)
-
-**Prerequisites**: Firebase account, Google services setup
-
-**Estimated Effort**: 6-8 hours
+True server-triggered push still needs a Firebase project, google-services
+credentials, and a backend sender — none of which exist for this app. Revisit
+when there is a backend that has something to push.
 
 ---
 
-### Feature #4: Biometric Authentication 🔒 CRITICAL SECURITY
+### Feature #4: Biometric Authentication ✅ COMPLETE (August 29, 2026)
 
-**Planned Implementation:**
-- expo-biometrics package integration
-- PIN fallback option
-- Encryption key protection for sensitive data
-- Optional feature toggle in Settings
-- HIPAA compliance consideration
-
-**Why Important:**
-Medical privacy protection, especially for family/shared devices
-
-**Estimated Effort**: 3-5 hours
+**Shipped:**
+- `expo-local-authentication` fingerprint/Face unlock with PIN fallback
+- PIN stored in SecureStore; lock state in the auth store
+- Settings → Security: enable (choose + confirm PIN), biometric toggle, disable requires current PIN
+- Locks on every cold start and whenever the app drops to background
+- 30-second lockout after five wrong PIN attempts
 
 ---
 
-### Feature #5: Medicine Interaction Checker ⚠️ HIGH SAFETY
+### Feature #5: Medicine Interaction Checker ✅ COMPLETE (August 29, 2026)
 
-**Planned Implementation:**
-- Medical reference database integration
-- Side effect conflict detection
-- Food interaction warnings
-- Drug-drug interaction alerts
-- Real-time checking during prescription review
-
-**Why Important:**
-Critical safety feature to prevent adverse reactions
-
-**Estimated Effort**: 4-6 hours
+**Shipped:**
+- 16 curated two-sided interaction rules (severity-ranked, patient-friendly copy)
+- Matching over medicine name + generic + brand, including bracketed labels
+- Warnings on the review screen BEFORE saving (incoming batch vs itself and vs the current regimen)
+- Persistent regimen warnings on the Medicines tab
+- Every warning carries a "confirm with your doctor or pharmacist" disclaimer
 
 ---
 
@@ -142,34 +121,28 @@ Critical safety feature to prevent adverse reactions
 |----------|-------------|----------|-------------|---------|------------|
 | **Critical Bugs Fixed** | 8 | 8 | 0 | 0 | 100% ✅ |
 | **Elderly Mode Enhancement** | 5 | 5 | 0 | 0 | 100% ✅ |
-| **Education Library** | 7 | 2 | 1 | 4 | 30% 🟡 |
-| **Analytics Dashboard** | 5 | 0 | 0 | 5 | 0% ⚪ |
-| **Firebase Notifications** | 5 | 0 | 0 | 5 | 0% ⚪ |
-| **Biometric Security** | 4 | 0 | 0 | 4 | 0% ⚪ |
-| **Medicine Interactions** | 3 | 0 | 0 | 3 | 0% ⚪ |
+| **Education Library** | 7 | 7 | 0 | 0 | 100% ✅ |
+| **Analytics Dashboard** | 5 | 5 | 0 | 0 | 100% ✅ |
+| **Firebase Notifications** | 5 | 0 | 0 | 5 | ⏸️ Deferred |
+| **Biometric Security** | 4 | 4 | 0 | 0 | 100% ✅ |
+| **Medicine Interactions** | 3 | 3 | 0 | 0 | 100% ✅ |
 
-**Overall Roadmap Completion**: ~45% complete
+**Overall Roadmap Completion**: ~90% complete (push deferred by decision)
 
 ---
 
-## 🎯 RECOMMENDED IMPLEMENTATION ORDER
+## 🎯 SESSION 3 — WHAT GOT DONE (August 29, 2026)
 
-Based on priority, effort, and user impact:
-
-1. **[CURRENT]** Finish Education Library UI (~20 mins)
-   → Quick win, builds on foundation we just laid
-   
-2. **[NEXT]** Implement Medicine Interaction Checker (~4-6 hours)
-   → High safety value, relatively quick to implement
-   
-3. **[THEN]** Add Biometric Authentication (~3-5 hours)
-   → Critical security requirement
-   
-4. **[LATER]** Build Analytics Dashboard (~10-15 hours)
-   → Data insights, medium complexity
-   
-5. **[FUTURE]** Setup Firebase Push Notifications (~6-8 hours)
-   → Backend infrastructure, requires external setup
+1. **Medicine interaction checker** — dead stub turned into live warnings on the
+   review screen and the Medicines tab (16 curated rules, two-sided matching).
+2. **Biometric lock** — the orphaned fake component replaced with a real
+   `expo-local-authentication` gate + PIN fallback + Settings Security section.
+3. **Analytics export** — PDF adherence report generated on-device and shared
+   from the analytics screen header.
+4. **Push notifications** — deferred by decision (see Feature #3 rationale).
+5. **Multi-patient removed** — the entire multi-user/multi-patient feature
+   (patient picker, per-patient scoping, AI patient-name extraction) deleted,
+   and migration v15 wipes every leftover value on upgrade.
 
 ---
 
@@ -196,13 +169,9 @@ When implementing new features:
 
 ## 🚀 NEXT IMMEDIATE STEP
 
-**Should I continue building the Education Library UI now?**
+Remaining gaps worth tackling:
 
-The database foundation is 100% complete. We're at 30% overall feature completion. Building the UI screens would get us to ~70% and make the education library actually usable!
-
-**Your Choice:**
-- **[A]** YES - Build full Education Library UI now (~20 mins)
-- **[B]** NO - Move to Analytics Dashboard instead
-- **[C]** NO - Pause roadmap, work on something else entirely
-
-Let me know! 🚀
+- **[A]** Urdu translation coverage for the remaining screens (~40 files still English-only)
+- **[B]** RTL layout pass once Urdu coverage lands
+- **[C]** Enhanced elderly-mode redesign (touch targets, simplified flow)
+- **[D]** Revisit push notifications once a backend/Firebase project exists
