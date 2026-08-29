@@ -10,17 +10,20 @@
  * Required secrets (set with `wrangler secret put <NAME>`):
  *   GEMINI_API_KEY, OPENROUTER_API_KEY, GROQ_API_KEY, APP_KEY
  *
- * Model constants mirror src/constants/config.ts in the app — keep in sync.
+ * Model constants are imported from the shared app module, so the worker and
+ * the app can never drift apart (single source of truth).
  */
 
-const GEMINI_MODEL = 'gemini-3.6-flash';
-const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-const OPENROUTER_BASE = 'https://openrouter.ai/api/v1';
-const NEMOTRON_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free';
-const GROQ_BASE = 'https://api.groq.com/openai/v1';
-const GROQ_MODEL = 'openai/gpt-oss-120b';
-const TIMEOUT_MS = 30_000;
-const MAX_RETRIES = 2;
+import {
+  GEMINI_MODEL,
+  GEMINI_API_BASE as GEMINI_BASE,
+  OPENROUTER_API_BASE as OPENROUTER_BASE,
+  NEMOTRON_MODEL,
+  GROQ_API_BASE as GROQ_BASE,
+  GROQ_MODEL,
+  API_TIMEOUT_MS as TIMEOUT_MS,
+  API_MAX_RETRIES as MAX_RETRIES,
+} from '../../src/constants/ai-models';
 
 function jsonReply(data, status = 200) {
   return new Response(JSON.stringify(data), {

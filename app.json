@@ -19,8 +19,7 @@
       "infoPlist": {
         "NSCameraUsageDescription": "Nusxa needs camera access to scan your prescriptions.",
         "NSPhotoLibraryUsageDescription": "Nusxa needs photo library access to upload prescription images.",
-        "NSMicrophoneUsageDescription": "Nusxa uses the microphone for voice interaction with your medication companion.",
-        "UIRequiredDeviceCapabilities": ["armv7"]
+        "UIRequiredDeviceCapabilities": ["arm64"]
       }
     },
     "android": {

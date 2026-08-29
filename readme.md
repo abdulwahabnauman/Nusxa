@@ -426,6 +426,10 @@ This only renders in a real build (dev client or APK) — Expo Go can't fully re
 
 ## Building for Production (APK/AAB)
 
+> **Platform note:** Nusxa ships Android-first by design (the target market
+> runs Android). The EAS profiles include iOS entries too, so `eas build
+> --platform ios` works out of the box whenever iOS becomes a target.
+
 ### Option A: EAS Build (Cloud — Recommended)
 ```bash
 npm install -g eas-cli
