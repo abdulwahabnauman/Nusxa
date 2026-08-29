@@ -9,9 +9,8 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withSpring,
   withTiming,
-  withSequence,
+  Easing,
   FadeIn,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
@@ -28,25 +27,24 @@ interface CelebrationProps {
 export function Celebration({ title, subtitle, onDismiss, duration = 2600 }: CelebrationProps) {
   const { colors, typography, spacing } = useTheme();
   const reducedMotion = useReducedMotion();
-  const scale = useSharedValue(reducedMotion ? 1 : 0.5);
-  const iconRotate = useSharedValue(reducedMotion ? 0 : -20);
+  const scale = useSharedValue(reducedMotion ? 1 : 0.94);
+  const cardOpacity = useSharedValue(reducedMotion ? 1 : 0);
+  const iconRotate = useSharedValue(reducedMotion ? 0 : -6);
 
   useEffect(() => {
     if (!reducedMotion) {
-      // Fast pop-in: stiff spring with a touch of overshoot, settles ~300ms
-      scale.value = withSpring(1, { damping: 15, stiffness: 400 });
-      iconRotate.value = withSequence(
-        withTiming(15, { duration: 110 }),
-        withTiming(-10, { duration: 110 }),
-        withSpring(0, { damping: 14, stiffness: 300 })
-      );
+      // Calm entrance: soft fade with a gentle scale settle — no overshoot
+      scale.value = withTiming(1, { duration: 340, easing: Easing.out(Easing.cubic) });
+      cardOpacity.value = withTiming(1, { duration: 220 });
+      iconRotate.value = withTiming(0, { duration: 340, easing: Easing.out(Easing.cubic) });
     }
     const timer = setTimeout(onDismiss, duration);
     return () => clearTimeout(timer);
-  }, [reducedMotion, duration, onDismiss, scale, iconRotate]);
+  }, [reducedMotion, duration, onDismiss, scale, cardOpacity, iconRotate]);
 
   const cardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
+    opacity: cardOpacity.value,
   }));
   const iconStyle = useAnimatedStyle(() => ({
     transform: [{ rotate: `${iconRotate.value}deg` }],
