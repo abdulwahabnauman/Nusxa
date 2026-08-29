@@ -23,6 +23,7 @@ import {
   verifyPin,
   authenticateWithBiometrics,
   biometricDevBypass,
+  withLockExemption,
 } from '../../src/utils/appLock';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
@@ -125,10 +126,12 @@ export default function SettingsScreen() {
           text: 'Choose file',
           onPress: async () => {
             try {
-              const result = await DocumentPicker.getDocumentAsync({
-                type: ['application/json', 'text/plain'],
-                copyToCacheDirectory: true,
-              });
+              const result = await withLockExemption(() =>
+                DocumentPicker.getDocumentAsync({
+                  type: ['application/json', 'text/plain'],
+                  copyToCacheDirectory: true,
+                })
+              );
               if (result.canceled || !result.assets?.[0]) return;
 
               setImporting(true);
@@ -550,10 +553,12 @@ export default function SettingsScreen() {
                   await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2), {
                     encoding: FileSystem.EncodingType.UTF8,
                   });
-                  await Sharing.shareAsync(fileUri, {
-                    mimeType: 'application/json',
-                    dialogTitle: 'Export Nusxa data',
-                  });
+                  await withLockExemption(() =>
+                    Sharing.shareAsync(fileUri, {
+                      mimeType: 'application/json',
+                      dialogTitle: 'Export Nusxa data',
+                    })
+                  );
                 } catch {
                   showToast('Failed to export data.', 'error');
                 }
