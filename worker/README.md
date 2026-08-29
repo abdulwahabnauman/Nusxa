@@ -46,7 +46,7 @@ bring-your-own-key mode.
   than being true security. For stronger protection, add Cloudflare rate
   limiting rules (dashboard -> Security -> WAF -> Rate limiting rules) on the
   `/chat` and `/vision` paths.
-- Free model quotas are per-key and shared by all app users (Nemotron free is
-  ~50 req/day; Groq fills in automatically). For a larger audience, upgrade
-  the provider plans.
+- Free model quotas are per-key and shared by all app users (Groq is primary
+  at ~1,000 req/day; Nemotron fills in automatically). For a larger audience,
+  upgrade the provider plans.
 - Model names mirror `src/constants/config.ts` in the app — keep both in sync.

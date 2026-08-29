@@ -150,9 +150,9 @@ eas build --platform android --profile production
 - Rate limiting: Cloudflare dashboard -> Security -> WAF -> Rate limiting
   rules, applied to `/chat` and `/vision`. The `APP_KEY` header only deters
   casual abuse because it is itself embedded in the binary.
-- Free model quotas are per-key and shared by all users (Nemotron free is
-  about 50 requests/day; Groq fills in automatically). Upgrade provider plans
-  as the audience grows.
+- Free model quotas are per-key and shared by all users (Groq is primary at
+  about 1,000 requests/day; Nemotron fills in automatically). Upgrade provider
+  plans as the audience grows.
 - Model names are duplicated in `src/constants/config.ts` and
   `worker/src/index.js`. Keep both in sync when changing models.
 - To make re-bundling keys structurally impossible, you can later remove the

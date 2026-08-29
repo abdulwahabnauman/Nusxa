@@ -14,8 +14,8 @@ Nusxa (pronounced "nukh-sa") is an **AI Medication Companion** mobile app built 
 - **Node.js v20+** (LTS) — https://nodejs.org
 - **Expo Go** app on a phone (for quick testing) — Play Store / App Store
 - **A free Google Gemini API key** — https://aistudio.google.com/app/apikey (prescription scanning)
-- **A free OpenRouter API key** — https://openrouter.ai/keys (chat/explanations, primary)
-- **A free Groq API key** — https://console.groq.com/keys (chat/explanations, fallback)
+- **A free Groq API key** — https://console.groq.com/keys (chat/explanations, primary)
+- **A free OpenRouter API key** — https://openrouter.ai/keys (chat/explanations, fallback)
 
 ### Run the App
 ```bash
@@ -35,8 +35,8 @@ Scan the QR code with Expo Go on your phone.
 Nusxa uses three separate free-tier AI providers, split by task:
 
 1. **Gemini** (vision/OCR) — get a key from https://aistudio.google.com/app/apikey
-2. **OpenRouter** (chat/explanations, primary) — get a key from https://openrouter.ai/keys
-3. **Groq** (chat/explanations, fallback when OpenRouter's free quota runs out) — get a key from https://console.groq.com/keys
+2. **Groq** (chat/explanations, primary, ~1,000 req/day free) — get a key from https://console.groq.com/keys
+3. **OpenRouter** (chat/explanations, fallback when Groq is unavailable) — get a key from https://openrouter.ai/keys
 
 Enter all three in **Settings**, each has its own card and input field. Keys are stored via `expo-secure-store` (encrypted on-device). Alternatively, set them in `.env`:
 ```
@@ -58,7 +58,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
 | Database           | expo-sqlite (SQLite, offline-first, schema v12) |
 | AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
-| AI — Chat/Explain  | Nemotron 3 Ultra via OpenRouter (free, primary), Groq gpt-oss-120b (free, fallback) |
+| AI — Chat/Explain  | Groq gpt-oss-120b (free, primary), Nemotron 3 Ultra via OpenRouter (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
 | Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
 | PDF Generation     | expo-print + expo-sharing (doctor visit reports, on-device) |
@@ -331,9 +331,9 @@ Nusxa doesn't use one AI provider — vision and text are split, because no sing
 - **Vision/OCR** (reading the prescription photo) → **Google Gemini** — the exact model name lives in `GEMINI_MODEL` in `src/constants/config.ts` (currently `gemini-3.6-flash`)
   - Config: `src/constants/config.ts` → `GEMINI_MODEL`, `GEMINI_API_BASE`
   - Note: retired Gemini model names return 404 — if you ever see 404s from Gemini, check `GEMINI_MODEL` hasn't drifted back to an old/retired model name
-- **Chat/explanations** (medicine info, chat companion) → **Nemotron 3 Ultra via OpenRouter** (primary), falling back to **Groq's gpt-oss-120b** (free, ~1,000 req/day) if OpenRouter's free quota (much lower, ~50 req/day) is exhausted
+- **Chat/explanations** (medicine info, chat companion) → **Groq's gpt-oss-120b** (primary, free, ~1,000 req/day), falling back to **Nemotron 3 Ultra via OpenRouter** (free, ~50 req/day) when Groq is unavailable for any reason
   - Config: `src/constants/config.ts` → `OPENROUTER_API_BASE`, `NEMOTRON_MODEL`, `GROQ_API_BASE`, `GROQ_MODEL`
-  - Client: `src/ai/client.ts` — `callOpenAICompatible()` is the shared caller for both (they're both OpenAI-compatible chat endpoints), `callTextModel()` tries OpenRouter first, then Groq
+  - Client: `src/ai/client.ts` — `callOpenAICompatible()` is the shared caller for both (they're both OpenAI-compatible chat endpoints), `callTextModel()` tries Groq first, then OpenRouter
   - `chatCompletion()` and `multiTurnChat()` both take a `TextProviderKeys` object (`{ openRouterKey, groqKey }`), not a single key
 
 All AI calls go through `src/ai/client.ts`.

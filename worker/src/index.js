@@ -76,7 +76,7 @@ async function chatCompletion(baseUrl, model, apiKey, system, messages, temperat
   return text;
 }
 
-/** Text chat: Nemotron via OpenRouter first, Groq fallback when quota/error */
+/** Text chat: Groq first, Nemotron via OpenRouter fallback when quota/error */
 async function handleChat(request, env) {
   const body = await readJson(request);
   if (!body || typeof body.system !== 'string' || !Array.isArray(body.messages)) {
@@ -87,10 +87,10 @@ async function handleChat(request, env) {
   const json = body.json !== false;
 
   let primaryError = null;
-  if (env.OPENROUTER_API_KEY) {
+  if (env.GROQ_API_KEY) {
     try {
       const content = await chatCompletion(
-        OPENROUTER_BASE, NEMOTRON_MODEL, env.OPENROUTER_API_KEY,
+        GROQ_BASE, GROQ_MODEL, env.GROQ_API_KEY,
         body.system, body.messages, temperature, json,
       );
       return jsonReply({ content });
@@ -99,10 +99,10 @@ async function handleChat(request, env) {
     }
   }
 
-  if (env.GROQ_API_KEY) {
+  if (env.OPENROUTER_API_KEY) {
     try {
       const content = await chatCompletion(
-        GROQ_BASE, GROQ_MODEL, env.GROQ_API_KEY,
+        OPENROUTER_BASE, NEMOTRON_MODEL, env.OPENROUTER_API_KEY,
         body.system, body.messages, temperature, json,
       );
       return jsonReply({ content });

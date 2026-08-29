@@ -281,15 +281,15 @@ async function callOpenAICompatible(
   throw lastError ?? new Error('Unknown error calling AI service');
 }
 
-/** Text keys needed for the primary (Nemotron/OpenRouter) + fallback (Groq) chain */
+/** Text keys needed for the primary (Groq) + fallback (Nemotron/OpenRouter) chain */
 export interface TextProviderKeys {
   openRouterKey: string;
   groqKey: string;
 }
 
 /**
- * Call Nemotron 3 Ultra first (free via OpenRouter, but only 50 req/day),
- * and if that's out of quota or down, drop to Groq's gpt-oss-120b (free, 1,000 req/day).
+ * Call Groq's gpt-oss-120b first (free, 1,000 req/day), and if that's out of
+ * quota or down, drop to Nemotron 3 Ultra via OpenRouter (free, ~50 req/day).
  */
 async function callTextModel(
   systemPrompt: string,
@@ -298,33 +298,41 @@ async function callTextModel(
   temperature = 0.1,
   jsonResponse = true
 ): Promise<string> {
-  try {
-    return await callOpenAICompatible(
-      OPENROUTER_API_BASE,
-      NEMOTRON_MODEL,
-      systemPrompt,
-      messages,
-      keys.openRouterKey,
-      temperature,
-      jsonResponse
-    );
-  } catch (primaryError) {
-    // Nemotron exhausted its free quota (or errored) — fall back to Groq
-    if (!keys.groqKey) throw primaryError;
+  let lastError: Error | null = null;
 
-    return callOpenAICompatible(
-      GROQ_API_BASE,
-      GROQ_MODEL,
-      systemPrompt,
-      messages,
-      keys.groqKey,
-      temperature,
-      jsonResponse
-    );
+  if (keys.groqKey) {
+    try {
+      return await callOpenAICompatible(
+        GROQ_API_BASE,
+        GROQ_MODEL,
+        systemPrompt,
+        messages,
+        keys.groqKey,
+        temperature,
+        jsonResponse
+      );
+    } catch (primaryError) {
+      // Groq is unavailable. Fall back to Nemotron via OpenRouter
+      lastError = primaryError as Error;
+    }
   }
+
+  if (!keys.openRouterKey) {
+    throw lastError ?? new Error('No AI API key configured');
+  }
+
+  return callOpenAICompatible(
+    OPENROUTER_API_BASE,
+    NEMOTRON_MODEL,
+    systemPrompt,
+    messages,
+    keys.openRouterKey,
+    temperature,
+    jsonResponse
+  );
 }
 
-/** Send a text-only prompt to Nemotron 3 Ultra (free), falling back to Groq's gpt-oss-120b (free) if that's exhausted */
+/** Send a text-only prompt to Groq's gpt-oss-120b (free), falling back to Nemotron 3 Ultra (free) if that's exhausted */
 export async function chatCompletion(
   systemPrompt: string,
   userMessage: string,
@@ -385,7 +393,7 @@ export async function visionCompletion(
   );
 }
 
-/** Multi-turn chat completion (Nemotron 3 Ultra, falling back to Groq's gpt-oss-120b when the free quota runs out) */
+/** Multi-turn chat completion (Groq's gpt-oss-120b first, falling back to Nemotron 3 Ultra when Groq is unavailable) */
 export async function multiTurnChat(
   messages: Array<{ role: string; content: string }>,
   keys: TextProviderKeys

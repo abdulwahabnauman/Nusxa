@@ -558,17 +558,6 @@ export default function SettingsScreen() {
               />
               <View style={{ height: spacing.sm }} />
               <ApiKeyField
-                description={t.settings.openRouterServiceDesc}
-                url="https://openrouter.ai/keys"
-                placeholder={t.settings.openRouterKeyPlaceholder}
-                savedPlaceholder={t.settings.apiKeySaved}
-                keyLabel="OpenRouter"
-                loadKey={getOpenRouterKey}
-                saveKey={saveOpenRouterKey}
-                deleteKey={deleteOpenRouterKey}
-              />
-              <View style={{ height: spacing.sm }} />
-              <ApiKeyField
                 description={t.settings.groqServiceDesc}
                 url="https://console.groq.com/keys"
                 placeholder={t.settings.groqKeyPlaceholder}
@@ -577,6 +566,17 @@ export default function SettingsScreen() {
                 loadKey={getGroqKey}
                 saveKey={saveGroqKey}
                 deleteKey={deleteGroqKey}
+              />
+              <View style={{ height: spacing.sm }} />
+              <ApiKeyField
+                description={t.settings.openRouterServiceDesc}
+                url="https://openrouter.ai/keys"
+                placeholder={t.settings.openRouterKeyPlaceholder}
+                savedPlaceholder={t.settings.apiKeySaved}
+                keyLabel="OpenRouter"
+                loadKey={getOpenRouterKey}
+                saveKey={saveOpenRouterKey}
+                deleteKey={deleteOpenRouterKey}
               />
             </>
           )}
