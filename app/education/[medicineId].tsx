@@ -20,6 +20,7 @@ import { Card } from '../../src/components/ui/Card';
 import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
 import { getMedicine, updateMedicine } from '../../src/db/repositories/medicine';
 import { resolveTextProviderKeys } from '../../src/utils/secureStorage';
+import { isAiProxyConfigured } from '../../src/constants/config';
 import { MEDICINE_INFO_SYSTEM_PROMPT, buildMedicineInfoRequest } from '../../src/ai/prompts';
 import type { Medicine } from '../../src/types/models';
 
@@ -88,7 +89,7 @@ export default function MedicineEducationScreen() {
       setEnriching(true);
       try {
         const keys = await resolveTextProviderKeys();
-        if (!keys.openRouterKey && !keys.groqKey) throw new Error('No API key configured');
+        if (!isAiProxyConfigured() && !keys.openRouterKey && !keys.groqKey) throw new Error('No API key configured');
 
         // Lazy-load the AI client so the education screen's first paint
         // never pays for the network stack on startup.

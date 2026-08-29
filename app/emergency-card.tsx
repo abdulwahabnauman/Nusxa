@@ -8,6 +8,7 @@ import { Card } from '../src/components/ui/Card';
 import { Input } from '../src/components/ui/Input';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
+import { useSuccessMorph } from '../src/hooks/useSuccessMorph';
 import { getProfile, updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useI18n } from '../src/i18n';
@@ -32,6 +33,7 @@ export default function EmergencyCardScreen() {
   const [emergencyPhone, setEmergencyPhone] = useState(profile?.emergency_contact?.phone ?? '');
   const [physician, setPhysician] = useState(profile?.primary_physician ?? '');
   const [saving, setSaving] = useState(false);
+  const savedMorph = useSuccessMorph();
 
   // Update all states when profile changes
   useEffect(() => {
@@ -121,8 +123,9 @@ export default function EmergencyCardScreen() {
         primary_physician: physician || null,
       });
 
-      setEditing(false);
-      showToast(t.emergency.saved, 'success');
+      // Inline confirmation on the Save button, then collapse back to read mode
+      savedMorph.trigger();
+      setTimeout(() => setEditing(false), 1200);
     } catch (err) {
       showToast('Failed to save. Please try again.', 'error');
     } finally {
@@ -219,7 +222,13 @@ export default function EmergencyCardScreen() {
 
         {editing && (
           <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
-            <Button title={t.common.save} onPress={handleSave} loading={saving} />
+            <Button
+              title={savedMorph.active ? t.common.saved : t.common.save}
+              onPress={handleSave}
+              loading={saving}
+              icon={savedMorph.active ? <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" /> : undefined}
+              style={savedMorph.active ? { backgroundColor: colors.success } : undefined}
+            />
             <Button title={t.common.cancel} onPress={handleCancel} variant="ghost" />
           </View>
         )}

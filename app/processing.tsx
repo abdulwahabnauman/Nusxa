@@ -11,6 +11,7 @@ import { processPrescription } from '../src/ai/pipeline';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
 import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
 import { resolveApiKey } from '../src/utils/secureStorage';
+import { isAiProxyConfigured } from '../src/constants/config';
 import { useTranslation } from '../src/i18n';
 
 export default function ProcessingScreen() {
@@ -36,9 +37,10 @@ export default function ProcessingScreen() {
 
   async function runPipeline() {
     try {
-      // Read API key from secure store, then fall back to env variable
+      // Read API key from secure store, then fall back to env variable.
+      // With the serverless proxy configured the key lives server-side.
       const apiKey = await resolveApiKey();
-      if (!apiKey) {
+      if (!apiKey && !isAiProxyConfigured()) {
         setError('AI service key not configured. Add your Gemini API key in Settings.');
         setStage('error');
         return;

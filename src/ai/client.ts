@@ -7,6 +7,9 @@ import {
   GROQ_MODEL,
   API_TIMEOUT_MS,
   API_MAX_RETRIES,
+  AI_PROXY_URL,
+  AI_PROXY_APP_KEY,
+  isAiProxyConfigured,
 } from '../constants/config';
 
 interface GeminiPart {
@@ -80,6 +83,45 @@ export class AIError extends Error {
     this.name = 'AIError';
     this.statusCode = statusCode;
     this.retryable = retryable;
+  }
+}
+
+function proxyHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (AI_PROXY_APP_KEY) headers['x-app-key'] = AI_PROXY_APP_KEY;
+  return headers;
+}
+
+/** Post to the serverless proxy and return the generated content. The proxy
+ * holds the provider keys server-side, so the device never needs any. */
+async function callProxy(pathname: string, body: unknown): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${AI_PROXY_URL}${pathname}`, {
+      method: 'POST',
+      headers: proxyHeaders(),
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new AIError(
+        `AI proxy error ${response.status}: ${errorBody}`,
+        response.status,
+        response.status === 429 || response.status >= 500
+      );
+    }
+
+    const data = (await response.json()) as { content?: string; error?: string };
+    if (!data.content) {
+      throw new AIError(data.error ?? 'Empty response from AI proxy');
+    }
+    return data.content;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -288,6 +330,15 @@ export async function chatCompletion(
   userMessage: string,
   keys: TextProviderKeys
 ): Promise<string> {
+  if (isAiProxyConfigured()) {
+    return callProxy('/chat', {
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+      temperature: 0.1,
+      json: true,
+    });
+  }
+
   return callTextModel(
     systemPrompt,
     [{ role: 'user', content: userMessage }],
@@ -304,6 +355,14 @@ export async function visionCompletion(
   imageBase64: string,
   apiKey: string
 ): Promise<string> {
+  if (isAiProxyConfigured()) {
+    return callProxy('/vision', {
+      system: systemPrompt,
+      text: userText,
+      image: imageBase64,
+    });
+  }
+
   return callGemini(
     systemPrompt,
     [
@@ -342,6 +401,15 @@ export async function multiTurnChat(
       role: m.role === 'assistant' ? 'assistant' : 'user',
       content: m.content,
     }));
+
+  if (isAiProxyConfigured()) {
+    return callProxy('/chat', {
+      system: systemPrompt,
+      messages: chatMessages,
+      temperature: 0.3,
+      json: false,
+    });
+  }
 
   return callTextModel(systemPrompt, chatMessages, keys, 0.3, false);
 }

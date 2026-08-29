@@ -2,6 +2,7 @@ export const en = {
   // Common
   common: {
     save: 'Save',
+    saved: 'Saved',
     cancel: 'Cancel',
     delete: 'Delete',
     back: 'Back',
@@ -122,6 +123,8 @@ export const en = {
     snoozeDurationDesc: 'How long a snoozed reminder waits',
     aiService: 'AI Service',
     aiServiceDesc: 'Reads your prescriptions. Free key from:',
+    aiPreconfigured: 'Ready to use',
+    aiPreconfiguredDesc: 'AI is already set up for you. No keys or extra steps needed.',
     openRouterServiceDesc: 'Powers chat & medicine explanations. Free key from:',
     groqServiceDesc: 'Optional auto-fallback when the OpenRouter quota runs out. Key from:',
     apiKeyPlaceholder: 'Paste Gemini API key',

@@ -3,6 +3,7 @@ import type { TranslationKeys } from './en';
 export const ur: TranslationKeys = {
   common: {
     save: 'محفوظ کریں',
+    saved: 'محفوظ ہو گیا',
     cancel: 'منسوخ',
     delete: 'حذف کریں',
     back: 'واپس',
@@ -119,6 +120,8 @@ export const ur: TranslationKeys = {
     snoozeDurationDesc: 'اسنوز کے بعد انتظار کے منٹ',
     aiService: 'AI سروس',
     aiServiceDesc: 'نسخے پڑھنے کے لیے۔ مفت کلید:',
+    aiPreconfigured: 'استعمال کے لیے تیار',
+    aiPreconfiguredDesc: 'AI آپ کے لیے پہلے سے تیار ہے۔ کسی کلید یا اضافی قدم کی ضرورت نہیں۔',
     openRouterServiceDesc: 'چیٹ اور وضاحتوں کے لیے۔ مفت کلید:',
     groqServiceDesc: 'کوٹہ ختم ہونے پر خودکار متبادل۔ کلید:',
     apiKeyPlaceholder: 'Gemini API کلید پیسٹ کریں',

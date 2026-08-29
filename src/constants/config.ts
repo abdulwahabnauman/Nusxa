@@ -1,3 +1,16 @@
+/**
+ * Optional serverless proxy (worker/ directory) that holds the AI provider
+ * keys server-side, so end users never have to obtain or configure API keys.
+ * When set, all AI calls route through the proxy and locally stored keys are
+ * ignored. When empty, the app falls back to bring-your-own-key mode.
+ */
+export const AI_PROXY_URL = (process.env.EXPO_PUBLIC_AI_PROXY_URL ?? '').replace(/\/+$/, '');
+export const AI_PROXY_APP_KEY = process.env.EXPO_PUBLIC_AI_PROXY_APP_KEY ?? '';
+
+export function isAiProxyConfigured(): boolean {
+  return AI_PROXY_URL.trim().length > 0;
+}
+
 /** Google Gemini API configuration (free tier with vision) — used for prescription OCR */
 export const GEMINI_MODEL = 'gemini-3.6-flash'; // Latest stable free tier model
 export const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';

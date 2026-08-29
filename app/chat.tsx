@@ -28,6 +28,7 @@ import { useI18n } from '../src/i18n';
 import { useReducedMotion } from '../src/hooks/useReducedMotion';
 import { ChatMessage } from '../src/ai/types';
 import { resolveTextProviderKeys } from '../src/utils/secureStorage';
+import { isAiProxyConfigured } from '../src/constants/config';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
 import { parseMarkdown } from '../src/components/ui/MarkdownText';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
@@ -191,7 +192,7 @@ export default function ChatScreen() {
 
     try {
       const keys = await resolveTextProviderKeys();
-      if (!keys.openRouterKey && !keys.groqKey) {
+      if (!isAiProxyConfigured() && !keys.openRouterKey && !keys.groqKey) {
         const errorMsg: ChatMessage = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
