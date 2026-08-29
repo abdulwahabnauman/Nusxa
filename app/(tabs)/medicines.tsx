@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
+import { useI18n } from '../../src/i18n';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { MedicineCard } from '../../src/components/medicine/MedicineCard';
@@ -38,7 +39,7 @@ const MedicineRow = memo(function MedicineRow({
     <TouchableOpacity
       onPress={() => onPress(med.id)}
       accessibilityLabel={`View details for ${med.name ?? 'medicine'}`}
-      style={{ marginBottom: 12 }}
+      style={{ marginBottom: 16 }}
     >
       <MedicineCard
         name={med.name ?? 'Unknown'}
@@ -56,6 +57,7 @@ const MedicineRow = memo(function MedicineRow({
 
 export default function MedicinesScreen() {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -111,12 +113,12 @@ export default function MedicinesScreen() {
 
   const listHeader = (
     <>
-      <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+      <View style={[styles.header, { paddingHorizontal: spacing.base, marginBottom: 16 }]}>
         <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-          Medicines
+          {t.medicinesList.title}
         </Text>
         <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-          Your active medications
+          {t.medicinesList.subtitle}
         </Text>
       </View>
       {!loading && interactions.length > 0 && (
