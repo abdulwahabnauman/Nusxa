@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -30,14 +31,20 @@ export function Toast({
   duration = 4000,
 }: ToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(10);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      // Calm entrance: gentle fade with a soft 10px rise into place — no bounce
-      translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+      // Calm entrance: gentle fade with a soft 10px rise into place, no bounce.
+      // Reduced-motion users get a plain fade with no movement.
+      if (reducedMotion) {
+        translateY.value = 0;
+      } else {
+        translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+      }
       opacity.value = withTiming(1, { duration: 180 });
 
       const timer = setTimeout(onDismiss, duration);
@@ -46,7 +53,7 @@ export function Toast({
       translateY.value = withTiming(8, { duration: 160, easing: Easing.in(Easing.quad) });
       opacity.value = withTiming(0, { duration: 160 });
     }
-  }, [visible, duration, onDismiss, translateY, opacity]);
+  }, [visible, duration, onDismiss, translateY, opacity, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],

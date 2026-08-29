@@ -12,11 +12,12 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 const TOAST_DURATION = 5000;
 
@@ -34,23 +35,29 @@ interface UndoToastProps {
 function UndoToast({ state, onDismiss }: UndoToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const { t } = useI18n();
+  const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(120);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (state.visible) {
-      // Snappy entrance: stiff, near-critically-damped spring settles in ~250ms
-      translateY.value = withSpring(0, { damping: 24, stiffness: 420 });
-      opacity.value = withTiming(1, { duration: 120 });
+      // Calm entrance: deceleration slide-up that lands with no bounce.
+      // Reduced-motion users get a plain fade with no movement.
+      if (reducedMotion) {
+        translateY.value = 0;
+      } else {
+        translateY.value = withTiming(0, { duration: 260, easing: Easing.out(Easing.cubic) });
+      }
+      opacity.value = withTiming(1, { duration: 180 });
 
       const timer = setTimeout(onDismiss, TOAST_DURATION);
       return () => clearTimeout(timer);
     } else {
-      translateY.value = withTiming(120, { duration: 140 });
-      opacity.value = withTiming(0, { duration: 140 });
+      translateY.value = withTiming(120, { duration: 160, easing: Easing.in(Easing.quad) });
+      opacity.value = withTiming(0, { duration: 160 });
     }
-  }, [state.visible, onDismiss, translateY, opacity]);
+  }, [state.visible, onDismiss, translateY, opacity, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
