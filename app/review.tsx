@@ -22,6 +22,12 @@ import {
   analyzePrescriptionDuplicates,
   DuplicateAnalysis,
 } from '../src/utils/savePrescription';
+import {
+  findInteractionPairs,
+  findCrossInteractions,
+} from '../src/utils/interactions';
+import { getActiveMedicines } from '../src/db/repositories/medicine';
+import type { Medicine } from '../src/types/models';
 
 export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -51,6 +57,23 @@ export default function ReviewScreen() {
   const [data, setData] = useState<PrescriptionJSON | null>(initialData);
   const [saving, setSaving] = useState(false);
   const [dupes, setDupes] = useState<DuplicateAnalysis | null>(null);
+  const [existingMeds, setExistingMeds] = useState<Medicine[]>([]);
+
+  useEffect(() => {
+    getActiveMedicines()
+      .then(setExistingMeds)
+      .catch(() => {});
+  }, []);
+
+  // Safety check: interactions within the incoming batch and against the
+  // user's current regimen, re-evaluated as the user edits medicine names.
+  const interactions = useMemo(() => {
+    const incoming = data?.medicines ?? [];
+    return [
+      ...findInteractionPairs(incoming),
+      ...findCrossInteractions(incoming, existingMeds),
+    ];
+  }, [data, existingMeds]);
 
   // Flag re-scans up front so the user knows these medicines already exist.
   useEffect(() => {
@@ -212,6 +235,51 @@ export default function ReviewScreen() {
                   </Text>
                 </View>
               ))}
+            </Card>
+          </View>
+        )}
+
+        {/* Medicine interaction warnings */}
+        {interactions.length > 0 && (
+          <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+            <Card style={{ backgroundColor: colors.error + '0D', borderColor: colors.error }}>
+              <View style={styles.warningRow}>
+                <MaterialCommunityIcons name="pill-multiple" size={20} color={colors.error} />
+                <View style={{ marginLeft: 8, flex: 1 }}>
+                  <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                    Possible medicine interactions
+                  </Text>
+                  <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                    {interactions.length === 1
+                      ? '1 combination below may interact — please review it before saving.'
+                      : `${interactions.length} combinations below may interact — please review them before saving.`}
+                  </Text>
+                </View>
+              </View>
+              {interactions.map((hit, i) => {
+                const tone = hit.severity === 'high' ? colors.error : colors.warning;
+                return (
+                  <View key={`${hit.first}-${hit.second}-${i}`} style={[styles.warningRow, { marginTop: 10 }]}>
+                    <MaterialCommunityIcons
+                      name={hit.severity === 'high' ? 'alert-octagon' : 'alert-outline'}
+                      size={16}
+                      color={tone}
+                      style={{ marginTop: 2 }}
+                    />
+                    <View style={{ marginLeft: 8, flex: 1 }}>
+                      <Text style={[typography.label.sm, { color: colors.text.primary }]}>
+                        {hit.first} + {hit.second}
+                      </Text>
+                      <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                        {hit.description}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })}
+              <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 10 }]}>
+                Automated guidance only — always confirm combinations with your doctor or pharmacist.
+              </Text>
             </Card>
           </View>
         )}
