@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 
@@ -29,20 +29,20 @@ export function Toast({
   duration = 4000,
 }: ToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const translateY = useSharedValue(-100);
+  const translateY = useSharedValue(-10);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (visible) {
-      // Snappy entrance: stiff, near-critically-damped spring settles in ~250ms
-      translateY.value = withSpring(0, { damping: 24, stiffness: 420 });
-      opacity.value = withTiming(1, { duration: 120 });
+      // Calm entrance: gentle fade with a soft 10px settle — no bounce
+      translateY.value = withTiming(0, { duration: 220, easing: Easing.out(Easing.cubic) });
+      opacity.value = withTiming(1, { duration: 180 });
 
       const timer = setTimeout(onDismiss, duration);
       return () => clearTimeout(timer);
     } else {
-      translateY.value = withTiming(-100, { duration: 140 });
-      opacity.value = withTiming(0, { duration: 140 });
+      translateY.value = withTiming(-8, { duration: 160, easing: Easing.in(Easing.quad) });
+      opacity.value = withTiming(0, { duration: 160 });
     }
   }, [visible, duration, onDismiss, translateY, opacity]);
 
