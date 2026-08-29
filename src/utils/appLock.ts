@@ -94,8 +94,9 @@ export async function authenticateWithBiometrics(promptMessage: string): Promise
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage,
       cancelLabel: 'Cancel',
-      // On iOS this keeps the device passcode as FaceID's own fallback
-      disableDeviceFallback: false,
+      // Keep failures inside the app: a cancelled/failed biometric check
+      // returns to our own PIN pad, never to the device passcode sheet.
+      disableDeviceFallback: true,
     });
     return result.success;
   } catch {
