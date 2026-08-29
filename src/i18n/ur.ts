@@ -327,6 +327,8 @@ export const ur: TranslationKeys = {
     legendPartial: 'جزوی',
     legendMissed: 'چھوٹی',
     prevMonth: 'پچھلہ مہینہ',
+    exportReport: 'رپورٹ ایکسپورٹ کریں (PDF)',
+    exportError: 'رپورٹ بنانے میں ناکامی — براہ کرم دوبارہ کوشش کریں۔',
     nextMonth: 'اگلہ مہینہ',
   },
   // Education screen

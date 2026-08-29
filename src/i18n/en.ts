@@ -342,6 +342,8 @@ export const en = {
     legendPartial: 'Partial',
     legendMissed: 'Missed',
     prevMonth: 'Previous month',
+    exportReport: 'Export report (PDF)',
+    exportError: 'Failed to generate the report. Please try again.',
     nextMonth: 'Next month',
   },
   // Education screen

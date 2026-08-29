@@ -14,12 +14,16 @@ import {
 import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { Card } from '../src/components/ui/Card';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { MonthCalendar } from '../src/components/progress/MonthCalendar';
 import { getDatabase } from '../src/db/database';
+import { getProfile } from '../src/db/repositories/profile';
+import { generateAnalyticsReportPdf } from '../src/utils/pdf';
 
 interface AdherenceData {
   date: string;
@@ -47,6 +51,13 @@ export default function AnalyticsScreen() {
   const [adherenceData, setAdherenceData] = useState<AdherenceData[]>([]);
   const [weeklyStats, setWeeklyStats] = useState<WeeklyStats | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<Period>('7d');
+  const [exporting, setExporting] = useState(false);
+
+  const periodLabels: Record<Period, string> = {
+    '7d': t.analytics.last7Days,
+    '30d': t.analytics.last30Days,
+    all: t.analytics.allTime,
+  };
 
   const loadAnalyticsData = useCallback(async (period: Period) => {
     try {
@@ -230,6 +241,38 @@ export default function AnalyticsScreen() {
     );
   };
 
+  const handleExportReport = async () => {
+    if (exporting || !weeklyStats || weeklyStats.totalSchedules === 0) return;
+    setExporting(true);
+    try {
+      const profile = await getProfile().catch(() => null);
+      const taken = adherenceData.reduce((sum, d) => sum + d.taken, 0);
+      const missed = adherenceData.reduce((sum, d) => sum + d.missed, 0);
+      const skipped = adherenceData.reduce((sum, d) => sum + d.skipped, 0);
+
+      const uri = await generateAnalyticsReportPdf({
+        profileName: profile?.name ?? 'Patient',
+        periodLabel: periodLabels[selectedPeriod],
+        adherenceRate: weeklyStats.adherenceRate,
+        taken,
+        missed,
+        skipped,
+        total: weeklyStats.totalSchedules,
+        days: adherenceData,
+      });
+
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: t.analytics.exportReport,
+      });
+    } catch (error) {
+      console.error('Failed to export analytics report:', error);
+      showToast(t.analytics.exportError, 'error');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary }}>
@@ -237,12 +280,6 @@ export default function AnalyticsScreen() {
       </View>
     );
   }
-
-  const periodLabels: Record<Period, string> = {
-    '7d': t.analytics.last7Days,
-    '30d': t.analytics.last30Days,
-    all: t.analytics.allTime,
-  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
@@ -259,6 +296,22 @@ export default function AnalyticsScreen() {
             <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.analytics.title}</Text>
             <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{t.analytics.subtitle}</Text>
           </View>
+          <TouchableOpacity
+            onPress={handleExportReport}
+            disabled={exporting || !weeklyStats || weeklyStats.totalSchedules === 0}
+            style={{
+              marginLeft: spacing.sm,
+              padding: 4,
+              opacity: exporting || !weeklyStats || weeklyStats.totalSchedules === 0 ? 0.4 : 1,
+            }}
+            accessibilityLabel={t.analytics.exportReport}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={colors.accent.primary} />
+            ) : (
+              <MaterialCommunityIcons name="file-pdf-box" size={28} color={colors.accent.primary} />
+            )}
+          </TouchableOpacity>
         </View>
       </View>
 
