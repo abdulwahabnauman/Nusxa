@@ -22,6 +22,7 @@ import {
   setBiometricPreferred,
   verifyPin,
   authenticateWithBiometrics,
+  biometricDevBypass,
 } from '../../src/utils/appLock';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
@@ -434,7 +435,9 @@ export default function SettingsScreen() {
                   value={biometricPref}
                   onValueChange={async (value) => {
                     if (value) {
-                      const ok = await authenticateWithBiometrics('Confirm biometric unlock');
+                      const ok =
+                        (await authenticateWithBiometrics('Confirm biometric unlock')) ||
+                        biometricDevBypass();
                       if (!ok) {
                         showToast('Biometric check did not succeed — PIN will be used.', 'error');
                         return;
