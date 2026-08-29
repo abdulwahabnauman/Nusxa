@@ -15,8 +15,9 @@ import { useI18n } from '../src/i18n';
 
 export default function EmergencyCardScreen() {
   const { colors, typography, spacing } = useTheme();
-  const { t } = useI18n();
+  const { t, isRTL } = useI18n();
   const router = useRouter();
+  const align = isRTL ? 'right' : 'left';
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
   const [editing, setEditing] = useState(false);
@@ -155,9 +156,9 @@ export default function EmergencyCardScreen() {
           <Card elevated>
             <View style={styles.cardRow}>
               <MaterialCommunityIcons name="account" size={24} color={colors.accent.primary} />
-              <View style={{ marginStart: 12 }}>
-                <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.emergency.patient}</Text>
-                <Text style={[typography.body.lg, { color: colors.text.primary }]}>
+              <View style={{ marginStart: 12, flex: 1 }}>
+                <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.patient}</Text>
+                <Text style={[typography.body.lg, { color: colors.text.primary, textAlign: align }]}>
                   {profile?.name ?? t.common.notSet}
                 </Text>
               </View>
@@ -165,12 +166,12 @@ export default function EmergencyCardScreen() {
 
             <View style={[styles.cardRow, { marginTop: spacing.lg }]}>
               <MaterialCommunityIcons name="water" size={24} color={colors.error} />
-              <View style={{ marginStart: 12 }}>
-                <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.emergency.bloodGroup}</Text>
+              <View style={{ marginStart: 12, flex: 1 }}>
+                <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.bloodGroup}</Text>
                 {editing ? (
                   <Input value={bloodGroup} onChangeText={setBloodGroup} placeholder="e.g. O+" containerStyle={{ width: 120, marginTop: 4 }} />
                 ) : (
-                  <Text style={[typography.body.lg, { color: colors.text.primary }]}>{bloodGroup || t.common.notSet}</Text>
+                  <Text style={[typography.body.lg, { color: colors.text.primary, textAlign: align }]}>{bloodGroup || t.common.notSet}</Text>
                 )}
               </View>
             </View>
@@ -178,11 +179,11 @@ export default function EmergencyCardScreen() {
             <View style={[styles.cardRow, { marginTop: spacing.lg }]}>
               <MaterialCommunityIcons name="alert-circle-outline" size={24} color={colors.warning} />
               <View style={{ marginStart: 12, flex: 1 }}>
-                <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.emergency.allergies}</Text>
+                <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.allergies}</Text>
                 {editing ? (
                   <Input value={allergies} onChangeText={setAllergies} placeholder="Comma-separated" containerStyle={{ marginTop: 4 }} />
                 ) : (
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                  <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>
                     {allergies || t.emergency.noneListed}
                   </Text>
                 )}
@@ -192,14 +193,14 @@ export default function EmergencyCardScreen() {
             <View style={[styles.cardRow, { marginTop: spacing.lg }]}>
               <MaterialCommunityIcons name="phone" size={24} color={colors.success} />
               <View style={{ marginStart: 12, flex: 1 }}>
-                <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.emergency.emergencyContact}</Text>
+                <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.emergencyContact}</Text>
                 {editing ? (
                   <View style={{ gap: 8, marginTop: 4 }}>
                     <Input value={emergencyName} onChangeText={setEmergencyName} placeholder="Contact name" />
                     <Input value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder="Phone number" keyboardType="phone-pad" />
                   </View>
                 ) : (
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                  <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>
                     {emergencyName && emergencyPhone ? `${emergencyName} — ${emergencyPhone}` : t.common.notSet}
                   </Text>
                 )}
@@ -209,11 +210,11 @@ export default function EmergencyCardScreen() {
             <View style={[styles.cardRow, { marginTop: spacing.lg }]}>
               <MaterialCommunityIcons name="stethoscope" size={24} color={colors.info} />
               <View style={{ marginStart: 12, flex: 1 }}>
-                <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.emergency.physician}</Text>
+                <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.physician}</Text>
                 {editing ? (
                   <Input value={physician} onChangeText={setPhysician} placeholder="Doctor name" containerStyle={{ marginTop: 4 }} />
                 ) : (
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{physician || t.common.notSet}</Text>
+                  <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>{physician || t.common.notSet}</Text>
                 )}
               </View>
             </View>
