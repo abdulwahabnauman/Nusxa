@@ -537,14 +537,14 @@ A complete educational content system for medication literacy:
 | **Urdu translation coverage** | 🔴 CRITICAL | ~5% complete | High | Only Settings + tabs translated. Every screen needs `t.*` strings wired up. Major documentation effort (~40 files). |
 | **RTL layout testing** | 🟡 MEDIUM | Not exercised | Low-Medium | After Urdu translations, test RTL layout. May need `flexDirection: 'row-reverse'` adjustments. |
 | **Background notifications** | 🟡 MEDIUM | Expo Go limitation | N/A | Works in production builds. Dev client or APK needed for background execution. |
-| **Push notifications (Firebase)** | 🟠 HIGH | Not implemented | Medium | Required for true background alerts when app is fully closed. Firebase integration. |
+| **Push notifications (Firebase)** | ⏸️ DEFERRED | Decided against for now | — | Local scheduled notifications are delivered by the OS even when the app is killed. True server-triggered push needs a Firebase project + a backend sender; revisit when a backend exists. |
 | **Camera tap-to-focus** | 🟢 LOW | Basic only | Low | Add manual focus indicator to scanner. Improves scanning UX. |
 
 ### 💡 SUGGESTED ENHANCEMENTS (My Recommendations)
 
 | Feature | Priority | Why Important | Effort | Implementation Notes |
 |---------|----------|---------------|--------|---------------------|
-| **App biometric lock** | ✅ DONE | — | — | `BiometricLock.tsx` ships with PIN; swap in `expo-local-authentication` for real biometrics |
+| **App biometric lock** | ✅ DONE | — | — | Real gate: `expo-local-authentication` fingerprint/Face with PIN fallback (SecureStore), Settings → Security setup, locks on cold start + backgrounding, 30s lockout after 5 wrong PINs |
 | **Enhanced elderly mode redesign** | 🔴 CRITICAL | Real accessibility improvement (target audience!) | Medium-High | Larger touch targets (>48dp), simplified navigation flow, higher contrast colors, icon simplification. NOT just larger fonts. |
 | **Full theme/settings persistence** | 🟠 HIGH | Prevent settings reset confusion | Low-Medium | Add DB columns: `notifications_enabled`, `reduced_motion`, `theme_preference`. Already mostly done, needs final polish. |
 | **Tablet layout optimization** | 🟢 LOW | Expand user base to tablets | Medium | Responsive layouts using Flexbox. Test on various screen sizes. |
@@ -552,8 +552,8 @@ A complete educational content system for medication literacy:
 | **Offline AI capabilities** | 🟢 LOW | Scan prescriptions without internet | High | On-device ML models (TensorFlow Lite). Complex but valuable niche feature. |
 | **Family caregiver view** | 🟢 LOW | Share medication schedule with family | Medium | Role-based permissions. Family member can see schedules, edit emergency info. |
 | **Pharmacy integration** | 🟢 LOW | Direct refill requests to pharmacies | High | Integration with local pharmacy APIs. Complex business requirements. |
-| **Adherence analytics dashboard** | 🟡 MEDIUM | Better insights into medication patterns | Medium | Charts showing trends, missed doses patterns, correlation with health events. |
-| **Medicine interaction checker** | ✅ DONE | — | — | 12+ rules in `src/constants/medical.ts`, `checkMedicineInteraction()` / `findAllInteractions()` |
+| **Adherence analytics dashboard** | ✅ DONE | — | — | Live dashboard (adherence ring, activity chart, month calendar) plus exportable PDF report via the header share button |
+| **Medicine interaction checker** | ✅ DONE | — | — | 16 curated two-sided rules in `src/constants/medical.ts`, matched over name/generic/brand (`src/utils/interactions.ts`), warned on the review screen before save and on the Medicines tab |
 | **Medication education library** | ✅ DONE | — | — | Schema v4–v6 + UI (Learn tab, article reader, bookmarks, history) all shipped |
 | **Appointment reminders** | 🟢 LOW | Reminder for doctor visits | Low | Separate from medicine reminders. Calendar integration. |
 
@@ -834,6 +834,9 @@ A seven-issue hardening pass. Nothing Gemini/API-related was touched.
 - v10: Reminder windows (schedules.window_minutes, default 120)
 - v11: Per-language Learn enrichment cache (medicines purpose_ur / side_effects_ur / food_interactions_ur / storage_ur / warnings_ur)
 - v12: Configurable snooze + high-contrast preference (profile.snooze_minutes / profile.high_contrast) + `reminders_state` KV table for notification throttling
+- v13: Multi-patient support (prescriptions.patient_name, profile.active_patient)
+- v14: Reminder escalation preference (profile.reminder_escalation)
+- v15: Multi-patient removed — wipes all patient_name / active_patient values; the feature and its UI are gone (single-user app again)
 
 ---
 
