@@ -98,9 +98,9 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       color: #1B3A7B;
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin: 22px 0 8px;
+      margin: 26px 0 10px;
       border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 4px;
+      padding-bottom: 5px;
     }
     table { width: 100%; border-collapse: collapse; margin-top: 4px; }
     th {
@@ -114,6 +114,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       border-bottom: 1px solid #d6deee;
     }
     td { padding: 7px 8px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+    tbody tr:nth-child(even) td { background: #fafbfe; }
     tr:last-child td { border-bottom: none; }
     .mono { font-family: 'Courier New', monospace; white-space: nowrap; }
     .muted { color: #6b7280; font-size: 11px; }
@@ -125,11 +126,14 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       white-space: pre-wrap;
     }
     .disclaimer {
-      margin-top: 26px;
+      margin-top: 28px;
       font-size: 10px;
-      color: #9ca3af;
-      border-top: 1px solid #e5e7eb;
-      padding-top: 8px;
+      line-height: 1.6;
+      color: #374151;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 10px 12px;
     }
   </style>
 </head>
@@ -275,22 +279,29 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
       color: #1B3A7B;
       text-transform: uppercase;
       letter-spacing: 1px;
-      margin: 22px 0 8px;
+      margin: 26px 0 10px;
       border-bottom: 1px solid #e5e7eb;
-      padding-bottom: 4px;
+      padding-bottom: 5px;
     }
     .stats { display: flex; gap: 10px; margin-top: 12px; }
     .stat {
       flex: 1;
       border: 1px solid #e5e7eb;
       border-radius: 8px;
-      padding: 12px;
+      padding: 12px 10px;
       text-align: center;
+      background: #f9fafb;
     }
     .stat .value { font-size: 24px; font-weight: 700; color: #1B3A7B; }
     .stat .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: #6b7280; margin-top: 2px; }
+    .stat.good { background: #ecfdf5; border-color: #a7f3d0; }
     .stat.good .value { color: #059669; }
+    .stat.bad { background: #fef2f2; border-color: #fecaca; }
     .stat.bad .value { color: #dc2626; }
+    .barWrap { margin-top: 16px; }
+    .barTrack { background: #e5e7eb; border-radius: 6px; height: 10px; overflow: hidden; }
+    .barFill { background: #059669; height: 10px; border-radius: 6px; }
+    .barLabel { font-size: 10px; color: #6b7280; margin-top: 5px; }
     table { width: 100%; border-collapse: collapse; margin-top: 4px; }
     th {
       text-align: left;
@@ -303,15 +314,19 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
       border-bottom: 1px solid #d6deee;
     }
     td { padding: 7px 8px; border-bottom: 1px solid #eef0f4; vertical-align: top; }
+    tbody tr:nth-child(even) td { background: #fafbfe; }
     tr:last-child td { border-bottom: none; }
     .mono { font-family: 'Courier New', monospace; white-space: nowrap; }
     .muted { color: #6b7280; font-size: 11px; }
     .disclaimer {
-      margin-top: 26px;
+      margin-top: 28px;
       font-size: 10px;
-      color: #9ca3af;
-      border-top: 1px solid #e5e7eb;
-      padding-top: 8px;
+      line-height: 1.6;
+      color: #374151;
+      background: #f3f4f6;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      padding: 10px 12px;
     }
   </style>
 </head>
@@ -335,6 +350,11 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
     <div class="stat bad"><div class="value">${missed}</div><div class="label">Missed</div></div>
     <div class="stat"><div class="value">${skipped}</div><div class="label">Skipped</div></div>
     <div class="stat"><div class="value">${total}</div><div class="label">Total doses</div></div>
+  </div>
+
+  <div class="barWrap">
+    <div class="barTrack"><div class="barFill" style="width: ${Math.min(100, Math.max(0, adherenceRate))}%;"></div></div>
+    <div class="barLabel">Adherence over ${esc(periodLabel)}</div>
   </div>
 
   <h2>Daily Breakdown</h2>
