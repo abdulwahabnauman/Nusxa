@@ -60,7 +60,7 @@ const PrescriptionRow = memo(function PrescriptionRow({
 }) {
   const { colors, typography } = useTheme();
   return (
-    <Card style={{ marginBottom: 12 }}>
+    <Card style={{ marginBottom: 16 }}>
       <TouchableOpacity
         onPress={() => onOpen(rx)}
         accessibilityLabel={`Prescription from ${rx.date ?? 'unknown date'}`}
@@ -369,6 +369,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginTop: 16,
+    marginBottom: 16,
   },
   searchInput: {
     flexDirection: 'row',
