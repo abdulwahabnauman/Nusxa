@@ -1,214 +1,199 @@
 /**
- * Biometric Authentication Setup
- * Adds PIN + fingerprint/FaceID lock to protect sensitive medical data
+ * App lock gate — rendered INSTEAD of the app stack when the lock is
+ * active. Unlocks via biometric prompt (auto on mount when preferred) or
+ * a verified PIN. Five wrong PINs trigger a 30-second lockout so the pad
+ * cannot be brute-forced.
  */
-
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Modal, Alert } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { spacing } from '../../theme/spacing';
+import { PinKeypad } from './PinKeypad';
+import {
+  PIN_LENGTH,
+  authenticateWithBiometrics,
+  getBiometricSupport,
+  isBiometricPreferred,
+  verifyPin,
+} from '../../utils/appLock';
 
-type AuthState = 'checking' | 'locked' | 'unlocked' | 'setup_pin' | 'change_pin';
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_SECONDS = 30;
 
-export default function BiometricLock({ 
-  children, 
-  enabled = true 
-}: { 
-  children: React.ReactNode;
-  enabled?: boolean;
-}) {
+export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const { colors, typography: typ } = useTheme();
-  const [authState, setAuthState] = useState<AuthState>('checking');
   const [pinInput, setPinInput] = useState('');
-  const [tempPin, setTempPin] = useState('');
-  
-  // This would integrate with expo-biometrics in production
-  // For now, we simulate PIN-based protection
-  
-  const verifyPin = async () => {
-    // In production: use expo-biometrics
-    // await checkBiometrics();
-    
-    // Simulate successful unlock after brief delay
-    setTimeout(() => {
-      setAuthState('unlocked');
-      setPinInput('');
-    }, 300);
+  const [error, setError] = useState<string | null>(null);
+  const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
+  const [prompting, setPrompting] = useState(false);
+  const promptedOnce = useRef(false);
+  const verifying = useRef(false);
+
+  const lockedOut = lockoutUntil !== null && lockoutUntil > now;
+  const lockoutRemaining = lockoutUntil
+    ? Math.max(0, Math.ceil((lockoutUntil - now) / 1000))
+    : 0;
+
+  // Tick the countdown while a lockout is active
+  useEffect(() => {
+    if (!lockedOut) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [lockedOut]);
+
+  const tryBiometric = useCallback(async () => {
+    if (prompting) return;
+    setPrompting(true);
+    try {
+      const ok = await authenticateWithBiometrics('Unlock Nusxa');
+      if (ok) {
+        onUnlock();
+      } else {
+        setError('Biometric check did not succeed — enter your PIN.');
+      }
+    } finally {
+      setPrompting(false);
+    }
+  }, [onUnlock, prompting]);
+
+  // Auto-prompt biometrics once on mount when the hardware exists and the
+  // user opted in.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [support, preferred] = await Promise.all([
+        getBiometricSupport(),
+        isBiometricPreferred(),
+      ]);
+      if (cancelled) return;
+      setBiometricAvailable(support.available);
+      setBiometricLabel(support.label);
+      if (support.available && preferred && !promptedOnce.current) {
+        promptedOnce.current = true;
+        void tryBiometric();
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [tryBiometric]);
+
+  const handleDigit = (digit: string) => {
+    if (lockedOut || verifying.current) return;
+    setError(null);
+    const next = pinInput + digit;
+    setPinInput(next);
+    if (next.length !== PIN_LENGTH) return;
+
+    // Brief delay so the fourth dot is visible before feedback
+    verifying.current = true;
+    setTimeout(async () => {
+      try {
+        const ok = await verifyPin(next);
+        if (ok) {
+          onUnlock();
+          return;
+        }
+        setPinInput('');
+        const remaining = attemptsLeft - 1;
+        if (remaining <= 0) {
+          setAttemptsLeft(MAX_ATTEMPTS);
+          setLockoutUntil(Date.now() + LOCKOUT_SECONDS * 1000);
+          setNow(Date.now());
+        } else {
+          setAttemptsLeft(remaining);
+          setError(`Wrong PIN — ${remaining} attempt${remaining === 1 ? '' : 's'} left.`);
+        }
+      } finally {
+        verifying.current = false;
+      }
+    }, 150);
   };
 
-  if (!enabled || authState === 'unlocked') {
-    return <>{children}</>;
-  }
+  const handleBackspace = () => {
+    if (lockedOut) return;
+    setPinInput((prev) => prev.slice(0, -1));
+    setError(null);
+  };
 
-  if (authState === 'checking') {
-    return (
-      <View style={styles.container}>
-        <View style={[styles.lockIcon, { backgroundColor: colors.accent.subtle }]}>
-          <Text style={{ fontSize: 48 }}>🔒</Text>
-        </View>
-        <Text style={[typ.heading.h4, { color: colors.text.primary }]}>Secure Check...</Text>
-      </View>
-    );
-  }
-
-  // PIN Entry Screen
   return (
-    <Modal visible transparent animationType="fade">
-      <View style={styles.overlay}>
-        <View style={[styles.card, { backgroundColor: colors.background.surface }]}>
-          <Text style={[typ.heading.h3, { color: colors.text.primary, marginBottom: spacing.md }]}>
-            🔐 Enter PIN Code
-          </Text>
-          
-          <View style={{ alignItems: 'center', marginBottom: spacing.xl }}>
-            {[...Array(4)].map((_, i) => (
-              <View 
-                key={i} 
-                style={[
-                  styles.pinDot,
-                  { 
-                    borderColor: colors.border.default,
-                    backgroundColor: 'transparent' 
-                  }
-                ]}
-              >
-                <View 
-                  style={[
-                    styles.pinDotFill,
-                    { 
-                      backgroundColor: pinInput.length > i ? colors.accent.primary : 'transparent',
-                      opacity: pinInput.length > i ? 1 : 0.3
-                    }
-                  ]}
-                />
-              </View>
-            ))}
-          </View>
-
-          {/* Numeric Keypad */}
-          <View style={styles.keypad}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
-              <TouchableOpacity
-                key={num}
-                style={[styles.key, { backgroundColor: colors.background.subtle }]}
-                onPress={() => {
-                  const newPin = pinInput + num.toString();
-                  setPinInput(newPin);
-                  
-                  if (newPin.length === 4) {
-                    setTimeout(verifyPin, 200);
-                    setPinInput('');
-                  }
-                }}
-              >
-                <Text style={[typ.label.base, { color: colors.text.primary }]}>
-                  {num}
-                </Text>
-              </TouchableOpacity>
-            ))}
-            
-            <View style={styles.key} /> {/* Empty corner */}
-            
-            <TouchableOpacity
-              style={[styles.key, { backgroundColor: colors.background.subtle }]}
-              onPress={() => {
-                setPinInput(pinInput.slice(0, -1));
-              }}
-            >
-              <Text style={[typ.body.base, { color: colors.text.secondary, fontWeight: 'bold' }]}>⌫</Text>
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.key, { backgroundColor: colors.background.subtle }]}
-              onPress={() => {
-                const newPin = pinInput + '0';
-                setPinInput(newPin);
-                
-                if (newPin.length === 4) {
-                  setTimeout(verifyPin, 200);
-                  setPinInput('');
-                }
-              }}
-            >
-              <Text style={[typ.label.base, { color: colors.text.primary }]}>0</Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Settings/Cancel Button */}
-          <TouchableOpacity 
-            style={[styles.cancelBtn, { marginTop: spacing.lg }]}
-            onPress={() => {
-              Alert.alert(
-                'Unlock Nusxa',
-                'Use biometric or enter PIN',
-                [{ text: 'OK' }]
-              );
-            }}
-          >
-            <Text style={[typ.body.sm, { color: colors.text.disabled }]}>Need help?</Text>
-          </TouchableOpacity>
-        </View>
+    <View style={[styles.container, { backgroundColor: colors.background.primary }]}>
+      <View style={[styles.lockIcon, { backgroundColor: colors.accent.subtle }]}>
+        <MaterialCommunityIcons name="lock-outline" size={44} color={colors.accent.primary} />
       </View>
-    </Modal>
+
+      <Text style={[typ.heading.h3, { color: colors.text.primary }]}>Nusxa is locked</Text>
+      <Text style={[typ.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+        {lockedOut
+          ? `Too many attempts — try again in ${lockoutRemaining}s`
+          : 'Enter your PIN to continue'}
+      </Text>
+
+      {error !== null && !lockedOut && (
+        <Text style={[typ.body.sm, { color: colors.error, marginTop: spacing.sm }]}>
+          {error}
+        </Text>
+      )}
+
+      <View style={styles.keypadWrap}>
+        <PinKeypad
+          pinLength={PIN_LENGTH}
+          entered={pinInput}
+          onDigit={handleDigit}
+          onBackspace={handleBackspace}
+          disabled={lockedOut}
+        />
+      </View>
+
+      {biometricAvailable && !lockedOut && (
+        <TouchableOpacity
+          style={styles.biometricBtn}
+          onPress={() => void tryBiometric()}
+          disabled={prompting}
+          accessibilityLabel={`Unlock with ${biometricLabel ?? 'biometrics'}`}
+        >
+          <MaterialCommunityIcons
+            name={biometricLabel === 'Face' ? 'face-recognition' : 'fingerprint'}
+            size={22}
+            color={colors.accent.primary}
+          />
+          <Text style={[typ.label.base, { color: colors.accent.primary, marginLeft: 8 }]}>
+            Use {biometricLabel ?? 'biometrics'}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
   },
   lockIcon: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+    width: 88,
+    height: 88,
+    borderRadius: 44,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.lg,
   },
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  keypadWrap: {
+    marginTop: spacing.xl,
   },
-  card: {
-    width: '85%',
-    padding: spacing.xl,
-    borderRadius: 16,
-    alignItems: 'center',
-  },
-  pinDot: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pinDotFill: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  keypad: {
+  biometricBtn: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
-  },
-  key: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    justifyContent: 'center',
     alignItems: 'center',
-  },
-  cancelBtn: {
-    paddingVertical: spacing.md,
+    marginTop: spacing.xl,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
   },
 });
