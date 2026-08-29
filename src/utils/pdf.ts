@@ -15,6 +15,64 @@ function esc(value: string | null | undefined): string {
 
 const dash = (value: string | null | undefined): string => (value && value.trim() ? esc(value) : '&mdash;');
 
+/** Minimal markdown renderer for free-text notes: escapes first, then applies
+ * bold/italic/code, bullet lists, headings and paragraphs. */
+function markdownToHtml(source: string): string {
+  const inline = (text: string) =>
+    text
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/`([^`]+)`/g, '<code>$1</code>');
+
+  const out: string[] = [];
+  let inList = false;
+  let para: string[] = [];
+
+  const flushPara = () => {
+    if (para.length > 0) {
+      out.push(`<p>${inline(para.join(' '))}</p>`);
+      para = [];
+    }
+  };
+  const closeList = () => {
+    if (inList) {
+      out.push('</ul>');
+      inList = false;
+    }
+  };
+
+  for (const raw of esc(source).split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) {
+      flushPara();
+      closeList();
+      continue;
+    }
+    const bullet = line.match(/^[-•]\s+(.*)$/);
+    if (bullet) {
+      flushPara();
+      if (!inList) {
+        out.push('<ul>');
+        inList = true;
+      }
+      out.push(`<li>${inline(bullet[1] ?? '')}</li>`);
+      continue;
+    }
+    const heading = line.match(/^#{1,4}\s+(.*)$/);
+    if (heading) {
+      flushPara();
+      closeList();
+      out.push(`<p><strong>${inline(heading[1] ?? '')}</strong></p>`);
+      continue;
+    }
+    closeList();
+    para.push(line);
+  }
+  flushPara();
+  closeList();
+  return out.join('');
+}
+
 const MEAL_LABELS: Record<string, string> = {
   before: 'Before meal',
   after: 'After meal',
@@ -123,8 +181,11 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       border: 1px solid #e5e7eb;
       border-radius: 6px;
       padding: 10px 12px;
-      white-space: pre-wrap;
     }
+    .notes p { margin: 0 0 6px; }
+    .notes p:last-child { margin-bottom: 0; }
+    .notes ul { margin: 0 0 6px; padding-left: 18px; list-style: disc; }
+    .notes code { background: #eef0f4; padding: 1px 4px; border-radius: 3px; font-family: 'Courier New', monospace; }
     .disclaimer {
       margin-top: 28px;
       font-size: 10px;
@@ -177,7 +238,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
 
   ${
     notes
-      ? `<h2>Questions / Notes for the Doctor</h2><div class="notes">${esc(notes)}</div>`
+      ? `<h2>Questions / Notes for the Doctor</h2><div class="notes">${markdownToHtml(notes)}</div>`
       : ''
   }
 
