@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { CameraView as ExpoCameraView, CameraType, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
+import { withLockExemption } from '../src/utils/appLock';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -291,13 +292,15 @@ export default function ScanScreen() {
 
   const handlePickImage = async () => {
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        // No OS crop UI (allowsEditing) — cropping happens in-app where the
-        // controls match the theme and the apply button is unmistakable.
-        allowsEditing: false,
-        quality: 0.8,
-      });
+      const result = await withLockExemption(() =>
+        ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'],
+          // No OS crop UI (allowsEditing) — cropping happens in-app where the
+          // controls match the theme and the apply button is unmistakable.
+          allowsEditing: false,
+          quality: 0.8,
+        })
+      );
       if (!result.canceled && result.assets[0]?.uri) {
         const normalizedUri = await normalizeToScanAspect(result.assets[0].uri);
         const persistentUri = await persistImage(normalizedUri);
