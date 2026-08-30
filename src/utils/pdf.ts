@@ -485,6 +485,9 @@ interface AnalyticsReportPdfParams {
   skipped: number;
   total: number;
   days: AnalyticsDayRow[];
+  /** Optional patient identifiers pulled from the profile (same as the visit PDF) */
+  dateOfBirth?: string | null;
+  bloodGroup?: string | null;
   /** Renders an RTL Urdu report when 'ur' (audit UX4) */
   language?: PdfLanguage;
 }
@@ -504,10 +507,11 @@ function dayCellDate(dateIso: string, ur: boolean): string {
  * URI. The caller is responsible for sharing/cleanup of the returned file.
  */
 export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParams): Promise<string> {
-  const { profileName, periodLabel, adherenceRate, taken, missed, skipped, total, days, language } = params;
+  const { profileName, periodLabel, adherenceRate, taken, missed, skipped, total, days, dateOfBirth, bloodGroup, language } = params;
   const ur = language === 'ur';
   const S = ur ? UR : EN;
   const generatedAt = generatedAtStamp(ur);
+  const age = dateOfBirth ? calculateAge(dateOfBirth) : null;
   const fontCss = ur ? await getUrduFontCss() : '';
 
   const dayRows = [...days]
@@ -639,6 +643,8 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
     </div>
     <div class="meta">
       ${esc(S.patient)}: <strong>${esc(profileName)}</strong><br />
+      ${dateOfBirth ? `${esc(S.dob)}: <strong>${esc(dateOfBirth)}</strong>${age !== null ? ` (${esc(S.age)} ${age})` : ''}<br />` : ''}
+      ${bloodGroup ? `${esc(S.bloodGroup)}: <strong>${esc(bloodGroup)}</strong><br />` : ''}
       ${esc(S.adherenceOver)}: <strong>${esc(periodLabel)}</strong><br />
       ${esc(S.generated)}: <strong>${esc(generatedAt)}</strong>
     </div>

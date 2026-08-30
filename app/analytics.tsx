@@ -232,6 +232,9 @@ export default function AnalyticsScreen() {
 
       const uri = await generateAnalyticsReportPdf({
         profileName: profile?.name ?? 'Patient',
+        // Patient identifiers from the profile, same as the doctor-visit PDF
+        dateOfBirth: profile?.date_of_birth ?? null,
+        bloodGroup: profile?.blood_group ?? null,
         periodLabel: periodLabels[selectedPeriod],
         adherenceRate: weeklyStats.adherenceRate,
         taken,

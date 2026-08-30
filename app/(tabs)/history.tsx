@@ -211,7 +211,7 @@ export default function HistoryScreen() {
   const handleOpen = useCallback((rx: PrescriptionItem) => {
     // History cards are prescriptions — the medicine detail route expects a
     // medicine id, so open the prescription detail screen instead.
-    router.push(`/prescription/${rx.id}`);
+    router.push({ pathname: '/prescription/[id]', params: { id: rx.id } });
   }, [router]);
 
   const renderItem = useCallback(
