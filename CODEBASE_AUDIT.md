@@ -5,6 +5,10 @@
 > architectural or i18n — not compile errors.
 >
 > **Sections:** [1. Broken / Left / Left-Out](#1--broken--left--left-out) · [2. Improvements](#2--improvements) · [3. Suggested Features](#3--suggested-features) · [4. UI/UX Improvements](#4--uiux-improvements)
+>
+> **STATUS UPDATE (Aug 2026):** the items selected for the hardening pass are marked
+> ✅ FIXED with the implementing commit. Everything else is still genuinely open —
+> do NOT re-report the fixed items in future audits.
 
 ---
 
@@ -12,174 +16,173 @@
 
 ### 1.1 Real bugs
 
-| # | Issue | Location | Impact |
-|---|-------|----------|--------|
-| B1 | **Streak can never exceed 7 days.** Streak loop only iterates `getLast7Days()`, so the `streak === 30` milestone celebration can never fire. | `app/(tabs)/index.tsx` | Milestone feature dead |
-| B2 | **Chat deep-link context silently dropped.** Medicine detail navigates to `/chat` with `{ medicineId, medicineName }` ("Ask AI about this medicine"), but `chat.tsx` never calls `useLocalSearchParams` — the params are ignored. | `app/medicine/[id].tsx` → `app/chat.tsx` | Feature visibly does nothing special |
-| B3 | **Export only backs up TODAY's dose records.** `exportAsJSON()` calls `getTodayDoseRecords(getTodayISO())` instead of full history — a "backup" that loses all historical adherence data. Import can restore history, but export never contains it. | `src/utils/export.ts` | Data loss on restore-to-new-phone |
-| B4 | **Tap-to-focus doesn't focus.** Scan screen shows a focus ring and calls `focusAsync?.()` via a cast, but never maps the tap point to focus coordinates; magic offsets (`layout.y + 100`, `-40`) instead. | `app/scan.tsx` | Blurry photo capture on some devices |
-| B5 | **Markdown bubbles break dark mode.** `MarkdownText` hardcodes light-only colors (`#1F2937`, `#F3F3F0`, `#686863`) — used by AI chat responses. | `src/components/ui/MarkdownText.tsx` | Unreadable/ugly chat in dark theme |
-| B6 | **Hardcoded `#ccc` border** in History list styles — wrong color in dark theme. | `app/(tabs)/history.tsx` | Theme inconsistency |
-| B7 | **"All" analytics period is actually 365 days.** `daysBack = ... : 365` — users picking "All" get a year, not everything. | `app/analytics.tsx` | Misleading stats |
-| B8 | **Schema version constants disagree.** `SCHEMA_VERSION = 3` (schema.ts) vs `CURRENT_SCHEMA_VERSION = 15` (migrations.ts); migrations v2/v3 never update the stored `schema_version` row; migration_v5 is a no-op. Works, but fragile and confusing. | `src/db/schema.ts`, `src/db/migrations.ts` | Future migration risk |
-| B9 | **`appVersion` hardcoded `'1.0.0'`** in export payload instead of reading from app config. | `src/utils/export.ts` | Wrong version in exports |
-| B10 | Onboarding defines a `'done'` step that is never rendered/reached. | `app/onboarding.tsx` | Dead branch |
+| # | Status | Issue | Location | Impact |
+|---|--------|-------|----------|--------|
+| B1 | ✅ FIXED `6a3c6f7` | **Streak can never exceed 7 days.** Streak loop only iterated `getLast7Days()`, so the `streak === 30` milestone celebration could never fire. | `app/(tabs)/index.tsx` | Milestone feature dead |
+| B2 | ✅ FIXED `6a3c6f7` | **Chat deep-link context silently dropped.** Medicine detail navigated to `/chat` with `{ medicineId, medicineName }`, but `chat.tsx` never read the params. | `app/medicine/[id].tsx` → `app/chat.tsx` | Feature visibly did nothing |
+| B3 | ✅ FIXED `3937be1`, `f8dc442` | **Export only backed up TODAY's dose records.** Export now includes the FULL dose history (export v3). | `src/utils/export.ts` | Data loss on restore-to-new-phone |
+| B4 | ✅ FIXED `78a2918` | **Tap-to-focus didn't focus.** Scan screen now maps the tap point to real focus coordinates instead of magic offsets. | `app/scan.tsx` | Blurry photo capture |
+| B5 | ⬜ OPEN | **Markdown bubbles break dark mode.** `MarkdownText` hardcodes light-only colors (`#1F2937`, `#F3F3F0`, `#686863`) — used by AI chat responses. | `src/components/ui/MarkdownText.tsx` | Unreadable/ugly chat in dark theme |
+| B6 | ✅ FIXED `9473d0e` | **Hardcoded `#ccc` border** in History list styles — removed as part of the swipe-actions rewrite (now themed tokens). | `app/(tabs)/history.tsx` | Theme inconsistency |
+| B7 | ✅ FIXED `6a3c6f7` | **"All" analytics period was actually 365 days.** Now a real full-range picker over the earliest record. | `app/analytics.tsx` | Misleading stats |
+| B8 | ✅ FIXED `3937be1` | **Schema version constants disagreed** (`SCHEMA_VERSION = 3` vs `CURRENT_SCHEMA_VERSION = 15`); migrations now store the real version consistently. | `src/db/schema.ts`, `src/db/migrations.ts` | Future migration risk |
+| B9 | ✅ FIXED `3937be1` | **`appVersion` hardcoded `'1.0.0'`** — now read from `expo-constants`. | `src/utils/export.ts` | Wrong version in exports |
+| B10 | ✅ FIXED `78a2918` | Onboarding defined a `'done'` step that was never rendered/reached — removed during the health-step rework. | `app/onboarding.tsx` | Dead branch |
 
 ### 1.2 Half-built features (infrastructure exists, UI/behavior missing)
 
-| # | Feature | What exists | What's missing |
-|---|---------|-------------|----------------|
-| H1 | **Education Library** | Full DB layer: `src/db/repositories/education.ts`, `src/db/schemas/education.ts`, migrations v4–v8, content seeds, bookmarks, reading-progress infra. | **Zero UI consumers.** Learn tab only lists the user's own medicines. No browse/search/bookmark screens, no nav entry. ROADMAP.md confirms ~30% done. |
-| H2 | **Reminder escalation** | `reminderEscalation` persisted in settings store + DB column. | No settings toggle, and nothing in the notification system reads it. Feature is inert. |
-| H3 | **`explainMedicine()`** | Exported in `src/ai/pipeline.ts`. | Never called anywhere — intended for medicine-detail AI explanations. |
-| H4 | **Validation toolkit** | `isValidTimeFormat`, `findScheduleConflicts`, `findDuplicateMedicines`, `isMedicineComplete`, `getMissingFields` in `src/utils/validation.ts`. | **None are used.** Schedule screen accepts free-text `HH:MM` with no validation. |
-| H5 | **Medicine edit/delete** | `deleteMedicine` imported in `app/medicine/[id].tsx`. | Import unused — there's no edit or delete action in the medicine detail UI. |
-| H6 | **`date_of_birth`** | Column on `Profile`, restored by import. | Never collected in onboarding or settings; never displayed. |
-| H7 | **Education/[medicineId] context** | Route exists. | Reachable only via Learn tab's own-medicine list; not linked from medicine detail or chat. |
+| # | Status | Feature | Notes |
+|---|--------|---------|-------|
+| H1 | ⬜ OPEN | **Education Library** — full DB layer, zero UI consumers (Learn tab only lists the user's own medicines). ROADMAP.md confirms ~30% done. |
+| H2 | ✅ FIXED `6442a2a` | **Reminder escalation** — Settings toggle shipped + notification backend reads it (escalating reminders when a dose stays untaken past the window). |
+| H3 | ⬜ OPEN | **`explainMedicine()`** exported in `src/ai/pipeline.ts` but never called anywhere. |
+| H4 | ✅ FIXED `664f8cf` | **Validation toolkit** wired into the review + schedule screens (time format, conflicts, duplicates, missing fields). |
+| H5 | ✅ FIXED `fa032f4` | **Medicine edit/delete** — full edit (name/dosage/times/inventory), pause course, delete with Undo on the medicine detail screen. |
+| H6 | ✅ FIXED `78a2918`, `f33fd4f` | **`date_of_birth`** collected in onboarding (fully skippable) + Settings, and used wherever required: emergency card, doctor-visit/analytics PDFs (age), medicine detail. |
+| H7 | ⬜ OPEN | **Education/[medicineId] context** — route exists but is only reachable via the Learn tab's own-medicine list. |
 
 ### 1.3 Dead code & leftovers
 
-- **5 dead config constants** (zero usages): `MAX_IMAGE_SIZE_BYTES`, `SUPPORTED_IMAGE_FORMATS`, `SNOOZE_MINUTES`, `UNDO_WINDOW_SECONDS`, `MAX_RETAINED_IMAGES` — `src/constants/config.ts`.
-- **Unused imports**: `deleteMedicine`, `cancelAllNotifications`, `Linking` in `app/medicine/[id].tsx`; `Switch` in `app/emergency-card.tsx`.
-- **Unused type**: `MedicineWithSchedule` — `src/types/models.ts`.
-- **`@tanstack/react-query`** installed and `QueryClientProvider` wired in root layout, but **zero** `useQuery`/`useMutation` usage anywhere — pure overhead.
-- **`env.example` line 11**: stray garbage `// nov 30 to dec 4 , sep 10`.
-- **`improvements.txt`**: leftover one-liner ("Adding dark mode auto-detection for medicine cards...").
-- **`app/review.tsx`** stale comment: "Save to database (will be connected in Phase 5/6)" — phase is long done.
-- **Root clutter**: 11 summary markdown files (`APPLIED_FIXES.md`, `APP_UPDATE_SUMMARY.md`, `BACKEND_MIGRATION.md`, `CRITICAL_FIXES_APPLIED.md`, `EDUCATION_LIBRARY_COMPLETE.md`, `FEATURE_IMPLEMENTATION_SUMMARY.md`, `FINAL_FIXES_SUMMARY.md`, `FIXES_SUMMARY.md`, `IMPLEMENTATION_COMPLETE.md`, `SESSION_SUMMARY.md`, `WHAT_WE_BUILT_TODAY.md`) + `project.zip` + 67 KB `readme.md`.
-- `console.log`/`warn` leftovers in `notifications.ts`, `kv.ts`, `education.ts`, `database.ts`.
+- ⬜ OPEN — **dead config constants** in `src/constants/config.ts` (`MAX_IMAGE_SIZE_BYTES`, `SUPPORTED_IMAGE_FORMATS`, `MAX_RETAINED_IMAGES`; `SNOOZE_MINUTES` is now live via the snooze setting, `UNDO_WINDOW_SECONDS` still unused).
+- ⬜ PARTIAL — **unused imports**: `deleteMedicine`/`Linking` in `app/medicine/[id].tsx` are now used (H5 + refill); re-audit the rest.
+- ⬜ OPEN — **unused type** `MedicineWithSchedule` (`src/types/models.ts`).
+- ✅ FIXED `f13dfc8` — **react-query overhead**: now actually adopted for list reads instead of sitting idle.
+- ✅ FIXED `e48a4de` — **`env.example` junk line** cleaned; **`improvements.txt`** deleted.
+- ⬜ OPEN — `app/review.tsx` stale "Phase 5/6" comment.
+- ✅ FIXED `e48a4de` — **root clutter**: all 11 summary markdown files + `project.zip` moved into `docs/`.
+- ⬜ OPEN — `console.log`/`warn` leftovers in `notifications.ts`, `kv.ts`, `education.ts`, `database.ts`.
 
 ### 1.4 i18n violations (hardcoded English — breaks Urdu/RTL requirement)
 
-`en.ts` has **no** `chat`, `analytics` or `education` sections at all. Hardcoded strings found in:
-
-| Screen / file | Hardcoded content |
-|---|---|
-| `app/chat.tsx` | Header "Nusxa Companion", welcome text, placeholders, error messages |
-| `app/processing.tsx` | Nearly all labels/status text |
-| `app/review.tsx` | Headers, field labels, buttons, alerts |
-| `app/schedule.tsx` | Headers, labels, time placeholders, buttons |
-| `app/medicine/[id].tsx` | 'Generic name', 'Details', 'Inventory', 'Remaining', etc. |
-| `app/analytics.tsx` | Weekday labels via `toLocaleDateString('en-US', ...)` |
-| `app/emergency-card.tsx` | Placeholders ("e.g. O+", "Comma-separated"), "Discard Changes?" alert |
-| `app/(tabs)/history.tsx` | "Archive", "Delete", toast messages |
-| `app/(tabs)/medicines.tsx` | Interaction/low-stock banners, empty state |
-| `app/(tabs)/settings.tsx` | Alert strings ("Delete all data", "Import data"), "Enter your name" |
-| `src/components/ui/BiometricLock.tsx` | "Unlock Nusxa", "Nusxa is locked", "Enter your PIN to continue" |
-| `src/components/medicine/ScheduleTimeline.tsx` | 'Morning' / 'Afternoon' / 'Night' labels |
-| `src/utils/export.ts` + `src/utils/pdf.ts` | Entire text/PDF reports are English-only (no Urdu variant, no RTL PDF) |
+⬜ OPEN (out of scope for the hardening pass — still the biggest remaining gap).
+`en.ts` still lacks full `chat`, `analytics`, `education` coverage, and hardcoded strings remain in:
+`app/chat.tsx`, `app/processing.tsx`, `app/review.tsx`, `app/schedule.tsx`, `app/medicine/[id].tsx`,
+`app/analytics.tsx`, `app/emergency-card.tsx`, `app/(tabs)/medicines.tsx`, `app/(tabs)/settings.tsx` (some alert strings),
+`src/components/ui/BiometricLock.tsx`, `src/components/medicine/ScheduleTimeline.tsx`.
+(Partially improved along the way: history row labels, refill UI, encrypted-backup UI, PDF reports now have an Urdu variant — see UX4.)
 
 ### 1.5 Config / native issues
 
-- `app.json` iOS: `UIRequiredDeviceCapabilities: ["armv7"]` — wrong/outdated (modern iOS is arm64).
-- `app.json` iOS: `NSMicrophoneUsageDescription` present though **no voice feature exists** (App Store friction).
-- `worker/src/index.js` mirrors model constants from `src/constants/config.ts` by hand ("keep in sync" comment) — drift risk.
-- `eas.json`: no iOS profiles at all (Android-only builds configured).
+- ✅ FIXED `e48a4de` — `app.json` iOS `UIRequiredDeviceCapabilities` now `["arm64"]`.
+- ✅ FIXED `e48a4de` — `NSMicrophoneUsageDescription` removed (no voice feature exists).
+- ✅ FIXED `e48a4de` — worker model constants now come from a shared source of truth (`src/constants/ai-models.ts`), no more hand-mirroring in `worker/src/index.js`.
+- ✅ FIXED `e48a4de` — `eas.json` now has iOS build sections for all profiles.
 
 ---
 
 ## 2. 🔧 Improvements
 
 ### Performance
-1. **Kill N+1 queries.** Home screen `await getMedicine(...)` sequentially per schedule; History `getMedicinesByPrescription` per prescription; weekly chart calls `getAdherenceStats` 7× sequentially. Use SQL JOINs / batch queries or at minimum `Promise.all`.
-2. **Actually use react-query** (already installed + provider wired): cache medicines/schedules/doses, invalidate on dose actions — eliminates manual `loadData()` everywhere.
-3. Home screen fires several independent loads sequentially — parallelize.
+1. ✅ FIXED `f13dfc8` — **N+1 queries killed** (batched/JOINed reads in Home, History, weekly chart).
+2. ✅ FIXED `f13dfc8` — **react-query adopted** for cached list reads with invalidation on dose actions.
+3. ✅ FIXED `f13dfc8` — Home screen loads parallelized.
 
 ### Code quality
-4. Delete all dead code listed in §1.3 (explainMedicine or wire it, dead constants, unused imports/types, react-query or adopt it).
-5. Unify schema versioning: single `SCHEMA_VERSION` constant, make v2/v3/v5 migrations consistent, store real version.
-6. Remove the `as any` casts in `savePrescription.ts` (`meal_instruction`, `form`) by aligning `MedicineJSON` and `Medicine` types.
-7. Use `expo-constants` for `appVersion` instead of hardcoded `'1.0.0'`.
-8. Single source of truth for AI model constants (generate worker config or share a JSON).
-9. Add tests — **none exist** (no test runner configured in `package.json`). At minimum: `savePrescription` fuzzy matching, `interactions.ts`, `inventory.ts`, `validation.ts`, migration idempotency.
-10. Move the 11 root summary `.md` files + `project.zip` into `docs/` (or delete) and slim the 67 KB `readme.md`.
-11. Strip `console.log`s or route through a leveled logger that's disabled in release.
-12. Fix `env.example` junk line; delete `improvements.txt`.
+4. ⬜ PARTIAL — dead-code sweep (see §1.3 for what remains).
+5. ✅ FIXED `3937be1` — schema versioning unified (single constant, migrations store the real version).
+6. ⬜ OPEN — remove the `as any` casts in `savePrescription.ts` by aligning `MedicineJSON` and `Medicine` types.
+7. ✅ FIXED `3937be1` — `appVersion` via `expo-constants`.
+8. ✅ FIXED `e48a4de` — single source of truth for AI model constants (`src/constants/ai-models.ts`).
+9. ✅ FIXED `b9fddfd` — **tests exist**: Jest + jest-expo configured (`npm test`); 75 unit tests across `validation`, `inventory`, `interactions`, `savePrescription` (fuzzy matching) in `src/utils/__tests__/`. Migration idempotency tests still open.
+10. ✅ FIXED `e48a4de` — root `.md` clutter moved to `docs/` (readme slimming still open).
+11. ⬜ OPEN — strip `console.log`s / leveled logger disabled in release.
+12. ✅ FIXED `e48a4de` — `env.example` junk fixed; `improvements.txt` deleted.
 
 ### Data layer
-13. Export should include **full dose history**, settings/KV state, bookmarks — and import should restore them (chat history file is also never backed up).
-14. `getTodayDoseRecords` uses `LIKE '${date}%'` — fine, but index `dose_records.scheduled_time` for range queries used by analytics.
-15. Consider soft-delete + tombstones for medicines/prescriptions so undo and export stay consistent.
+13. ✅ FIXED `f8dc442` — export/import is now **full-state** (v3): profile incl. all preference columns, prescriptions, medicines, schedules, full dose history, KV state, education bookmarks + reading history (slug-keyed), AI chat history. Import re-hydrates the settings store live.
+14. ✅ FIXED `fa032f4` — `dose_records.scheduled_time` indexed for analytics range queries.
+15. ✅ FIXED `fa032f4` — soft-delete tombstones for medicines/prescriptions (undo + export consistency).
 
 ### Native/config
-16. Fix `armv7` → `arm64`; remove mic usage description until voice exists.
-17. Add iOS build profiles to `eas.json` if iOS is ever a target (currently Android-only by design — document that).
+16. ✅ FIXED `e48a4de` — `arm64` capability; mic usage description removed.
+17. ✅ FIXED `e48a4de` — iOS profiles added to `eas.json` (builds remain Android-first by design).
 
 ---
 
 ## 3. 💡 Suggested Features
 
 ### Finish what's half-built (highest ROI)
-1. **Education Library UI** — browse/search all seeded content, category tabs, bookmarks, reading progress, per-medicine articles linked from medicine detail + chat answers ("Learn more").
-2. **`explainMedicine()` wiring** — "Explain in simple words" button on medicine detail (Urdu + English), cached locally.
-3. **Reminder escalation toggle + behavior** — repeat notification if dose stays untaken past window.
-4. **Medicine edit/delete** — edit name/dosage/times/inventory, pause course, delete with Undo.
+1. ⬜ OPEN — **Education Library UI** (browse/search, category tabs, bookmarks, reading progress, per-medicine articles).
+2. ⬜ OPEN — **`explainMedicine()` wiring** ("Explain in simple words" on medicine detail).
+3. ✅ FIXED `6442a2a` — **Reminder escalation toggle + behavior** shipped end-to-end.
+4. ✅ FIXED `fa032f4` — **Medicine edit/delete** shipped (edit, pause, delete with Undo).
 
 ### New features
-5. **Caregiver/family mode** — share adherence dashboard/report with a family member (WhatsApp share of weekly PDF is the cheap version).
-6. **Voice output** — read reminders and chat answers aloud in Urdu (elderly-first audience; the mic permission is already there).
-7. **Symptom/side-effect journal** — log how you feel per day; show correlations with medicines at doctor visits.
-8. **Vitals log** — BP/glucose/weight entries with trends, appended to the doctor-visit PDF.
-9. **Follow-up reminders** — `follow_up_date` already exists on prescriptions; schedule a notification/calendar event.
-10. **Refill ordering flow** — low-stock detection exists; add "call pharmacy" / reminder to buy.
-11. **Android home-screen widget** — next dose + quick "Taken" action (shortcut plugin already sets the pattern).
-12. **Push notifications (FCM/Expo)** — ROADMAP item D; reliable channel vs local-only.
-13. **Multi-profile** — manage parents' medicines from one phone (very common in the target market).
-14. **Prayer-time-aware scheduling** — align default dose times with local prayer times.
-15. **Pill identifier** — photo of a loose pill → identify it (reuses existing vision pipeline).
-16. **Urdu OCR polish** — confidence threshold with a clear "needs your review" flag on low-confidence fields.
-17. **Encrypted cloud backup** — even a user-owned Google Drive file beats JSON-on-device for the elderly audience.
-18. **Cheap generic alternatives** — show common cheaper generics per medicine (educational, with disclaimer).
-19. **Emergency card one-tap actions** — call emergency contact / call ambulance directly from the card.
-20. **Chat enhancements** — context injection when opened from a medicine (fix B2 + suggested quick questions), conversation topics per medicine.
+5. ⬜ OPEN — Caregiver/family mode (WhatsApp share of weekly PDF is the cheap version).
+6. ⬜ OPEN — Voice output (Urdu reminders/chat answers).
+7. ⬜ OPEN — Symptom/side-effect journal.
+8. ⬜ OPEN — Vitals log appended to the doctor-visit PDF.
+9. ✅ FIXED `6442a2a` — **Follow-up reminders**: `follow_up_date` now schedules notifications, synced at app start and after each save.
+10. ✅ FIXED `47afa7d` — **Refill ordering**: "Order refill" entry point on medicine detail, clearly marked **coming soon** in-app; full build plan in `docs/REFILL_ORDERING_GUIDE.md` (pharmacy table schema, phases, go-live checklist).
+11. ✅ FIXED `ebafec4` — **Android home-screen widget**: next dose + one-tap Taken (`NextDoseWidgetProvider`, survives prebuild via `plugins/with-next-dose-widget.js`).
+12. ⬜ OPEN — Push notifications (FCM/Expo) — ROADMAP item D.
+13. ⬜ OPEN — Multi-profile.
+14. ⬜ OPEN — Prayer-time-aware scheduling.
+15. ⬜ OPEN — Pill identifier.
+16. ⬜ OPEN — Urdu OCR polish (confidence thresholds).
+17. ✅ FIXED `f8dc442` — **Encrypted backup**: password-protected AES backup files (create + restore in Settings → Data). True cloud auto-sync still open.
+18. ⬜ OPEN — Cheap generic alternatives.
+19. ✅ FIXED `f33fd4f` — **Emergency card one-tap actions** (call contact / call ambulance).
+20. ✅ FIXED `6442a2a` + follow-ups — **Chat enhancements**: medicine context injection when opened from a medicine, context banner, quick-question chips, message copy button.
 
 ---
 
 ## 4. 🎨 UI/UX Improvements
 
 ### Localization & accessibility (priority)
-1. **Move every string in §1.4 into `en.ts`/`ur.ts`** and add missing `chat`, `analytics`, `education`, `lock` key sections.
-2. **Full RTL audit** (ROADMAP item B) — after strings are localized, verify every screen mirrored (esp. timeline, charts, tab bar).
-3. **Localize dates/numerals consistently** — analytics weekday labels use `en-US` hardcoded; eastern-numeral util exists but apply it everywhere or nowhere.
-4. **Urdu PDF reports** — RTL-capable PDF template + Noto Nastaliq font (already bundled in `assets/fonts/`).
-5. **Accessibility pass** — `accessibilityLabel`s on icon buttons, minimum 44–48dp touch targets (elderly mode should go to 56dp+), font scaling checks.
+1. ⬜ OPEN — Move every §1.4 string into `en.ts`/`ur.ts` (incl. missing `chat`/`analytics`/`education`/`lock` sections).
+2. ⬜ OPEN — Full RTL audit (ROADMAP item B).
+3. ✅ FIXED `2fc94cc` — dates/numerals localized consistently (Eastern numerals respected app-wide).
+4. ✅ FIXED `145dcad` — **Urdu PDF reports**: RTL-capable templates + bundled Noto Nastaliq font for doctor-visit + analytics when language = Urdu.
+5. ⬜ OPEN — Accessibility pass (touch targets, scaling).
 
 ### Elderly mode & contrast (ROADMAP item C)
-6. Redesign elderly mode as a real layout mode: simplified home (only next dose + big Taken button), larger type, fewer actions per screen.
-7. High-contrast audit: replace every hardcoded hex (`#ccc`, MarkdownText colors, Badge palette) with theme tokens so both themes + contrast mode work.
+6. ⬜ OPEN — Elderly mode as a real layout mode.
+7. ⬜ OPEN — High-contrast audit of remaining hardcoded hexes.
 
 ### Home & schedule
-8. Live **countdown** to next dose on the hero card; auto-refresh when the day rolls over.
-9. Streak milestones that actually work (fix B1): 7 / 14 / 30-day celebrations.
-10. Group timeline by daypart with localized labels (Morning/Afternoon/Night already computed, just hardcoded).
-11. Inline Undo on every destructive dose action (UndoToast exists — use it everywhere).
+8. ✅ FIXED `ae07588` — live countdown on the next-dose hero + day-rollover/foreground refresh.
+9. ✅ FIXED `6a3c6f7` — streak milestones actually work (7 / 14 / 30-day celebrations).
+10. ⬜ OPEN — Group timeline by daypart with localized labels.
+11. ⬜ OPEN — Inline Undo on every destructive dose action.
 
 ### Scanner flow
-12. Real tap-to-focus + corner guides + blur/low-light detection hint.
-13. Post-capture preview with "Retake / Use this photo" before burning an AI call.
-14. Show OCR confidence per field on review; tap a field to correct it in-place (currently review-only).
+12. ✅ FIXED `78a2918`, `2feb7af` — real tap-to-focus, corner guides, flash toggle, blur/low-light hints.
+13. ⬜ OPEN — Post-capture "Retake / Use this photo" preview.
+14. ⬜ OPEN — OCR confidence per field + in-place correction.
 
 ### Screens
-15. **Chat**: empty-state quick-question chips, context banner when opened from a medicine, message copy button, loading indicator with stages.
-16. **Analytics**: real date-range picker (fix the 365-day "All"), reuse `AdherenceRing` instead of the duplicated bar-chart ring code.
-17. **History**: archive/delete labels localized; swipe actions instead of visible buttons for a cleaner list.
-18. **Settings**: grouped sections, add the missing reminder-escalation toggle, DOB/blood-group collection, "About/privacy" section.
-19. **Onboarding**: collect date of birth + blood group (fields exist but are never asked for); kill the dead `'done'` step.
-20. **Emergency card**: structured inputs (blood-group picker, phone input with validation) instead of free-text placeholders.
+15. ✅ PARTIAL — **Chat**: context banner when opened from a medicine + message copy button + quick-question chips shipped; remaining empty-state/illustration polish open.
+16. ✅ FIXED `6a3c6f7` — **Analytics**: real date-range picker (B7 fix).
+17. ✅ FIXED `9473d0e` — **History**: swipe-to-reveal archive/delete + localized labels.
+18. ✅ FIXED `f33fd4f` — **Settings**: grouped sections, reminder-escalation toggle, DOB/blood-group collection, About section.
+19. ✅ FIXED `78a2918` — **Onboarding**: DOB + blood group collected in a fully skippable health step; dead `'done'` step removed.
+20. ✅ FIXED `f33fd4f` — **Emergency card**: structured inputs (blood-group picker, validated phone inputs).
 
 ### Polish
-21. Skeleton loaders on all data-driven screens (Skeleton component exists — use it in home/history/analytics).
-22. Consistent haptics on take/skip/snooze/save (util exists; audit coverage).
-23. Notification UX: big-text style with **action buttons (Taken / Snooze)** directly in the notification.
-24. Empty states everywhere localized + friendly illustration, with a clear primary CTA ("Scan your first prescription").
-25. Reduce inline `style={{...}}` duplication in screens — lean on `theme/tokens`, `spacing`, `typography` consistently.
-26. Loading/error states for AI calls with retry button (never a dead-end alert).
+21. ✅ FIXED `709be59` — Skeleton loaders on home + analytics (+ history) while data loads.
+22. ✅ FIXED `d6e098e` — Haptics coverage audited: success/error on toasts, selection on toggles/capture, dose actions.
+23. ✅ FIXED `6442a2a` — Notification UX: big-text style with Taken / Snooze action buttons.
+24. ⬜ OPEN — Localized empty states with CTA everywhere.
+25. ⬜ OPEN — Reduce inline style duplication.
+26. ✅ FIXED — AI calls have loading/error states with retry (never a dead-end alert).
 
 ---
 
 ## Summary
 
-- **TypeScript:** clean. **Real bugs:** 10 (B1–B10), most severe: export loses dose history (B3), streak cap (B1), chat deep-link dropped (B2).
-- **Half-built:** Education Library UI, reminder escalation, explainMedicine, validation toolkit, medicine edit/delete, DOB collection.
-- **Systemic issues:** hardcoded English across ~13 files vs the bilingual requirement; hardcoded colors vs theming; N+1 DB queries; dead code/react-query overhead.
-- **Quick wins (≤1 session):** fix B1–B3, delete dead code, add i18n sections for chat/analytics, wire validation to schedule screen, clean root clutter.
+**Resolved in the Aug 2026 hardening pass** (do not re-report):
+- **Bugs:** B1, B2, B3, B4, B6, B7, B8, B9, B10 (only B5 remains).
+- **Half-built:** H2, H4, H5, H6 (H1 Education UI, H3 explainMedicine, H7 links remain).
+- **Config/native:** arm64, mic permission removed, worker↔app model-constant drift, eas.json iOS profiles.
+- **Performance/data:** N+1 kills, react-query adoption, schema versioning, tests (75), full-state export/import v3, encrypted backups, `scheduled_time` index, soft-delete tombstones, docs consolidation, env cleanup.
+- **Features:** escalation, follow-up reminders, refill entry point (+ guide), home-screen widget, encrypted backup, emergency-card calls, chat context/quick questions.
+- **UX:** localized dates/numerals, Urdu RTL PDFs, live countdown + rollover, working streak milestones, scanner focus/blur/low-light, analytics range picker, history swipe actions, settings rework, skippable onboarding health step, structured emergency inputs, skeletons, haptics, notification action buttons, AI loading/error/retry states.
+
+**Still open (highest value first):**
+1. §1.4 i18n sweep + UX1/UX2 (the bilingual requirement is still only partially met).
+2. H1 Education Library UI + H7 links (+ H3 explainMedicine wiring).
+3. B5 MarkdownText dark-mode colors; remaining hardcoded hexes (UX7).
+4. Dead-code leftovers (§1.3), `console.log` stripping (CQ11), `as any` casts in `savePrescription` (CQ6).
+5. Remaining UX polish: Undo everywhere (UX11), capture preview (UX13), OCR confidence editing (UX14), empty states (UX24), daypart grouping (UX10).
+6. Features backlog: caregiver mode, voice output, vitals log, multi-profile, push notifications, true cloud sync.
