@@ -5,6 +5,14 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_400Regular_Italic,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_700Bold_Italic,
+} from '@expo-google-fonts/inter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { requireOptionalNativeModule } from 'expo-modules-core';
@@ -106,9 +114,16 @@ function AppContent() {
   // instantly in both directions without needing an app restart.
   const language = useSettingsStore((s) => s.language);
 
-  // Load the Nastaliq font used for Urdu text
+  // Load the bundled typefaces: Inter for Latin text (same metrics on both
+  // platforms) and the Nastaliq face used for Urdu.
   const [fontsLoaded] = useFonts({
     NotoNastaliqUrdu: require('../assets/fonts/NotoNastaliqUrdu.ttf'),
+    Inter_400Regular,
+    Inter_400Regular_Italic,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_700Bold_Italic,
   });
 
   // Handle notification taps — navigate to medicine detail
