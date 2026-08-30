@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -36,6 +36,7 @@ import { isAiProxyConfigured } from '../../src/constants/config';
 import { formatDigits } from '../../src/utils/numerals';
 import { selectionHaptic } from '../../src/utils/haptics';
 import { useSuccessMorph } from '../../src/hooks/useSuccessMorph';
+import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
 import { useI18n } from '../../src/i18n';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -167,6 +168,10 @@ export default function SettingsScreen() {
     label: null,
   });
   const [biometricPref, setBiometricPref] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollReset(
+    useCallback(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), [])
+  );
   const [pinModal, setPinModal] = useState<'none' | 'enable1' | 'enable2' | 'disable'>('none');
   const [pinDraft, setPinDraft] = useState('');
   const [pinEntry, setPinEntry] = useState('');
@@ -413,7 +418,7 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent}>
         <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.heading.h2, { color: colors.text.primary }]}>{t.settings.title}</Text>
         </View>
