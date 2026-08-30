@@ -52,6 +52,7 @@ export default function MedicineDetailScreen() {
   const [editFrequency, setEditFrequency] = useState('');
   const [editDuration, setEditDuration] = useState('');
   const [editRemaining, setEditRemaining] = useState('');
+  const [editInitial, setEditInitial] = useState('');
   const [editTimes, setEditTimes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -95,6 +96,7 @@ export default function MedicineDetailScreen() {
     setEditFrequency(medicine.frequency ?? '');
     setEditDuration(medicine.duration ?? '');
     setEditRemaining(medicine.remaining_quantity != null ? String(medicine.remaining_quantity) : '');
+    setEditInitial(medicine.initial_quantity != null ? String(medicine.initial_quantity) : '');
     const times: Record<string, string> = {};
     for (const sch of schedules) times[sch.id] = sch.time;
     setEditTimes(times);
@@ -107,7 +109,10 @@ export default function MedicineDetailScreen() {
   const remainingInvalid =
     editRemaining.trim() !== '' &&
     (!/^\d+$/.test(editRemaining.trim()) || Number(editRemaining.trim()) < 0);
-  const editValid = editName.trim().length > 0 && invalidTimes.length === 0 && !remainingInvalid;
+  const initialInvalid =
+    editInitial.trim() !== '' &&
+    (!/^\d+$/.test(editInitial.trim()) || Number(editInitial.trim()) <= 0);
+  const editValid = editName.trim().length > 0 && invalidTimes.length === 0 && !remainingInvalid && !initialInvalid;
 
   const handleSaveEdit = useCallback(async () => {
     if (!medicine || !editValid) return;
@@ -119,6 +124,7 @@ export default function MedicineDetailScreen() {
         frequency: editFrequency.trim() || null,
         duration: editDuration.trim() || null,
         remaining_quantity: editRemaining.trim() === '' ? null : Number(editRemaining.trim()),
+        initial_quantity: editInitial.trim() === '' ? null : Number(editInitial.trim()),
       });
       let timesChanged = false;
       for (const sch of schedules) {
@@ -138,7 +144,7 @@ export default function MedicineDetailScreen() {
     } finally {
       setSaving(false);
     }
-  }, [medicine, editValid, editName, editDosage, editFrequency, editDuration, editRemaining, editTimes, schedules, load, t, invalidateData]);
+  }, [medicine, editValid, editName, editDosage, editFrequency, editDuration, editRemaining, editInitial, editTimes, schedules, load, t, invalidateData]);
 
   // Pause = all schedules deactivated; resume reactivates them
   const isPaused = schedules.length > 0 && schedules.every((s) => !s.is_active);
@@ -427,36 +433,40 @@ export default function MedicineDetailScreen() {
                   </Text>
                 </View>
               )}
-              {/* Refill ordering — coming soon (audit Feature 10) */}
-              <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default }}>
-                <View style={styles.fieldRow}>
-                  <View style={{ flex: 1, marginRight: spacing.sm }}>
-                    <Text style={[typography.label.base, { color: colors.text.primary }]}>
-                      {t.medicine.orderRefill}
-                    </Text>
-                    <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
-                      {t.medicine.orderRefillDesc}
-                    </Text>
-                    <View style={{ alignSelf: 'flex-start', marginTop: 6 }}>
-                      <Badge label={t.medicine.refillComingSoon} variant="pending" />
-                    </View>
-                  </View>
-                  <Button
-                    title={t.medicine.orderRefill}
-                    variant="secondary"
-                    size="sm"
-                    icon={<MaterialCommunityIcons name="cart-outline" size={16} color={colors.accent.primary} />}
-                    onPress={() => setRefillSoonVisible(true)}
-                  />
-                </View>
-              </View>
             </Card>
           </Animated.View>
         )}
 
+        {/* Refill ordering — coming soon (audit Feature 10). Shown even
+            without inventory so the teaser is always reachable. */}
+        <Animated.View entering={enter(6)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Card>
+            <View style={styles.fieldRow}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                  {t.medicine.orderRefill}
+                </Text>
+                <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
+                  {t.medicine.orderRefillDesc}
+                </Text>
+                <View style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+                  <Badge label={t.medicine.refillComingSoon} variant="pending" />
+                </View>
+              </View>
+              <Button
+                title={t.medicine.orderRefill}
+                variant="secondary"
+                size="sm"
+                icon={<MaterialCommunityIcons name="cart-outline" size={16} color={colors.accent.primary} />}
+                onPress={() => setRefillSoonVisible(true)}
+              />
+            </View>
+          </Card>
+        </Animated.View>
+
         {/* Food Interactions */}
         {medicine.food_interactions.length > 0 && (
-          <Animated.View entering={enter(6)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
+          <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.medicine.foodInteractions}
             </Text>
@@ -474,7 +484,7 @@ export default function MedicineDetailScreen() {
         )}
 
         {/* Actions */}
-        <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
+        <Animated.View entering={enter(8)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Button
             title={t.medicine.askAI}
             variant="secondary"
@@ -567,6 +577,12 @@ export default function MedicineDetailScreen() {
             label={t.medicine.remainingLabel}
             value={editRemaining}
             onChangeText={setEditRemaining}
+            keyboardType="numeric"
+          />
+          <Input
+            label={t.medicine.initialLabel}
+            value={editInitial}
+            onChangeText={setEditInitial}
             keyboardType="numeric"
           />
           {schedules.map((sch) => {

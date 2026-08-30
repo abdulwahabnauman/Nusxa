@@ -20,8 +20,9 @@ import kotlin.random.Random
  * Home-screen widget: today's NEXT dose with a one-tap "Taken" button.
  *
  * It reads the same SQLite database the React Native app uses
- * (expo-sqlite keeps it at databases/nusxa.db inside the app's data
- * directory) and writes dose records in the exact shape of the app's
+ * (expo-sqlite v16 keeps it at files/SQLite/nusxa.db inside the app's data
+ * directory; older SDKs used databases/nusxa.db) and writes dose records in
+ * the exact shape of the app's
  * `upsertDoseStatus()` so Home, History and Analytics stay in sync —
  * including the per-day "one record per slot" rule and the inventory
  * decrement the app performs when a dose is taken.
@@ -203,12 +204,24 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
 
   private fun openDb(context: Context): SQLiteDatabase? {
     return try {
-      val path = context.getDatabasePath(DB_NAME)
-      if (!path.exists()) return null
+      val path = resolveDbPath(context) ?: return null
       SQLiteDatabase.openDatabase(path.absolutePath, null, SQLiteDatabase.OPEN_READWRITE)
     } catch (e: Exception) {
       null
     }
+  }
+
+  /**
+   * expo-sqlite v16 (Expo SDK 54) stores databases in files/SQLite/ instead
+   * of the classic databases/ directory. Prefer the current location and fall
+   * back to the legacy path for installs upgraded from older SDKs.
+   */
+  private fun resolveDbPath(context: Context): java.io.File? {
+    val modern = java.io.File(context.filesDir, "SQLite/$DB_NAME")
+    if (modern.exists()) return modern
+    val legacy = context.getDatabasePath(DB_NAME)
+    if (legacy.exists()) return legacy
+    return null
   }
 
   private fun readTodayState(context: Context, today: String): TodayState {

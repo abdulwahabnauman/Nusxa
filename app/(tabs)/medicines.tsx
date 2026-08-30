@@ -5,7 +5,6 @@ import {
   FlatList,
   StyleSheet,
   RefreshControl,
-  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -27,12 +26,10 @@ const MedicineRow = memo(function MedicineRow({
   med: MedicineWithInfo;
   onPress: (id: string) => void;
 }) {
+  // MedicineCard already owns its own TouchableOpacity — passing onPress
+  // straight in avoids a nested touchable swallowing the tap.
   return (
-    <TouchableOpacity
-      onPress={() => onPress(med.id)}
-      accessibilityLabel={`View details for ${med.name ?? 'medicine'}`}
-      style={{ marginBottom: 16 }}
-    >
+    <View style={{ marginBottom: 16 }}>
       <MedicineCard
         name={med.name ?? 'Unknown'}
         dosage={med.dosage}
@@ -42,8 +39,9 @@ const MedicineRow = memo(function MedicineRow({
         scheduleTimes={med.scheduleTimes}
         verificationStatus={med.verification_status}
         daysUntilRefill={med.daysUntilRefill}
+        onPress={() => onPress(med.id)}
       />
-    </TouchableOpacity>
+    </View>
   );
 });
 
@@ -108,6 +106,7 @@ export default function MedicinesScreen() {
             borderRadius: 12,
             padding: 12,
             marginTop: 12,
+            marginBottom: 16,
           }}
           accessibilityLabel={`${interactions.length} possible medicine interactions in your regimen`}
         >
@@ -154,6 +153,7 @@ export default function MedicinesScreen() {
             borderRadius: 12,
             padding: 12,
             marginTop: 12,
+            marginBottom: 16,
           }}
           accessibilityLabel={`${lowStockCount} medicines running low on supply`}
         >

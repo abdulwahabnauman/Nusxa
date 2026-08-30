@@ -270,6 +270,7 @@ export const en = {
     frequencyLabel: 'Frequency',
     durationLabel: 'Duration',
     remainingLabel: 'Remaining quantity',
+    initialLabel: 'Initial quantity (pack size)',
     timeLabel: 'Reminder time',
     pause: 'Pause course',
     pauseDesc: 'Stops reminders without deleting anything. Resume anytime.',

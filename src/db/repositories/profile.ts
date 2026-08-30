@@ -33,6 +33,29 @@ function parseProfile(row: Record<string, unknown>): Profile {
   };
 }
 
+/**
+ * Guarantee the singleton profile row exists without touching any values.
+ * Every preference toggle persists via `UPDATE profile ... WHERE id = 1`,
+ * which silently affects 0 rows when the row is missing — so toggles look
+ * like they save and then "reset" after a restart. The row can legitimately
+ * be absent after restoring a backup that was exported without a profile or
+ * on installs upgraded across schema changes, so recreate the stub on demand.
+ */
+export async function ensureProfileRow(): Promise<void> {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `INSERT OR IGNORE INTO profile
+       (id, name, allergies, elderly_mode, onboarding_complete, language,
+        notifications_enabled, reduced_motion, reminder_escalation,
+        eastern_numerals, snooze_minutes, high_contrast, theme_preference,
+        created_at, updated_at)
+     VALUES
+       (1, NULL, '[]', 0, 0, 'en', 1, 0, 1, 0, 10, 0, 'system', ?, ?);`,
+    [now, now]
+  );
+}
+
 export async function getProfile(): Promise<Profile | null> {
   const db = getDatabase();
   const row = await db.getFirstAsync<Record<string, unknown>>(
@@ -78,6 +101,10 @@ export async function createProfile(
 export async function updateProfile(
   data: Partial<Omit<Profile, 'id' | 'created_at'>>
 ): Promise<Profile> {
+  // UPDATE ... WHERE id = 1 is a silent no-op if the row vanished (restore
+  // of a profile-less backup, upgrade installs) — recreate the stub first so
+  // preference writes always land.
+  await ensureProfileRow();
   const db = getDatabase();
   const now = new Date().toISOString();
 
@@ -164,6 +191,7 @@ export async function updateProfile(
 
 export async function completeOnboarding(): Promise<void> {
   const db = getDatabase();
+  await ensureProfileRow();
   await db.runAsync(
     'UPDATE profile SET onboarding_complete = 1, updated_at = ? WHERE id = 1;',
     [new Date().toISOString()]

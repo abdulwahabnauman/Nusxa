@@ -140,7 +140,7 @@ export default function OnboardingScreen() {
                   </View>
                 ))}
               </View>
-              <View style={styles.buttonContainer}>
+              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
                 <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
               </View>
             </View>

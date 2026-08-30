@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import { Text, StyleSheet, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, {
   useSharedValue,
@@ -54,8 +54,9 @@ export function Celebration({ title, subtitle, onDismiss, duration = 2600 }: Cel
     <Animated.View
       entering={FadeIn.duration(140)}
       style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
-      pointerEvents="box-none"
     >
+      {/* Tapping anywhere outside the card dismisses the celebration early */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Dismiss celebration" />
       <Animated.View
         style={[
           styles.card,

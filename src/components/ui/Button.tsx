@@ -97,8 +97,11 @@ export function Button({
       borderColor = colors.border.strong;
       break;
     case 'ghost':
-      bgColor = 'transparent';
+      // Subtle filled container + hairline border so ghost actions still
+      // read as buttons instead of bare text.
+      bgColor = colors.background.subtle;
       textColor = disabled ? colors.text.disabled : colors.text.primary;
+      borderColor = colors.border.default;
       break;
     case 'danger':
       bgColor = disabled ? colors.border.strong : colors.error;

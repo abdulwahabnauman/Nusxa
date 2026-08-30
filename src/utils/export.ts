@@ -1,7 +1,11 @@
+// Must precede crypto-js: installs the globalThis.crypto CSPRNG shim that
+// crypto-js captures at module load (Hermes ships no WebCrypto/Node crypto).
+import './webCryptoShim';
 import Constants from 'expo-constants';
 import CryptoJS from 'crypto-js';
 import { getDatabase } from '../db/database';
 import { getProfile } from '../db/repositories/profile';
+import { ensureProfileRow } from '../db/repositories/profile';
 import { getActiveMedicines } from '../db/repositories/medicine';
 import { getActiveSchedules } from '../db/repositories/schedule';
 import { getAllDoseRecords } from '../db/repositories/dose';
@@ -463,6 +467,11 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
           asString(p.updated_at) ?? now,
         ]
       );
+    } else {
+      // Exports created before the profile existed carry profile: null —
+      // recreate the stub so preference toggles keep persisting after this
+      // restore instead of silently updating 0 rows.
+      await ensureProfileRow();
     }
   });
 
