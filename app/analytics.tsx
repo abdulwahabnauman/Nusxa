@@ -239,6 +239,8 @@ export default function AnalyticsScreen() {
         skipped,
         total: weeklyStats.totalSchedules,
         days: adherenceData,
+        // Urdu users get a localized RTL report (audit UX4)
+        language: language === 'ur' ? 'ur' : 'en',
       });
 
       await withLockExemption(() =>

@@ -61,7 +61,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | AI — Chat/Explain  | Groq gpt-oss-120b (free, primary), Nemotron 3 Ultra via OpenRouter (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
 | Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
-| PDF Generation     | expo-print + expo-sharing (doctor visit reports, on-device) |
+| PDF Generation     | expo-print + expo-sharing (doctor visit + analytics reports, on-device; RTL Urdu mode with bundled Noto Nastaliq font) |
 | Animations         | react-native-reanimated (reduced-motion aware) |
 | Vector Graphics    | react-native-svg (brand pill icon, charts) |
 | File Picking       | expo-document-picker (JSON data import) |
@@ -178,7 +178,7 @@ nusxa/
 │       ├── chatHistory.ts        # Chat persistence (JSON file; wiped only via explicit Clear)
 │       ├── date.ts               # Date helpers (ISO, getTodayRange, getLast7Days)
 │       ├── export.ts             # JSON data export + transactional import (restore)
-│       ├── pdf.ts                # Doctor visit PDF generation (expo-print HTML template)
+│       ├── pdf.ts                # Doctor visit + analytics PDF generation (expo-print HTML templates, RTL Urdu mode)
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
 │       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
@@ -419,6 +419,7 @@ This only renders in a real build (dev client or APK) — Expo Go can't fully re
 ### 12. Doctor Visit PDF
 - Generated fully on-device with `expo-print` from an HTML template in `src/utils/pdf.ts` (A4, navy letterhead, medicines table, daily schedule table, patient notes, disclaimer), shared via `expo-sharing` as `application/pdf`
 - All patient-provided values are HTML-escaped before templating
+- **Urdu (RTL) reports**: when the user's language is Urdu, both the doctor-visit and analytics reports render right-to-left with localized headings/disclaimers, `ur-PK` localized dates, and the bundled `NotoNastaliqUrdu.ttf` embedded as a base64 `@font-face` (the print WebView doesn't resolve `file://` fonts reliably)
 
 ---
 

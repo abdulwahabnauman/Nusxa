@@ -19,7 +19,7 @@ import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const router = useRouter();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -70,6 +70,8 @@ export default function DoctorVisitScreen() {
         dateOfBirth: profileDob,
         bloodGroup: profileBloodGroup,
         allergies: profileAllergies,
+        // Urdu users get a right-to-localized RTL report (audit UX4)
+        language: language === 'ur' ? 'ur' : 'en',
       });
       const shareUri = pdfUri;
       await withLockExemption(() =>
