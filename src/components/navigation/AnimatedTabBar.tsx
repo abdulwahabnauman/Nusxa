@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSettingsStore } from '../../stores/settings-store';
+import { notifyTabPressed } from '../../utils/tabEvents';
 
 interface TabButtonProps {
   focused: boolean;
@@ -103,6 +104,9 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
           typeof options.title === 'string' ? options.title : route.name;
 
         const onPress = () => {
+          // Screens listen for this to reset scroll position when the user
+          // comes back to the tab or re-taps it while already focused.
+          notifyTabPressed(route.name);
           const event = navigation.emit({
             type: 'tabPress',
             target: route.key,

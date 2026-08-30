@@ -57,6 +57,12 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Nusxa to use Face ID to unlock the app."
+        }
+      ],
       "expo-asset",
       "./plugins/with-today-shortcut",
       "./plugins/with-next-dose-widget"
