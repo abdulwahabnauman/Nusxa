@@ -1,4 +1,4 @@
-import { TextStyle } from 'react-native';
+import { Platform, TextStyle } from 'react-native';
 
 const baseFontSize = {
   xs: 12,
@@ -39,90 +39,120 @@ const weights = {
   bold: '700' as TextStyle['fontWeight'],
 } as const;
 
+/**
+ * Bundled Inter faces, loaded in app/_layout.tsx via expo-font. Using the
+ * same font files on both platforms makes text metrics identical on iOS and
+ * Android — system fonts (SF Pro vs Roboto) measure differently and were the
+ * source of cross-platform alignment drift.
+ */
+export const LATIN_FONTS = {
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semibold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  italic: 'Inter_400Regular_Italic',
+  boldItalic: 'Inter_700Bold_Italic',
+} as const;
+
+export type FontFamilyKey = keyof typeof LATIN_FONTS;
+
+type WeightKey = keyof typeof weights;
+
 export function getTypography(elderly: boolean, fontFamily?: string) {
   const sizes = elderly ? elderlyFontSize : baseFontSize;
-  // Optional custom family (e.g. Nastaliq for Urdu) applied to every text style.
-  // Nastaliq script has deep descenders, so line heights stay enlarged when it
-  // is active — but Nastaliq glyphs render visually large, so sizes shrink a
-  // little and includeFontPadding is dropped to keep Urdu text from ballooning.
-  const font = fontFamily ? { fontFamily, includeFontPadding: false } : {};
-  const fs = (value: number) => (fontFamily ? Math.round(value * 0.9) : value);
-  const lh = (value: number) => (fontFamily ? Math.round(value * 1.6) : value);
+  const urdu = !!fontFamily;
+
+  // Urdu (Nastaliq) has a single weight — every slot maps to the same family.
+  const families: Record<FontFamilyKey, string> = urdu
+    ? {
+        regular: fontFamily!,
+        medium: fontFamily!,
+        semibold: fontFamily!,
+        bold: fontFamily!,
+        italic: fontFamily!,
+        boldItalic: fontFamily!,
+      }
+    : { ...LATIN_FONTS };
+
+  // Nastaliq glyphs render visually large, so sizes shrink a little, and
+  // their deep descenders need generous line boxes. iOS clips tall glyphs
+  // sooner than Android, so Urdu gets extra headroom there.
+  const fs = (value: number) => (urdu ? Math.round(value * 0.9) : value);
+  const lh = (value: number) =>
+    urdu ? Math.round(value * (Platform.OS === 'ios' ? 1.8 : 1.6)) : value;
+
+  // Latin text picks an explicit Inter face per weight (no fontWeight —
+  // static faces would be double-bolded on Android otherwise). Urdu keeps
+  // fontWeight so Android synthesizes the bolder headings.
+  const face = (weight: WeightKey): TextStyle =>
+    urdu
+      ? { fontFamily: fontFamily!, includeFontPadding: false, fontWeight: weights[weight] }
+      : { fontFamily: families[weight] };
 
   return {
     sizes,
     weights,
+    families,
     heading: {
       h1: {
-        ...font,
+        ...face('bold'),
         fontSize: fs(sizes['3xl']),
         lineHeight: lh(36),
-        fontWeight: weights.bold,
       } as TextStyle,
       h2: {
-        ...font,
+        ...face('bold'),
         fontSize: fs(sizes['2xl']),
         lineHeight: lh(32),
-        fontWeight: weights.bold,
       } as TextStyle,
       h3: {
-        ...font,
+        ...face('semibold'),
         fontSize: fs(sizes.xl),
         lineHeight: lh(28),
-        fontWeight: weights.semibold,
       } as TextStyle,
       h4: {
-        ...font,
+        ...face('semibold'),
         fontSize: fs(sizes.lg),
         lineHeight: lh(28),
-        fontWeight: weights.semibold,
       } as TextStyle,
     },
     body: {
       lg: {
-        ...font,
+        ...face('regular'),
         fontSize: fs(sizes.lg),
         lineHeight: lh(28),
-        fontWeight: weights.regular,
       } as TextStyle,
       base: {
-        ...font,
+        ...face('regular'),
         fontSize: fs(sizes.base),
         lineHeight: lh(24),
-        fontWeight: weights.regular,
       } as TextStyle,
       sm: {
-        ...font,
+        ...face('regular'),
         fontSize: fs(sizes.sm),
         lineHeight: lh(20),
-        fontWeight: weights.regular,
       } as TextStyle,
       xs: {
-        ...font,
+        ...face('regular'),
         fontSize: fs(sizes.xs),
         lineHeight: lh(16),
-        fontWeight: weights.regular,
       } as TextStyle,
     },
     label: {
       base: {
-        ...font,
+        ...face('medium'),
         fontSize: fs(sizes.sm),
         lineHeight: lh(20),
-        fontWeight: weights.medium,
       } as TextStyle,
       sm: {
-        ...font,
+        ...face('medium'),
         fontSize: fs(sizes.xs),
         lineHeight: lh(16),
-        fontWeight: weights.medium,
       } as TextStyle,
     },
     button: {
-      ...font,
+      ...face('semibold'),
       fontSize: fs(sizes.base),
       lineHeight: lh(24),
-      fontWeight: weights.semibold,
     } as TextStyle,
   };
 }
