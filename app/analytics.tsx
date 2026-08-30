@@ -21,6 +21,7 @@ import { Card } from '../src/components/ui/Card';
 import { AdherenceRing } from '../src/components/progress/AdherenceRing';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { MonthCalendar } from '../src/components/progress/MonthCalendar';
+import { Skeleton, SkeletonCard } from '../src/components/ui/Skeleton';
 import { getDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
 import { generateAnalyticsReportPdf } from '../src/utils/pdf';
@@ -44,7 +45,7 @@ interface WeeklyStats {
 type Period = '7d' | '30d' | '90d' | 'all';
 
 export default function AnalyticsScreen() {
-  const { colors, typography: typ, spacing } = useTheme();
+  const { colors, typography: typ, spacing, borderRadius } = useTheme();
   const { t, language } = useI18n();
   const locale = language === 'ur' ? 'ur-PK' : 'en-US';
   const router = useRouter();
@@ -251,10 +252,20 @@ export default function AnalyticsScreen() {
   };
 
   if (loading) {
+    // Skeleton stand-ins instead of a bare spinner (UX21)
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary }}>
-        <ActivityIndicator size="large" color={colors.accent.primary} />
-      </View>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+        <View style={{ paddingTop: spacing.md, paddingHorizontal: spacing.base, paddingBottom: spacing.md, backgroundColor: colors.background.surface }}>
+          <Skeleton width="50%" height={22} />
+          <Skeleton width="35%" height={14} style={{ marginTop: 6 }} />
+        </View>
+        <View style={{ padding: spacing.base, gap: spacing.md }}>
+          <Skeleton width="100%" height={44} borderRadius={borderRadius.md} />
+          <Skeleton height={220} borderRadius={borderRadius.lg} />
+          <SkeletonCard />
+          <SkeletonCard />
+        </View>
+      </SafeAreaView>
     );
   }
 

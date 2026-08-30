@@ -18,6 +18,7 @@ import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { Skeleton, SkeletonCard } from '../../src/components/ui/Skeleton';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { ScheduleTimeline } from '../../src/components/medicine/ScheduleTimeline';
 import { NextDoseHero } from '../../src/components/medicine/NextDoseHero';
@@ -49,6 +50,8 @@ export default function HomeScreen() {
   const [adherence, setAdherence] = useState(0);
   const [streak, setStreak] = useState(0);
   const [weeklyData, setWeeklyData] = useState<{ day: string; percentage: number }[]>([]);
+  // First load in flight — skeletons instead of a misleading empty state (UX21)
+  const [loading, setLoading] = useState(true);
   const [celebration, setCelebration] = useState<{ title: string; subtitle: string } | null>(null);
   const { showUndoToast, undoToastElement } = useUndoToast();
   // Dose actions change inventory — keep the react-query medicine cache fresh
@@ -198,6 +201,8 @@ export default function HomeScreen() {
       void syncDoseNotifications();
     } catch {
       // Silently handle — offline mode is fine
+    } finally {
+      setLoading(false);
     }
   }, [locale]);
 
@@ -458,6 +463,15 @@ export default function HomeScreen() {
         )}
 
         {/* Next dose hero */}
+        {loading ? (
+          // Skeleton stand-ins while today's data loads (UX21)
+          <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.lg, gap: spacing.md }}>
+            <Skeleton height={150} borderRadius={borderRadius.lg} />
+            <SkeletonCard />
+            <SkeletonCard />
+          </View>
+        ) : (
+          <>
         {hasSchedule && (
           <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.lg }}>
             <NextDoseHero items={todayItems} onTaken={handleTaken} />
@@ -516,6 +530,8 @@ export default function HomeScreen() {
             )}
           </View>
         </View>
+          </>
+        )}
 
         {/* Weekly Chart */}
         {hasSchedule && (
