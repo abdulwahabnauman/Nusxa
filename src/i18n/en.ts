@@ -477,7 +477,7 @@ export const en = {
     databaseNotReady: 'The database is not ready yet. Please try again in a moment.',
     saveNameFailed: 'Your name could not be saved. Please try again.',
     biometricFallback: 'Biometric check did not succeed. Your PIN will be used instead.',
-    exportFailed: 'The data could not be exported.',
+    exportFailed: 'The data could not be exported. {error}',
     apiKeyRemoved: 'API key removed.',
     importComplete: 'Import complete. Restored {medicines} medicines, {schedules} schedules and {doseRecords} dose records.',
     importFailed: 'Import failed. {error}',

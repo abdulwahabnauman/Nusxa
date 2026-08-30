@@ -310,8 +310,11 @@ export default function SettingsScreen() {
         })
       );
       showToast(t.settings.encryptedBackupReady, 'success');
-    } catch {
-      showToast(t.toasts.exportFailed, 'error');
+    } catch (err) {
+      // The export pipeline tags each step, so the toast says exactly what failed
+      console.error('[backup] encrypted export failed:', err);
+      const detail = err instanceof Error && err.message ? err.message : '';
+      showToast(t.toasts.exportFailed.replace('{error}', detail).trim(), 'error', 6000);
     } finally {
       setEncBusy(false);
     }
@@ -828,8 +831,10 @@ export default function SettingsScreen() {
                       dialogTitle: 'Export Nusxa data',
                     })
                   );
-                } catch {
-                  showToast(t.toasts.exportFailed, 'error');
+                } catch (err) {
+                  console.error('[backup] plain export failed:', err);
+                  const detail = err instanceof Error && err.message ? err.message : '';
+                  showToast(t.toasts.exportFailed.replace('{error}', detail).trim(), 'error', 6000);
                 }
               }}
               accessibilityLabel="Export data as JSON"

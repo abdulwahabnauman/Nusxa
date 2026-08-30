@@ -462,7 +462,7 @@ export const ur: TranslationKeys = {
     databaseNotReady: 'ڈیٹا بیس ابھی تیار نہیں۔ براہ کرم چند لمحوں بعد دوبارہ کوشش کریں۔',
     saveNameFailed: 'آپ کا نام محفوظ نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔',
     biometricFallback: 'بائیومیٹرک تصدیق ناکام رہی۔ اس کی بجائے پن استعمال کیا جائے گا۔',
-    exportFailed: 'ڈیٹا ایکسپورٹ نہیں ہو سکا۔',
+    exportFailed: 'ڈیٹا ایکسپورٹ نہیں ہو سکا۔ {error}',
     apiKeyRemoved: 'API کی ہٹا دی گئی۔',
     importComplete: 'درآمد مکمل ہو گئی۔ {medicines} ادویات، {schedules} شیڈولز اور {doseRecords} خوراک کے ریکارڈ بحال ہوئے۔',
     importFailed: 'درآمد ناکام۔ {error}',

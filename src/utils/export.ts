@@ -9,6 +9,20 @@ import { getAllPrescriptions } from '../db/repositories/prescription';
 import { loadChatHistory, saveChatHistory } from './chatHistory';
 import type { Medicine, DoseRecord } from '../types/models';
 
+/**
+ * Wrap one backup data source so a failed read identifies itself — the
+ * settings screen shows the resulting message verbatim, so a broken backup
+ * says WHICH section failed instead of a generic "could not be exported".
+ */
+async function collect<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    const detail = err instanceof Error && err.message ? err.message : String(err);
+    throw new Error(`Failed reading ${label} — ${detail}`);
+  }
+}
+
 /** Export all app data as a JSON object (full dose history — a real backup) */
 export async function exportAsJSON(): Promise<Record<string, unknown>> {
   const [
@@ -22,11 +36,12 @@ export async function exportAsJSON(): Promise<Record<string, unknown>> {
     readingHistory,
     chatHistory,
   ] = await Promise.all([
-    getProfile(),
-    getAllPrescriptions(),
-    getActiveMedicines(),
-    getActiveSchedules(),
-    getAllDoseRecords(),
+    collect('profile', getProfile),
+    collect('prescriptions', getAllPrescriptions),
+    collect('medicines', getActiveMedicines),
+    collect('schedules', getActiveSchedules),
+    collect('dose records', getAllDoseRecords),
+    // Optional sections guard themselves and degrade to empty lists
     getKVState(),
     getEducationBookmarks(),
     getEducationReadingHistory(),
@@ -108,7 +123,13 @@ export const ENCRYPTED_BACKUP_FORMAT = 'nusxa-encrypted-backup';
 /** Build an encrypted backup envelope (JSON string) protected by a password */
 export async function createEncryptedBackup(password: string): Promise<string> {
   const data = await exportAsJSON();
-  const cipher = CryptoJS.AES.encrypt(JSON.stringify(data), password).toString();
+  let cipher: string;
+  try {
+    cipher = CryptoJS.AES.encrypt(JSON.stringify(data), password).toString();
+  } catch (err) {
+    const detail = err instanceof Error && err.message ? err.message : String(err);
+    throw new Error(`Encryption failed — ${detail}`);
+  }
   return JSON.stringify({
     exportFormat: ENCRYPTED_BACKUP_FORMAT,
     exportVersion: 1,
