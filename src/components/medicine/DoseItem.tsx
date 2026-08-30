@@ -47,12 +47,12 @@ export function DoseItem({
   onSkip,
 }: DoseItemProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
 
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
-  const [rangeStart, rangeEnd] = getTimeRangeParts(time, windowMinutes ?? 120);
+  const [rangeStart, rangeEnd] = getTimeRangeParts(time, windowMinutes ?? 120, language);
   const timeLabel = t.dose.timeRange
     .replace('{start}', nf(rangeStart))
     .replace('{end}', nf(rangeEnd));
@@ -135,7 +135,7 @@ export function DoseItem({
           ]}
         >
           <MaterialCommunityIcons name="check" size={24} color="#FFFFFF" />
-          <Text style={[typography.label.sm, { color: '#FFFFFF', marginLeft: 6 }]}>{t.dose.taken}</Text>
+          <Text style={[typography.label.sm, { color: '#FFFFFF', marginStart: 6 }]}>{t.dose.taken}</Text>
         </Animated.View>
       )}
 
@@ -163,7 +163,7 @@ export function DoseItem({
             <MaterialCommunityIcons name={STATUS_ICONS[status]} size={22} color={statusColor} />
           </Animated.View>
         </View>
-        <View style={{ marginLeft: 12, flex: 1 }}>
+        <View style={{ marginStart: 12, flex: 1 }}>
           <Text style={[typography.body.base, { color: colors.text.primary }]}>
             {timeLabel}
           </Text>
@@ -172,7 +172,11 @@ export function DoseItem({
           </Text>
           {mealInstruction && mealInstruction !== 'none' && (
             <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 1 }]}>
-              {mealInstruction} meals
+              {mealInstruction === 'before'
+                ? t.dose.beforeMeals
+                : mealInstruction === 'with'
+                  ? t.dose.withMeals
+                  : t.dose.afterMeals}
             </Text>
           )}
         </View>
@@ -221,7 +225,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
-    paddingLeft: 16,
+    paddingStart: 16,
   },
   left: {
     flexDirection: 'row',

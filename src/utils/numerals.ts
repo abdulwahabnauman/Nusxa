@@ -1,7 +1,7 @@
 /**
  * Eastern Arabic (Urdu) numeral helpers.
- * When the user enables "Eastern Arabic numerals" in Settings, digits
- * throughout the app are rendered as ۰۱۲۳۴۵۶۷۸۹ instead of 0123456789.
+ * Numeral style follows the app language — Urdu always renders digits as
+ * ۰۱۲۳۴۵۶۷۸۹ (the settings store derives `easternNumerals` from language).
  */
 
 const EASTERN_DIGITS = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];

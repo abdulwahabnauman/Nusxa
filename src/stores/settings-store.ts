@@ -8,6 +8,7 @@ interface SettingsState {
   notificationsEnabled: boolean;
   reminderEscalation: boolean;
   reducedMotion: boolean;
+  /** Derived from language: Urdu always renders Eastern Arabic-Urdu digits */
   easternNumerals: boolean;
   useOwnKeys: boolean;
   snoozeMinutes: number;
@@ -15,7 +16,6 @@ interface SettingsState {
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
-  setEasternNumerals: (enabled: boolean) => void;
   setUseOwnKeys: (enabled: boolean) => void;
   setSnoozeMinutes: (minutes: number) => void;
 }
@@ -33,6 +33,14 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
       use_own_keys: state.useOwnKeys,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Database not initialized')) {
+      // Boot race: a preference changed before openDatabase() finished —
+      // nothing to persist yet, and the UI isn't interactive until after
+      // init, so there is no user change to lose.
+      console.debug('Settings save skipped: database not ready yet');
+      return;
+    }
     console.error('Failed to save settings to database:', error);
   }
 };
@@ -46,7 +54,7 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
         language: (profile.language as Language) || 'en',
         notificationsEnabled: !!profile.notifications_enabled,
         reducedMotion: !!profile.reduced_motion,
-        easternNumerals: !!profile.eastern_numerals,
+        easternNumerals: ((profile.language as Language) || 'en') === 'ur',
         snoozeMinutes: profile.snooze_minutes ?? 10,
         reminderEscalation: profile.reminder_escalation ?? true,
         useOwnKeys: profile.use_own_keys ?? false,
@@ -84,7 +92,7 @@ export async function hydrateSettings(): Promise<void> {
     language: loaded.language || 'en',
     notificationsEnabled: loaded.notificationsEnabled ?? true,
     reducedMotion: loaded.reducedMotion ?? false,
-    easternNumerals: loaded.easternNumerals ?? false,
+    easternNumerals: (loaded.language || 'en') === 'ur',
     snoozeMinutes: loaded.snoozeMinutes ?? 10,
     reminderEscalation: loaded.reminderEscalation ?? true,
     useOwnKeys: loaded.useOwnKeys ?? false,
@@ -101,7 +109,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       language: initialSettings.language || 'en',
       notificationsEnabled: initialSettings.notificationsEnabled ?? true,
       reducedMotion: initialSettings.reducedMotion ?? false,
-      easternNumerals: initialSettings.easternNumerals ?? false,
+      easternNumerals: (initialSettings.language || 'en') === 'ur',
       snoozeMinutes: initialSettings.snoozeMinutes ?? 10,
       reminderEscalation: initialSettings.reminderEscalation ?? true,
       useOwnKeys: initialSettings.useOwnKeys ?? false,
@@ -119,7 +127,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     snoozeMinutes: 10,
     
     setLanguage: (language) => {
-      set({ language });
+      // Numeral style follows the language: Urdu always shows ۰۱۲۳۴۵۶۷۸۹
+      set({ language, easternNumerals: language === 'ur' });
       saveSettingsToDatabase(get());
     },
     
@@ -135,11 +144,6 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     
     setReducedMotion: (reducedMotion) => {
       set({ reducedMotion });
-      saveSettingsToDatabase(get());
-    },
-
-    setEasternNumerals: (easternNumerals) => {
-      set({ easternNumerals });
       saveSettingsToDatabase(get());
     },
 

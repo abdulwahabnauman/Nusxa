@@ -173,13 +173,14 @@ export default function ScheduleScreen() {
                   color={colors.accent.primary}
                   contrastColor={colors.background.primary}
                 />
-                <View style={{ marginLeft: 8, flex: 1 }}>
+                <View style={{ marginStart: 8, flex: 1 }}>
                   <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
                     {schedule.medicineName}
                   </Text>
                   <Text style={[typography.body.sm, { color: colors.text.secondary }]}>
                     {schedule.dosage}, {schedule.frequency}
-                    {schedule.mealInstruction !== 'none' && `, ${schedule.mealInstruction} meals`}
+                    {schedule.mealInstruction !== 'none' &&
+                      `, ${schedule.mealInstruction === 'before' ? t.dose.beforeMeals : schedule.mealInstruction === 'with' ? t.dose.withMeals : t.dose.afterMeals}`}
                   </Text>
                 </View>
               </View>

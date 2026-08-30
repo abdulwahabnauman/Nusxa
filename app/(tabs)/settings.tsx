@@ -146,7 +146,6 @@ export default function SettingsScreen() {
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
-  const setEasternNumerals = useSettingsStore((s) => s.setEasternNumerals);
   const useOwnKeys = useSettingsStore((s) => s.useOwnKeys);
   const setUseOwnKeys = useSettingsStore((s) => s.setUseOwnKeys);
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
@@ -222,7 +221,6 @@ export default function SettingsScreen() {
         s.setNotificationsEnabled(restored.notifications_enabled);
         s.setReminderEscalation(restored.reminder_escalation ?? true);
         s.setReducedMotion(restored.reduced_motion);
-        s.setEasternNumerals(restored.eastern_numerals ?? false);
         s.setSnoozeMinutes(restored.snooze_minutes ?? 10);
       }
     } catch { /* profile section refreshes on next load */ }
@@ -697,13 +695,6 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
-            </View>
-            <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.easternNumerals}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.easternNumeralsDesc}</Text>
-              </View>
-              <Switch value={easternNumerals} onValueChange={(v) => { selectionHaptic(); setEasternNumerals(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle Eastern Arabic numerals" />
             </View>
           </Card>
         </View>
