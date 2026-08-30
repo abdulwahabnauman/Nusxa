@@ -144,7 +144,7 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
         }}
         accessibilityLabel="Undo last action"
       >
-        <Text style={[typography.label.base, { color: colors.accent.primary, fontWeight: '700' }]}>
+        <Text style={[typography.label.base, { color: colors.accent.primary, fontFamily: typography.families.bold }]}>
           {t.common.undo.toUpperCase()}
         </Text>
       </TouchableOpacity>
