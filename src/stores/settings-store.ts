@@ -16,11 +16,7 @@ interface SettingsState {
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
-<<<<<<< Updated upstream
-  setEasternNumerals: (enabled: boolean) => void;
   setUseOwnKeys: (enabled: boolean) => void;
-=======
->>>>>>> Stashed changes
   setSnoozeMinutes: (minutes: number) => void;
 }
 
@@ -151,19 +147,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       saveSettingsToDatabase(get());
     },
 
-<<<<<<< Updated upstream
-    setEasternNumerals: (easternNumerals) => {
-      set({ easternNumerals });
-      saveSettingsToDatabase(get());
-    },
-
     setUseOwnKeys: (useOwnKeys) => {
       set({ useOwnKeys });
       saveSettingsToDatabase(get());
     },
 
-=======
->>>>>>> Stashed changes
     setSnoozeMinutes: (snoozeMinutes) => {
       set({ snoozeMinutes });
       saveSettingsToDatabase(get());
