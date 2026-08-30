@@ -47,7 +47,7 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
         val ids = manager.getAppWidgetIds(
           ComponentName(context, NextDoseWidgetProvider::class.java)
         )
-        if (ids.isNullOrEmpty()) return
+        if (ids.isEmpty()) return
         NextDoseWidgetProvider().onUpdate(context, manager, ids)
       } catch (e: Exception) {
         // Widget host unavailable — nothing to refresh
