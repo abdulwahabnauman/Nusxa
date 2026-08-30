@@ -12,6 +12,7 @@
     "prebuild:android": "expo prebuild --platform android"
   },
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-navigation/native": "^7.0.0",
     "@tanstack/react-query": "^5.60.0",
