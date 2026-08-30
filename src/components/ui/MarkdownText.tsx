@@ -15,48 +15,49 @@ export function parseMarkdown(text: string, textColor?: string): React.ReactNode
     let remaining = content;
 
     while (remaining.length > 0) {
-      // Bold: **text** or __text__
-      const boldMatch = remaining.match(/\*\*([^*]+)\*\*/);
-      if (boldMatch && boldMatch.index !== undefined) {
-        if (boldMatch.index > 0) {
-          parts.push(remaining.slice(0, boldMatch.index));
+      // Pick the earliest complete match by position (bold wins ties with
+      // italic), so a code span earlier in the line isn't skipped just
+      // because an italic span exists later.
+      const candidates = [
+        { match: remaining.match(/\*\*([^*]+)\*\*/), style: styles.bold },
+        { match: remaining.match(/\*([^*]+)\*/), style: styles.italic },
+        { match: remaining.match(/`([^`]+)`/), style: styles.code },
+      ].filter((c) => c.match && c.match.index !== undefined);
+
+      if (candidates.length > 0) {
+        const best = candidates.reduce((a, b) => (b.match!.index! < a.match!.index! ? b : a));
+        const m = best.match!;
+        if (m.index! > 0) {
+          parts.push(remaining.slice(0, m.index));
         }
         parts.push(
-          <Text key={parts.length} style={styles.bold}>
-            {boldMatch[1]}
+          <Text key={parts.length} style={best.style}>
+            {m[1]}
           </Text>
         );
-        remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+        remaining = remaining.slice(m.index! + m[0].length);
         continue;
       }
 
-      // Italic: *text* or _text_
-      const italicMatch = remaining.match(/\*([^*]+)\*/);
-      if (italicMatch && italicMatch.index !== undefined) {
-        if (italicMatch.index > 0) {
-          parts.push(remaining.slice(0, italicMatch.index));
+      // Streaming fallback: a marker opened but its closing pair hasn't
+      // arrived yet (word-by-word reveal). Complete pairs were already
+      // consumed above, so the first remaining marker is unclosed — format
+      // everything after it now instead of flashing raw **/* /` until the
+      // span closes.
+      const danglingMatch = remaining.match(/\*\*|`|\*/);
+      if (danglingMatch && danglingMatch.index !== undefined) {
+        if (danglingMatch.index > 0) {
+          parts.push(remaining.slice(0, danglingMatch.index));
         }
+        const marker = danglingMatch[0];
+        const danglingStyle =
+          marker === '`' ? styles.code : marker === '**' ? styles.bold : styles.italic;
         parts.push(
-          <Text key={parts.length} style={styles.italic}>
-            {italicMatch[1]}
+          <Text key={parts.length} style={danglingStyle}>
+            {remaining.slice(danglingMatch.index + marker.length)}
           </Text>
         );
-        remaining = remaining.slice(italicMatch.index + italicMatch[0].length);
-        continue;
-      }
-
-      // Code: `code`
-      const codeMatch = remaining.match(/`([^`]+)`/);
-      if (codeMatch && codeMatch.index !== undefined) {
-        if (codeMatch.index > 0) {
-          parts.push(remaining.slice(0, codeMatch.index));
-        }
-        parts.push(
-          <Text key={parts.length} style={styles.code}>
-            {codeMatch[1]}
-          </Text>
-        );
-        remaining = remaining.slice(codeMatch.index + codeMatch[0].length);
+        remaining = '';
         continue;
       }
 
