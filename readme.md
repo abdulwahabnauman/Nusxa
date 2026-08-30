@@ -781,7 +781,14 @@ Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus 
 
 - Long-pressing the Nusxa launcher icon on Android now offers a **"Today's doses"** static app shortcut. It fires the `nusxa://` deep link, which expo-router resolves to the Home tab — next-dose hero card + today's dose timeline.
 - Implemented as a local Expo config plugin (`plugins/with-today-shortcut.js`) that writes `res/xml/shortcuts.xml` + label strings and registers the `android.app.shortcuts` meta-data, so the shortcut survives `expo prebuild`. The same files were applied directly to the committed `android/` project so the current native build picks it up without regeneration.
-- Best-effort by design: a true home-screen *widget* would need a native AppWidgetProvider and is out of scope for this batch.
+- Best-effort by design: a true home-screen *widget* would need a native AppWidgetProvider — shipped later (see the "Next-dose home-screen widget" entry below).
+
+### ✅ Next-dose home-screen widget (Android)
+
+- A real Android home-screen **widget** (audit Feature 11): brand-navy card showing today's NEXT dose — medicine name, dosage, reminder time in 12-hour format — with a one-tap **Taken** button. Tapping the card itself opens the app (Home tab via the `nusxa://` deep link).
+- **Same database, same semantics as the app.** `NextDoseWidgetProvider` (Kotlin) opens the very `databases/nusxa.db` file expo-sqlite uses and mirrors the JS queries: active schedules ⋈ active prescriptions ⋈ non-deleted medicines, within start/end dates, excluding slots that already have a dose record today. The Taken button writes dose records exactly like `upsertDoseStatus()` — one record per schedule per day (update if present, insert otherwise) — and decrements tracked inventory, so Home, History and Analytics never drift from widget taps.
+- **Stays fresh**: refreshes every 30 min (`updatePeriodMillis`), on the day rollover (`ACTION_DATE_CHANGED` / `ACTION_TIME_SET` broadcasts), immediately after a Taken tap, and on every app resume (`MainActivity.onResume` → `refreshAll`). Empty states handled: "All doses taken today ✓" when the regimen is done, "No doses scheduled today" when there is nothing (or the DB doesn't exist yet).
+- **Survives `expo prebuild`** via the config plugin `plugins/with-next-dose-widget.js`: canonical sources live in `plugins/widget-files/` (Kotlin provider + layout + appwidget-provider metadata + strings + drawables); the plugin copies them into the native project, registers the `.NextDoseWidgetProvider` receiver in the manifest, and idempotently injects the `onResume` refresh into `MainActivity.kt`. Registered in `app.json → plugins` next to `with-today-shortcut`.
 
 ### ✅ Crash fix — startup `NoSuchMethodError` in FontLoaderModule
 

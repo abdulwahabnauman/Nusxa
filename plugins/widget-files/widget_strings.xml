@@ -1,0 +1,7 @@
+<resources>
+  <string name="widget_label">Next dose</string>
+  <string name="widget_description">Today\'s next dose with a one-tap Taken button</string>
+  <string name="widget_taken_button">Taken</string>
+  <string name="widget_all_done">All doses taken today ✓</string>
+  <string name="widget_no_doses">No doses scheduled today</string>
+</resources>

@@ -58,7 +58,8 @@
       "expo-sqlite",
       "expo-secure-store",
       "expo-asset",
-      "./plugins/with-today-shortcut"
+      "./plugins/with-today-shortcut",
+      "./plugins/with-next-dose-widget"
     ],
     "experiments": {
       "typedRoutes": true
