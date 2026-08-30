@@ -44,7 +44,7 @@ function todaysDateFor(time: string): Date {
 
 export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const { colors, typography: typ, spacing } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const snoozeMinutes = useSettingsStore((s) => s.snoozeMinutes);
   const setSnoozeMinutes = useSettingsStore((s) => s.setSnoozeMinutes);
@@ -104,7 +104,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   if (pending.length === 0) {
     if (items.some((item) => item.status === 'missed')) return null;
     return (
-      <View style={[styles.hero, { backgroundColor: colors.success + '1A', borderColor: colors.success + '33', borderLeftWidth: 3, borderLeftColor: colors.success }]}>
+      <View style={[styles.hero, { backgroundColor: colors.success + '1A', borderColor: colors.success + '33', borderStartWidth: 3, borderStartColor: colors.success }]}>
         <View style={[styles.iconBubble, { backgroundColor: colors.success + '26' }]}>
           <MaterialCommunityIcons name="check-circle" size={26} color={colors.success} />
         </View>
@@ -128,7 +128,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const snoozeEntry = snoozedUntil[next.scheduleId];
   const isSnoozed = !!snoozeEntry && snoozeEntry.until > now;
 
-  const [rangeStart, rangeEnd] = getTimeRangeParts(next.time, next.windowMinutes ?? 120);
+  const [rangeStart, rangeEnd] = getTimeRangeParts(next.time, next.windowMinutes ?? 120, language);
   const windowLabel = t.dose.timeRange
     .replace('{start}', nf(rangeStart))
     .replace('{end}', nf(rangeEnd));
@@ -176,8 +176,8 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
         {
           backgroundColor: colors.background.surface,
           borderColor: colors.border.default,
-          borderLeftWidth: 3,
-          borderLeftColor: heroTint,
+          borderStartWidth: 3,
+          borderStartColor: heroTint,
         },
       ]}
     >
@@ -216,7 +216,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           </View>
         </View>
 
-        <View style={{ flex: 1, marginLeft: spacing.md }}>
+        <View style={{ flex: 1, marginStart: spacing.md }}>
           <Text
             style={[
               typ.body.xs,
@@ -252,7 +252,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           accessibilityLabel={`Mark ${next.medicineName} as taken`}
         >
           <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
-          <Text style={[typ.label.base, { color: '#FFFFFF', marginLeft: 6 }]}>
+          <Text style={[typ.label.base, { color: '#FFFFFF', marginStart: 6 }]}>
             {t.home.take}
           </Text>
         </TouchableOpacity>
@@ -275,7 +275,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
                 typ.label.base,
                 {
                   color: colors.text.secondary,
-                  marginLeft: 6,
+                  marginStart: 6,
                 },
               ]}
             >
