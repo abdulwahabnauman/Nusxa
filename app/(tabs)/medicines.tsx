@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useMemo, memo } from 'react';
+import React, { useCallback, useState, useMemo, memo, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import { MedicineCard } from '../../src/components/medicine/MedicineCard';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { useActiveMedicines, MedicineWithInfo } from '../../src/hooks/queries';
 import { findInteractionPairs } from '../../src/utils/interactions';
+import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
 
 /** Memoized row so list scrolls stay cheap even with many medicines */
 const MedicineRow = memo(function MedicineRow({
@@ -57,6 +58,10 @@ export default function MedicinesScreen() {
     isLoading: loading,
     refetch,
   } = useActiveMedicines();
+  const listRef = useRef<FlatList<MedicineWithInfo>>(null);
+  useTabScrollReset(
+    useCallback(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), [])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -187,6 +192,7 @@ export default function MedicinesScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <FlatList
+        ref={listRef}
         data={medicines}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
