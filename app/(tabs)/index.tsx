@@ -488,10 +488,10 @@ export default function HomeScreen() {
                 accessibilityLabel={`Take all ${takeAllGroup.length} doses scheduled at ${takeAllGroup[0]!.time}`}
               >
                 <MaterialCommunityIcons name="check-all" size={20} color={colors.accent.primary} />
-                <Text style={[typography.label.base, { color: colors.accent.primary, marginLeft: 8 }]}>
+                <Text style={[typography.label.base, { color: colors.accent.primary, marginStart: 8 }]}>
                   {t.home.takeAll
                     .replace('{n}', String(takeAllGroup.length))
-                    .replace('{time}', formatTime12h(takeAllGroup[0]!.time))}
+                    .replace('{time}', formatTime12h(takeAllGroup[0]!.time, language))}
                 </Text>
               </TouchableOpacity>
             )}
