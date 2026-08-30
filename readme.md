@@ -78,7 +78,7 @@ nusxa/
 ├── app/                          # Screens (Expo Router file-based routing)
 │   ├── _layout.tsx               # Root layout — providers, DB init, auth check
 │   ├── onboarding.tsx            # First-run flow (name, permissions)
-│   ├── scan.tsx                  # Camera + gallery image picker
+│   ├── scan.tsx                  # Camera + gallery picker (tap-to-focus, flash, low-light warning)
 │   ├── processing.tsx            # AI pipeline progress screen
 │   ├── review.tsx                # Prescription review + field editing
 │   ├── schedule.tsx              # Schedule confirmation (creates DB records + notifications)
@@ -558,7 +558,6 @@ A complete educational content system for medication literacy:
 | **RTL layout testing** | 🟡 MEDIUM | Not exercised | Low-Medium | After Urdu translations, test RTL layout. May need `flexDirection: 'row-reverse'` adjustments. |
 | **Background notifications** | 🟡 MEDIUM | Expo Go limitation | N/A | Works in production builds. Dev client or APK needed for background execution. |
 | **Push notifications (Firebase)** | ⏸️ DEFERRED | Decided against for now | — | Local scheduled notifications are delivered by the OS even when the app is killed. True server-triggered push needs a Firebase project + a backend sender; revisit when a backend exists. |
-| **Camera tap-to-focus** | 🟢 LOW | Basic only | Low | Add manual focus indicator to scanner. Improves scanning UX. |
 
 ### 💡 SUGGESTED ENHANCEMENTS (My Recommendations)
 

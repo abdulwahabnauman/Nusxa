@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -41,6 +41,26 @@ const MAX_ZOOM = 4;
 const SCAN_FRAME_WIDTH = 280;
 const SCAN_FRAME_HEIGHT = 320;
 
+type FlashMode = 'off' | 'auto' | 'on';
+const FLASH_ORDER: FlashMode[] = ['off', 'auto', 'on'];
+
+/**
+ * Low-light heuristic from the captured photo's EXIF: a negative-ish
+ * BrightnessValue (APEX) or a heavily-boosted ISO both mean the sensor was
+ * starved of light, which degrades OCR quality. Best-effort — devices that
+ * omit these tags simply produce no warning.
+ */
+function looksDim(exif: Record<string, unknown> | undefined): boolean {
+  if (!exif) return false;
+  const bv = Number(exif.BrightnessValue ?? exif.brightnessValue);
+  if (!Number.isNaN(bv) && exif.BrightnessValue !== undefined) return bv < 1.5;
+  let isoRaw = exif.ISOSpeedRatings ?? exif.ISO ?? exif.iso;
+  if (Array.isArray(isoRaw)) isoRaw = isoRaw[0];
+  const iso = Number(isoRaw);
+  if (!Number.isNaN(iso) && iso > 0) return iso >= 800;
+  return false;
+}
+
 export default function ScanScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
@@ -48,6 +68,12 @@ export default function ScanScreen() {
   const [permission, requestPermission] = useCameraPermissions();
   const [cameraActive, setCameraActive] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [flashMode, setFlashMode] = useState<FlashMode>('off');
+  // Set when the captured photo's EXIF suggests low light — surfaces a
+  // non-blocking banner on the preview screen (audit UX12).
+  const [lowLight, setLowLight] = useState(false);
+  // Brief one-shot guidance shown when the camera first opens
+  const [showFocusHint, setShowFocusHint] = useState(false);
   const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null);
   // Toggling autofocus 'on' forces the camera to run one fresh AF pass
   // (expo-camera exposes no coordinate-based tap-focus API), then flipping
@@ -131,6 +157,14 @@ export default function ScanScreen() {
     ],
   }));
 
+  // Show the focus/light guidance for a few seconds when the camera opens
+  useEffect(() => {
+    if (!cameraActive) return;
+    setShowFocusHint(true);
+    const timer = setTimeout(() => setShowFocusHint(false), 4000);
+    return () => clearTimeout(timer);
+  }, [cameraActive]);
+
   const handleRequestCamera = async () => {
     const result = await requestPermission();
     if (result.granted) {
@@ -191,8 +225,10 @@ export default function ScanScreen() {
         quality: 0.8,
         base64: false,
         skipProcessing: false,
+        exif: true,
       });
       if (photo?.uri) {
+        setLowLight(looksDim(photo.exif as Record<string, unknown> | undefined));
         // Camera shots are cropped to the focus box: everything outside the
         // guide frame is discarded. Any failure keeps the full photo so a
         // capture is never lost.
@@ -313,6 +349,7 @@ export default function ScanScreen() {
         const normalizedUri = await normalizeToScanAspect(result.assets[0].uri);
         const persistentUri = await persistImage(normalizedUri);
         setImageDims(null);
+        setLowLight(false);
         setCapturedImage(persistentUri ?? normalizedUri);
       }
     } catch (error) {
@@ -324,6 +361,7 @@ export default function ScanScreen() {
     setCapturedImage(null);
     setImageDims(null);
     setCropStage(false);
+    setLowLight(false);
     scale.value = MIN_ZOOM;
     tx.value = 0;
     ty.value = 0;
@@ -515,6 +553,15 @@ export default function ScanScreen() {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={styles.previewContainer}>
+          {/* Non-blocking quality warning when EXIF suggests low light */}
+          {lowLight && (
+            <View style={[styles.lowLightBanner, { backgroundColor: colors.warning + '1A', borderColor: colors.warning, marginHorizontal: spacing.base }]}>
+              <MaterialCommunityIcons name="lightbulb-outline" size={18} color={colors.warning} />
+              <Text style={[typography.body.xs, { color: colors.text.primary, flex: 1, marginLeft: 8 }]}>
+                {t.scanner.lowLightHint}
+              </Text>
+            </View>
+          )}
           <Image
             source={{ uri: capturedImage }}
             style={styles.previewImage}
@@ -569,7 +616,7 @@ export default function ScanScreen() {
           ref={cameraRef}
           style={StyleSheet.absoluteFill}
           facing="back"
-          enableTorch={false}
+          flash={flashMode}
           autofocus={focusBoost ? 'on' : 'off'}
         />
         {/* Tap to focus handler — Pressable exposes the tap coordinates */}
@@ -579,7 +626,15 @@ export default function ScanScreen() {
         />
         {/* Overlay guide */}
         <View style={styles.overlay}>
-          <View style={styles.overlayTop} />
+          <View style={styles.overlayTop}>
+            {/* One-shot guidance: steady + good light + tap to focus */}
+            {showFocusHint && (
+              <View style={styles.hintBar} pointerEvents="none">
+                <MaterialCommunityIcons name="image-filter-center-focus" size={16} color="#FFFFFF" />
+                <Text style={styles.focusHintText}>{t.scanner.focusHint}</Text>
+              </View>
+            )}
+          </View>
           <View style={styles.overlayMiddle}>
             <View style={styles.overlaySide} />
             <View style={[styles.scanFrame, { borderColor: colors.accent.primary }]}>
@@ -595,6 +650,21 @@ export default function ScanScreen() {
             <View style={styles.overlaySide} />
           </View>
           <View style={styles.overlayBottom}>
+            {/* Flash cycle: off → auto → on (low-light rescues blurry-ish dim shots) */}
+            <TouchableOpacity
+              style={[styles.flashButton, { backgroundColor: flashMode === 'off' ? 'rgba(255,255,255,0.15)' : colors.accent.primary }]}
+              onPress={() => {
+                const next = FLASH_ORDER[(FLASH_ORDER.indexOf(flashMode) + 1) % FLASH_ORDER.length] ?? flashMode;
+                setFlashMode(next);
+              }}
+              accessibilityLabel={t.scanner.flash}
+            >
+              <MaterialCommunityIcons
+                name={flashMode === 'off' ? 'flash-off' : flashMode === 'auto' ? 'flash-auto' : 'flash'}
+                size={22}
+                color="#FFFFFF"
+              />
+            </TouchableOpacity>
             <TouchableOpacity
               style={[styles.captureButton, { backgroundColor: colors.accent.primary }]}
               onPress={handleTakePhoto}
@@ -691,6 +761,25 @@ const styles = StyleSheet.create({
   overlayTop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingBottom: 12,
+  },
+  hintBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    marginHorizontal: 24,
+  },
+  focusHintText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    flexShrink: 1,
+    textAlign: 'center',
   },
   overlayMiddle: {
     flexDirection: 'row',
@@ -757,6 +846,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 24,
+  },
+  flashButton: {
+    position: 'absolute',
+    top: 16,
+    left: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  lowLightBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 4,
   },
   captureButton: {
     width: 72,
