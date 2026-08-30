@@ -736,7 +736,7 @@ export default function SettingsScreen() {
                   onValueChange={async (value) => {
                     if (value) {
                       const ok =
-                        (await authenticateWithBiometrics('Confirm biometric unlock')) ||
+                        (await authenticateWithBiometrics('Confirm biometric unlock')).ok ||
                         biometricDevBypass();
                       if (!ok) {
                         showToast(t.toasts.biometricFallback, 'error');
