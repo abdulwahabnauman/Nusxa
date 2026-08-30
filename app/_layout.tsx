@@ -22,6 +22,7 @@ import { useNotificationResponseHandler } from '../src/hooks/useNotificationHand
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
 import { BiometricLock } from '../src/components/ui/BiometricLock';
+import OnboardingScreen from './onboarding';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { GlobalToast } from '../src/components/ui/GlobalToast';
 import { isAppLockEnabled, isLockExemptOverlay } from '../src/utils/appLock';
@@ -262,6 +263,16 @@ function AppContent() {
     return () => sub.remove();
   }, []);
 
+  // Routes are file-based in expo-router, so conditionally declaring
+  // <Stack.Screen name="onboarding" /> never restricted navigation — the
+  // tabs rendered anyway and users could skip setup entirely (which also
+  // left the auth-store profile null, disabling the lock gate). Imperative
+  // router.replace() from here fights the native stack's surface lifecycle
+  // (remount loop), so onboarding is rendered as a full replacement gate,
+  // exactly like the lock screen: nothing underneath mounts until setup
+  // completes and setProfile() flips this off.
+  const showOnboarding = !profile || !profile.onboarding_complete || !profile.name;
+
   if (!dbReady || !isLoaded || !splashAnimationDone || !fontsLoaded) {
     return (
       <View style={[styles.loading, { backgroundColor: colors.background.primary }]}>
@@ -273,17 +284,20 @@ function AppContent() {
     );
   }
 
-  const showOnboarding = !profile || !profile.onboarding_complete || !profile.name;
-
   // Lock gate replaces the entire navigation stack — nothing underneath is
-  // reachable (or visible) until the user unlocks.
-  const lockGateActive = appLockEnabled && isLocked && !!profile;
+  // reachable (or visible) until the user unlocks. It must NOT depend on the
+  // auth-store profile: on installs where onboarding never completed, init
+  // returns early and profile stays null, which used to silently disable the
+  // gate even with app lock enabled — the app opened straight past the PIN.
+  const lockGateActive = appLockEnabled && isLocked;
 
   return (
     <View style={{ flex: 1, direction: language === 'ur' ? 'rtl' : 'ltr' }}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
       {lockGateActive ? (
         <BiometricLock onUnlock={() => setLocked(false)} />
+      ) : showOnboarding ? (
+        <OnboardingScreen />
       ) : (
       <Stack
         screenOptions={{
@@ -292,11 +306,8 @@ function AppContent() {
           animation: 'slide_from_right',
         }}
       >
-        {showOnboarding ? (
-          <Stack.Screen name="onboarding" />
-        ) : (
-          <Stack.Screen name="(tabs)" />
-        )}
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="onboarding" />
         <Stack.Screen name="scan" options={{ presentation: 'modal' }} />
         <Stack.Screen name="processing" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="review" options={{ presentation: 'card' }} />
