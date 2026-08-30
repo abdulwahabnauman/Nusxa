@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
+  AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -202,6 +203,31 @@ export default function HomeScreen() {
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // Day-rollover: if the app stays open past midnight, re-derive "today"
+  // so the schedule, streak and stats flip over without a manual refresh.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const armRollover = () => {
+      const midnight = new Date();
+      midnight.setHours(24, 0, 5, 0); // a few seconds past midnight for safety
+      timer = setTimeout(() => {
+        loadData();
+        armRollover();
+      }, midnight.getTime() - Date.now());
+    };
+    armRollover();
+    return () => clearTimeout(timer);
+  }, [loadData]);
+
+  // Returning to the foreground (possibly after midnight or new dose
+  // notifications) — cheap catch-up reload.
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') loadData();
+    });
+    return () => sub.remove();
   }, [loadData]);
 
   const onRefresh = useCallback(async () => {
