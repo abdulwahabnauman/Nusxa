@@ -4,13 +4,14 @@
  * short purpose snippet; tapping opens the per-medicine education detail.
  */
 
-import React, { memo, useCallback, useState } from 'react';
+import React, { memo, useCallback, useState, useRef } from 'react';
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { useI18n } from '../../src/i18n';
+import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
 import { Card } from '../../src/components/ui/Card';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
@@ -92,6 +93,10 @@ export default function EducationScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const listRef = useRef<FlatList<Medicine>>(null);
+  useTabScrollReset(
+    useCallback(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), [])
+  );
 
   const load = useCallback(async () => {
     try {
@@ -165,6 +170,7 @@ export default function EducationScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
       <FlatList
+        ref={listRef}
         data={medicines}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
