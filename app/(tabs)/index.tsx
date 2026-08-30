@@ -58,7 +58,9 @@ export default function HomeScreen() {
   // Dose actions change inventory — keep the react-query medicine cache fresh
   const invalidateData = useInvalidateData();
   const scrollRef = useRef<ScrollView>(null);
-  useTabScrollReset(scrollRef);
+  useTabScrollReset(
+    useCallback(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), [])
+  );
 
   // One-time catch-up: installs that skipped onboarding (upgrade installs,
   // permission auto-grants) never got asked for notifications. If the OS
