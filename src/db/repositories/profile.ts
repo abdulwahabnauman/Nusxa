@@ -24,6 +24,7 @@ function parseProfile(row: Record<string, unknown>): Profile {
     eastern_numerals: (row.eastern_numerals as number) === 1,
     snooze_minutes: typeof row.snooze_minutes === 'number' ? row.snooze_minutes : 10,
     high_contrast: (row.high_contrast as number) === 1,
+    use_own_keys: (row.use_own_keys as number) === 1,
     theme_preference:
       row.theme_preference === 'light' || row.theme_preference === 'dark'
         ? row.theme_preference
@@ -48,10 +49,10 @@ export async function ensureProfileRow(): Promise<void> {
     `INSERT OR IGNORE INTO profile
        (id, name, allergies, elderly_mode, onboarding_complete, language,
         notifications_enabled, reduced_motion, reminder_escalation,
-        eastern_numerals, snooze_minutes, high_contrast, theme_preference,
-        created_at, updated_at)
+        eastern_numerals, snooze_minutes, high_contrast, use_own_keys,
+        theme_preference, created_at, updated_at)
      VALUES
-       (1, NULL, '[]', 0, 0, 'en', 1, 0, 1, 0, 10, 0, 'system', ?, ?);`,
+       (1, NULL, '[]', 0, 0, 'en', 1, 0, 1, 0, 10, 0, 0, 'system', ?, ?);`,
     [now, now]
   );
 }
@@ -170,6 +171,10 @@ export async function updateProfile(
   if (data.high_contrast !== undefined) {
     fields.push('high_contrast = ?');
     values.push(data.high_contrast ? 1 : 0);
+  }
+  if (data.use_own_keys !== undefined) {
+    fields.push('use_own_keys = ?');
+    values.push(data.use_own_keys ? 1 : 0);
   }
   if (data.theme_preference !== undefined) {
     fields.push('theme_preference = ?');
