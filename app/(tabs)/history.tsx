@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, memo } from 'react';
+import React, { useCallback, useState, useEffect, memo, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ import { SwipeActions, type SwipeAction } from '../../src/components/ui/SwipeAct
 import { useI18n } from '../../src/i18n';
 import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { usePrescriptionList, PrescriptionItem } from '../../src/hooks/queries';
+import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { formatDigits } from '../../src/utils/numerals';
 import { formatDateLocalized } from '../../src/utils/date';
@@ -133,6 +134,10 @@ export default function HistoryScreen() {
     isLoading: loading,
     refetch,
   } = usePrescriptionList(searchQuery);
+  const listRef = useRef<FlatList<PrescriptionItem>>(null);
+  useTabScrollReset(
+    useCallback(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), [])
+  );
 
   // Marquee placeholder: the search hint stays on one line and, when it is
   // wider than the field, slides across slowly instead of wrapping/disappearing.
@@ -304,6 +309,7 @@ export default function HistoryScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <FlatList
+        ref={listRef}
         data={prescriptions}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
