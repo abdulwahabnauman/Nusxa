@@ -7,6 +7,7 @@ import Constants from 'expo-constants';
 import { useFonts } from 'expo-font';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { requireOptionalNativeModule } from 'expo-modules-core';
 import { ThemeProvider, useTheme } from '../src/theme/provider';
 import { openDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
@@ -24,6 +25,41 @@ import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
 import { GlobalToast } from '../src/components/ui/GlobalToast';
 import { isAppLockEnabled, isLockExemptOverlay } from '../src/utils/appLock';
 import type { Profile } from '../src/types/models';
+
+// Expo Go bundles an older splash native module that rejects hide/prevent
+// calls ("No native splash screen registered for given view controller")
+// because Expo Go never registers the app's splash. Some of those calls fire
+// from inside expo-router without a .catch, surfacing as scary
+// "Uncaught (in promise)" errors even though ours are all caught. Patch the
+// shared native module once so every caller becomes rejection-safe — the
+// splash is cosmetic and must never spam errors. Runs at module load, before
+// any component mounts or expo-router's internal timers fire.
+const NativeSplashModule = requireOptionalNativeModule<Record<string, unknown>>('ExpoSplashScreen');
+if (NativeSplashModule) {
+  for (const fnName of [
+    'hide',
+    'hideAsync',
+    'preventAutoHideAsync',
+    'internalMaybeHideAsync',
+    'internalPreventAutoHideAsync',
+  ]) {
+    const original = NativeSplashModule[fnName];
+    if (typeof original === 'function') {
+      NativeSplashModule[fnName] = (...args: unknown[]) => {
+        try {
+          const result = (original as (...a: unknown[]) => unknown).apply(NativeSplashModule, args);
+          if (result instanceof Promise) {
+            return result.catch(() => {});
+          }
+          return result;
+        } catch {
+          // splash is visual polish only — never let it throw
+          return undefined;
+        }
+      };
+    }
+  }
+}
 
 // keep the native splash up until we've swapped over to our own animated one
 SplashScreen.preventAutoHideAsync().catch(() => {
