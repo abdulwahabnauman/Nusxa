@@ -633,7 +633,7 @@ export default function ScanScreen() {
             {showFocusHint && (
               <View style={styles.hintBar} pointerEvents="none">
                 <MaterialCommunityIcons name="image-filter-center-focus" size={16} color="#FFFFFF" />
-                <Text style={styles.focusHintText}>{t.scanner.focusHint}</Text>
+                <Text style={[styles.focusHintText, { fontFamily: typography.families.regular }]}>{t.scanner.focusHint}</Text>
               </View>
             )}
           </View>
@@ -645,7 +645,7 @@ export default function ScanScreen() {
               <View style={[styles.cornerGuide, styles.cornerTR, { borderColor: '#FFFFFF' }]} />
               <View style={[styles.cornerGuide, styles.cornerBL, { borderColor: '#FFFFFF' }]} />
               <View style={[styles.cornerGuide, styles.cornerBR, { borderColor: '#FFFFFF' }]} />
-              <Text style={[styles.scanHint, { color: '#FFFFFF' }]}>
+              <Text style={[styles.scanHint, { color: '#FFFFFF', fontFamily: typography.families.regular }]}>
                 {t.scanner.alignGuide}
               </Text>
             </View>
