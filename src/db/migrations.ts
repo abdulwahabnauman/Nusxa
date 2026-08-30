@@ -45,11 +45,21 @@ const migration_v1: Migration = {
   },
 };
 
-/** Version 2: Add language preference to profile */
+/** Version 2: Add language preference to profile.
+ * Fresh installs create the profile table WITH the language column already
+ * (CREATE_PROFILE_TABLE), so the ALTER throws "duplicate column name" there.
+ * Swallowing it is mandatory — an unguarded throw here aborts every later
+ * migration and leaves the schema half-built (e.g. missing
+ * reminder_escalation on iOS fresh installs).
+ */
 const migration_v2: Migration = {
   version: 2,
   up: async (db) => {
-    await db.execAsync(ALTER_PROFILE_ADD_LANGUAGE);
+    try {
+      await db.execAsync(ALTER_PROFILE_ADD_LANGUAGE);
+    } catch {
+      // Column already exists — nothing to do
+    }
     await db.runAsync('UPDATE schema_version SET version = 2;');
   },
 };
