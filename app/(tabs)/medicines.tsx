@@ -106,6 +106,7 @@ export default function MedicinesScreen() {
             borderRadius: 12,
             padding: 12,
             marginTop: 12,
+            marginBottom: 16,
           }}
           accessibilityLabel={`${interactions.length} possible medicine interactions in your regimen`}
         >
@@ -152,6 +153,7 @@ export default function MedicinesScreen() {
             borderRadius: 12,
             padding: 12,
             marginTop: 12,
+            marginBottom: 16,
           }}
           accessibilityLabel={`${lowStockCount} medicines running low on supply`}
         >
