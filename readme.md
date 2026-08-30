@@ -294,9 +294,21 @@ Home screen loads active schedules from DB
 ### Notification Flow
 ```
 schedule.tsx → scheduleDoseNotification() (expo-notifications)
-  → notification fires at scheduled time
-  → user taps notification
-  → useNotificationHandler hook → router.push('/medicine/[id]')
+  → notification fires at scheduled time with quick actions
+    (Mark taken / Snooze, via the 'dose-actions' category)
+  → quick action: useNotificationHandler marks the dose taken
+    (updates dose record + inventory) or schedules a snooze re-ring
+  → plain tap: useNotificationHandler hook → router.push('/medicine/[id]')
+
+Escalation (Settings → Reminder escalation, on by default):
+  syncDoseNotifications() arms a second loud reminder ~15 min after
+  the window closes while the dose is still pending; cancelled the
+  moment the dose is taken/skipped.
+
+Follow-up visit reminders:
+  prescriptions with a follow_up_date get a one-shot reminder at
+  09:00 on the visit day (armed up to 3 days ahead) via
+  syncFollowUpNotifications() at app start and after each save.
 ```
 
 ### Data Export / Import Flow

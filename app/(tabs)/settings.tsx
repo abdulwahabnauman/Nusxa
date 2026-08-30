@@ -27,6 +27,7 @@ import {
 } from '../../src/utils/appLock';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
+import { syncDoseNotifications } from '../../src/utils/notifications';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../../src/constants/config';
 import { formatDigits } from '../../src/utils/numerals';
@@ -133,6 +134,8 @@ export default function SettingsScreen() {
   const setNotificationsEnabled = useSettingsStore((s) => s.setNotificationsEnabled);
   const snoozeMinutes = useSettingsStore((s) => s.snoozeMinutes);
   const setSnoozeMinutes = useSettingsStore((s) => s.setSnoozeMinutes);
+  const reminderEscalation = useSettingsStore((s) => s.reminderEscalation);
+  const setReminderEscalation = useSettingsStore((s) => s.setReminderEscalation);
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
@@ -478,6 +481,22 @@ export default function SettingsScreen() {
                   </TouchableOpacity>
                 ))}
               </View>
+            </View>
+            <View style={[styles.row, { marginTop: spacing.md }]}>
+              <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reminderEscalation}</Text>
+                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reminderEscalationDesc}</Text>
+              </View>
+              <Switch
+                value={reminderEscalation}
+                onValueChange={(value) => {
+                  setReminderEscalation(value);
+                  // Arm/disarm the post-window re-rings right away
+                  void syncDoseNotifications();
+                }}
+                trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                accessibilityLabel="Toggle reminder escalation"
+              />
             </View>
           </Card>
         </View>

@@ -14,7 +14,7 @@ import { updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';
 import { useThemeStore } from '../src/stores/theme-store';
-import { configureNotifications, syncRefillNotifications } from '../src/utils/notifications';
+import { configureNotifications, syncRefillNotifications, syncFollowUpNotifications } from '../src/utils/notifications';
 import { dedupeActiveMedicines } from '../src/utils/savePrescription';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
@@ -178,6 +178,8 @@ function AppContent() {
 
         // Reconcile throttled refill reminders with current inventory
         void syncRefillNotifications();
+        // Arm follow-up visit reminders for prescriptions with a visit date
+        void syncFollowUpNotifications();
       } catch (error) {
         console.error('[Init] Fatal initialization error:', error);
         // Critical failures still caught here

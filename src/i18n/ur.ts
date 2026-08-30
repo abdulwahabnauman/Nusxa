@@ -126,6 +126,8 @@ export const ur: TranslationKeys = {
     medicineRemindersDesc: 'مقررہ اوقات پر یاد دہانیاں',
     snoozeDuration: 'اسنوز کا دورانیہ',
     snoozeDurationDesc: 'اسنوز کے بعد انتظار کے منٹ',
+    reminderEscalation: 'یاد دہانی کی تكرار',
+    reminderEscalationDesc: 'اگر وقت ختم ہونے کے بعد بھی دوا نہ لی گئی ہو تو دوبارہ یاد دہانی بجتی ہے',
     aiService: 'AI سروس',
     aiServiceDesc: 'نسخے پڑھنے کے لیے۔ مفت کلید:',
     aiPreconfigured: 'استعمال کے لیے تیار',

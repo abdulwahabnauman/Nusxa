@@ -4,6 +4,7 @@ import { useSettingsStore } from '../stores/settings-store';
 import { getActiveMedicines, getMedicine } from '../db/repositories/medicine';
 import { getActiveSchedules } from '../db/repositories/schedule';
 import { getTodayDoseRecords, createDoseRecord } from '../db/repositories/dose';
+import { getAllPrescriptions } from '../db/repositories/prescription';
 import { estimateDaysUntilRefillFromFrequency } from './inventory';
 import { getKV, setKV } from '../db/repositories/kv';
 import { getTodayISO } from './date';
@@ -13,6 +14,13 @@ export const DOSE_CHANNEL_ID = 'medication-reminders';
 /* Quieter channel for non-critical reminders (refills) — deliberately not HIGH */
 export const REFILL_CHANNEL_ID = 'refill-reminders';
 
+/** Category attached to dose reminders so Android/iOS show quick actions */
+export const DOSE_CATEGORY_ID = 'dose-actions';
+/** Action identifier for marking a dose taken straight from the notification */
+export const ACTION_TAKE = 'take';
+/** Action identifier for snoozing a reminder straight from the notification */
+export const ACTION_SNOOZE = 'snooze';
+
 /** Bilingual copy for reminders, picked from the current app language. */
 interface ReminderCopy {
   doseTitle: string;
@@ -21,8 +29,14 @@ interface ReminderCopy {
   snoozeBody: (name: string) => string;
   warningTitle: string;
   warningBody: (name: string) => string;
+  escalationTitle: string;
+  escalationBody: (name: string) => string;
   refillTitle: string;
   refillBody: (name: string, days: number) => string;
+  followUpTitle: string;
+  followUpBody: (doctor: string, date: string) => string;
+  actionTake: string;
+  actionSnooze: string;
 }
 
 const REMINDER_COPY: Record<'en' | 'ur', ReminderCopy> = {
@@ -33,8 +47,14 @@ const REMINDER_COPY: Record<'en' | 'ur', ReminderCopy> = {
     snoozeBody: (name) => `Time to take ${name}. You snoozed this reminder.`,
     warningTitle: 'Medicine not taken yet',
     warningBody: (name) => `You have not taken ${name} yet. Please take it now. Once the reminder window ends, it will be marked as not taken.`,
+    escalationTitle: 'Medicine still not taken',
+    escalationBody: (name) => `${name} was due earlier and is still not taken. Please take it now.`,
     refillTitle: 'Running low on medicine',
     refillBody: (name, days) => `You have about ${days} day${days === 1 ? '' : 's'} of ${name} left. Plan a refill soon.`,
+    followUpTitle: 'Doctor visit coming up',
+    followUpBody: (doctor, date) => `Your follow-up${doctor ? ` with ${doctor}` : ''} is on ${date}.`,
+    actionTake: 'Mark taken',
+    actionSnooze: 'Snooze',
   },
   ur: {
     doseTitle: 'دوا کی یاد دہانی',
@@ -43,8 +63,14 @@ const REMINDER_COPY: Record<'en' | 'ur', ReminderCopy> = {
     snoozeBody: (name) => `${name} لینے کا وقت۔ آپ نے یہ یاد دہانی ملتوی کی تھی۔`,
     warningTitle: 'دوا ابھی تک نہیں لی گئی',
     warningBody: (name) => `آپ نے ابھی تک ${name} نہیں لی۔ براہ کرم ابھی لے لیں۔ یاد دہانی کا وقت ختم ہونے پر یہ نہ لی گئی دوا شمار ہوگی۔`,
+    escalationTitle: 'دوا ابھی تک نہیں لی گئی',
+    escalationBody: (name) => `${name} کا وقت پہلے آ چکا تھا مگر ابھی تک نہیں لی گئی۔ براہ کرم ابھی لے لیں۔`,
     refillTitle: 'دوا کم ہو رہی ہے',
     refillBody: (name, days) => `${name} تقریباً ${days} دن کے لیے باقی ہے۔ جلد نئی خریداری کا منصوبہ بنائیں۔`,
+    followUpTitle: 'ڈاکٹر سے ملاقات قریب ہے',
+    followUpBody: (doctor, date) => `آپ کی فالو اپ${doctor ? ` ${doctor} کے ساتھ` : ''} ${date} کو ہے۔`,
+    actionTake: 'لے لی',
+    actionSnooze: 'ملتوی کریں',
   },
 };
 
@@ -86,6 +112,15 @@ export async function configureNotifications(): Promise<void> {
         sound: 'default',
       });
     }
+
+    // Quick actions on dose reminders: mark taken or snooze without opening
+    // the app first. Registered once here; the response handler in
+    // useNotificationHandler acts on the tapped action identifier.
+    const copy = reminderCopy();
+    await Notifications.setNotificationCategoryAsync(DOSE_CATEGORY_ID, [
+      { identifier: ACTION_TAKE, buttonTitle: copy.actionTake },
+      { identifier: ACTION_SNOOZE, buttonTitle: copy.actionSnooze },
+    ]);
   } catch (error) {
     console.error('[Notifications] Failed to configure:', error);
     // Don't crash app if notifications fail
@@ -138,6 +173,7 @@ export async function scheduleDoseNotification(params: {
         scheduleId: params.id,
       },
       ...(Platform.OS === 'android' ? { channelId: DOSE_CHANNEL_ID } : {}),
+      categoryIdentifier: DOSE_CATEGORY_ID,
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
@@ -189,6 +225,7 @@ export async function scheduleSnoozeReminder(params: {
         scheduleId: params.scheduleId,
       },
       ...(Platform.OS === 'android' ? { channelId: DOSE_CHANNEL_ID } : {}),
+      categoryIdentifier: DOSE_CATEGORY_ID,
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
@@ -245,6 +282,55 @@ export async function scheduleMissedWarning(params: {
         scheduleId: params.scheduleId,
       },
       ...(Platform.OS === 'android' ? { channelId: DOSE_CHANNEL_ID } : {}),
+      categoryIdentifier: DOSE_CATEGORY_ID,
+      sound: true,
+      priority: Notifications.AndroidNotificationPriority.HIGH,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: params.at,
+    },
+  });
+}
+
+/** How many minutes after the window closes the escalation re-ring fires */
+export const ESCALATION_EXTRA_MINUTES = 15;
+
+/** Notification identifier for a schedule's post-window escalation re-ring. */
+export function escalationNotificationId(scheduleId: string): string {
+  return `escalation-${scheduleId}`;
+}
+
+/**
+ * Escalation re-ring (settings toggle "reminder escalation"): fires a second
+ * loud reminder a few minutes after the window closed while the dose is
+ * still pending. Cancelled as soon as the dose is taken or skipped, and
+ * re-armed per day by syncDoseNotifications while the setting is on.
+ */
+export async function scheduleEscalationReminder(params: {
+  scheduleId: string;
+  medicineId: string;
+  medicineName: string;
+  at: Date;
+}): Promise<string | null> {
+  const hasPermission = await checkNotificationPermission();
+  if (!hasPermission) return null;
+
+  const copy = reminderCopy();
+
+  return Notifications.scheduleNotificationAsync({
+    identifier: escalationNotificationId(params.scheduleId),
+    content: {
+      title: copy.escalationTitle,
+      body: copy.escalationBody(params.medicineName),
+      data: {
+        type: 'dose',
+        medicineId: params.medicineId,
+        medicineName: params.medicineName,
+        scheduleId: params.scheduleId,
+      },
+      ...(Platform.OS === 'android' ? { channelId: DOSE_CHANNEL_ID } : {}),
+      categoryIdentifier: DOSE_CATEGORY_ID,
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
@@ -291,8 +377,9 @@ export async function markOverdueDosesMissed(): Promise<void> {
       } catch {
         // Record may already exist from a concurrent load — safe to skip
       }
-      // A snoozed re-ring for a slot that already closed is pointless
+      // A snoozed re-ring or escalation for a slot that already closed is pointless
       cancelNotification(snoozeNotificationId(schedule.id)).catch(() => {});
+      cancelNotification(escalationNotificationId(schedule.id)).catch(() => {});
     }
   } catch (error) {
     console.warn('[Notifications] Missed marking skipped:', error);
@@ -309,7 +396,7 @@ export async function markOverdueDosesMissed(): Promise<void> {
  */
 export async function syncDoseNotifications(): Promise<void> {
   try {
-    const enabled = useSettingsStore.getState().notificationsEnabled;
+    const { notificationsEnabled: enabled, reminderEscalation } = useSettingsStore.getState();
     const today = getTodayISO();
     const [schedules, records] = await Promise.all([
       getActiveSchedules(),
@@ -322,10 +409,12 @@ export async function syncDoseNotifications(): Promise<void> {
     for (const schedule of schedules) {
       const ended = schedule.end_date !== null && schedule.end_date < today;
       const warningId = missedWarningNotificationId(schedule.id);
+      const escalationId = escalationNotificationId(schedule.id);
 
       if (!enabled || ended) {
         await cancelNotification(schedule.id).catch(() => {});
         await cancelNotification(warningId).catch(() => {});
+        await cancelNotification(escalationId).catch(() => {});
         continue;
       }
 
@@ -345,30 +434,51 @@ export async function syncDoseNotifications(): Promise<void> {
         time: schedule.time,
       });
 
-      // Replace any stale warning with today's — only while still pending
+      // Replace any stale one-shots with today's — only while still pending
       await cancelNotification(warningId).catch(() => {});
+      await cancelNotification(escalationId).catch(() => {});
       if (handledToday.has(schedule.id)) continue;
 
       const lead = Math.min(MISSED_WARNING_LEAD_MINUTES, Math.floor(schedule.window_minutes / 2));
       const warningAt = dateForTime(schedule.time, schedule.window_minutes - lead);
-      if (warningAt.getTime() <= now.getTime()) continue;
+      if (warningAt.getTime() > now.getTime()) {
+        await scheduleMissedWarning({
+          scheduleId: schedule.id,
+          medicineId: schedule.medicine_id,
+          medicineName,
+          at: warningAt,
+        });
+      }
 
-      await scheduleMissedWarning({
-        scheduleId: schedule.id,
-        medicineId: schedule.medicine_id,
-        medicineName,
-        at: warningAt,
-      });
+      // Escalation re-ring after the window closes, only when the user has
+      // opted in via Settings. Fires even if the warning slot already passed.
+      if (reminderEscalation) {
+        const escalationAt = dateForTime(schedule.time, schedule.window_minutes + ESCALATION_EXTRA_MINUTES);
+        if (escalationAt.getTime() > now.getTime()) {
+          await scheduleEscalationReminder({
+            scheduleId: schedule.id,
+            medicineId: schedule.medicine_id,
+            medicineName,
+            at: escalationAt,
+          });
+        }
+      }
     }
 
     // Drop strays: reminders whose schedule no longer exists, is inactive,
-    // or has ended. Refill and snooze notifications manage their own lifecycle.
+    // or has ended. Refill, snooze and follow-up notifications manage their
+    // own lifecycle.
     const scheduled = await Notifications.getAllScheduledNotificationsAsync();
     const WARNING_PREFIX = 'missed-warning-';
+    const ESCALATION_PREFIX = 'escalation-';
     for (const request of scheduled) {
       const id = String(request.identifier);
-      if (id.startsWith('refill-') || id.startsWith('snooze-')) continue;
-      const scheduleId = id.startsWith(WARNING_PREFIX) ? id.slice(WARNING_PREFIX.length) : id;
+      if (id.startsWith('refill-') || id.startsWith('snooze-') || id.startsWith('followup-')) continue;
+      const scheduleId = id.startsWith(WARNING_PREFIX)
+        ? id.slice(WARNING_PREFIX.length)
+        : id.startsWith(ESCALATION_PREFIX)
+          ? id.slice(ESCALATION_PREFIX.length)
+          : id;
       if (!validIds.has(scheduleId)) {
         await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       }
@@ -452,6 +562,73 @@ export async function syncRefillNotifications(): Promise<void> {
 /** Cancel all scheduled notifications */
 export async function cancelAllNotifications(): Promise<void> {
   await Notifications.cancelAllScheduledNotificationsAsync();
+}
+
+/** How many days ahead follow-up visit reminders are armed */
+const FOLLOWUP_LOOKAHEAD_DAYS = 3;
+
+/**
+ * Follow-up visit reminders (one per prescription with a follow_up_date):
+ * rings at 09:00 on the visit day, armed up to 3 days ahead. Quiet channel,
+ * cancelled again if the prescription is archived or the date passes.
+ */
+export async function syncFollowUpNotifications(): Promise<void> {
+  try {
+    const enabled = useSettingsStore.getState().notificationsEnabled;
+    const language = useSettingsStore.getState().language;
+    const locale = language === 'ur' ? 'ur-PK' : 'en-US';
+    const today = getTodayISO();
+    const horizon = new Date();
+    horizon.setDate(horizon.getDate() + FOLLOWUP_LOOKAHEAD_DAYS);
+    const horizonISO = horizon.toISOString().slice(0, 10);
+
+    const prescriptions = await getAllPrescriptions();
+    const upcoming = new Map<string, { date: string; doctor: string }>();
+    for (const p of prescriptions) {
+      if (!p.follow_up_date || p.treatment_status === 'archived') continue;
+      if (p.follow_up_date < today || p.follow_up_date > horizonISO) continue;
+      upcoming.set(p.id, { date: p.follow_up_date, doctor: p.doctor_name ?? '' });
+    }
+
+    const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+    for (const n of scheduled) {
+      const id = String(n.identifier);
+      if (!id.startsWith('followup-')) continue;
+      const prescriptionId = id.slice('followup-'.length);
+      if (!enabled || !upcoming.has(prescriptionId)) {
+        await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
+      }
+    }
+    if (!enabled) return;
+
+    const copy = reminderCopy();
+    for (const [prescriptionId, info] of upcoming) {
+      const triggerDate = new Date(`${info.date}T09:00:00`);
+      if (triggerDate.getTime() <= Date.now()) continue;
+
+      const prettyDate = new Date(`${info.date}T00:00:00`).toLocaleDateString(locale, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      });
+
+      await Notifications.scheduleNotificationAsync({
+        identifier: `followup-${prescriptionId}`,
+        content: {
+          title: copy.followUpTitle,
+          body: copy.followUpBody(info.doctor, prettyDate),
+          data: { type: 'followup', prescriptionId },
+          ...(Platform.OS === 'android' ? { channelId: REFILL_CHANNEL_ID } : {}),
+        },
+        trigger: {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: triggerDate,
+        },
+      });
+    }
+  } catch (error) {
+    console.warn('[Notifications] Follow-up sync skipped:', error);
+  }
 }
 
 /** Get all pending scheduled notifications */

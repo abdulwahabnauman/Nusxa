@@ -24,6 +24,7 @@ import {
   savePrescription,
   ScheduleDraft,
 } from '../src/utils/savePrescription';
+import { syncFollowUpNotifications } from '../src/utils/notifications';
 
 const WINDOW_OPTIONS = [60, 90, 120, 180];
 
@@ -77,6 +78,10 @@ export default function ScheduleScreen() {
     setConfirming(true);
     try {
       const outcome = await savePrescription(prescription, schedules, imageUri);
+
+      // A new/updated prescription may carry a follow-up visit date — arm
+      // its reminder without blocking the navigation back home.
+      void syncFollowUpNotifications();
 
       // Toast lives in the root layout, so it stays visible after navigating
       showToast(
