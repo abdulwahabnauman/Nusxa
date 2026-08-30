@@ -262,6 +262,7 @@ export const ur: TranslationKeys = {
     frequencyLabel: 'تعدد',
     durationLabel: 'دورانیہ',
     remainingLabel: 'باقی مقدار',
+    initialLabel: 'ابتدائی مقدار (پیک سائز)',
     timeLabel: 'یاد دہانی کا وقت',
     pause: 'کورس روکیں',
     pauseDesc: 'بغیر کچھ حذف کیے یاد دہانیاں بند کرتا ہے۔ کسی بھی وقت دوبارہ شروع کریں۔',
