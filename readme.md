@@ -317,15 +317,22 @@ Follow-up visit reminders:
 
 ### Data Export / Import Flow
 ```
-Settings → Export data: exportAsJSON() builds a versioned snapshot
-  (exportFormat/exportVersion markers + profile, prescriptions,
-   medicines, schedules, FULL dose history, reminder KV state)
-  → shared as a JSON file
+Settings → Export data: exportAsJSON() builds a FULL-STATE versioned
+  snapshot (exportFormat/exportVersion markers + profile incl. all
+  preference columns, prescriptions, medicines, schedules, FULL dose
+  history, reminder KV state, education bookmarks + reading history,
+  AI chat history) → shared as a JSON file
+Settings → Encrypted backup: same full snapshot, AES-encrypted with a
+  user password (crypto-js) → shared as a .json envelope; restoring it
+  asks for the password first (wrong password = inline error, no wipe)
 Settings → Import data: expo-document-picker picks the JSON file
+  → plain exports import directly; encrypted envelopes route to the
+    password modal first
   → parseExport() validates it (rejects non-Nusxa files with a friendly error)
   → importFromJSON() wipes + restores everything inside ONE SQLite
     transaction (never leaves the DB half-restored)
-  → profile reloaded into the auth store
+  → profile reloaded into the auth store AND settings store
+    (language, numerals, snooze, escalation… flip live, no restart)
 ```
 
 ### Doctor Visit PDF Flow
@@ -407,9 +414,10 @@ This only renders in a real build (dev client or APK) — Expo Go can't fully re
 - Screen transitions are intentionally left to expo-router's native defaults
 
 ### 10. Data Export/Import Round-Trip
-- `exportAsJSON()` includes `exportFormat: 'nusxa-export'` + `exportVersion: 1` markers and now also exports `prescriptions`
-- `importFromJSON()` is a full transactional restore: wipes clinical tables then re-inserts in FK-safe order (prescriptions → medicines → schedules → dose records → profile), skipping orphan rows
-- Backward compatible with old exports lacking `prescriptions` (synthesizes placeholder rows)
+- `exportAsJSON()` includes `exportFormat: 'nusxa-export'` + `exportVersion: 3` markers and captures the FULL app state: profile (incl. `eastern_numerals`, `snooze_minutes`, `reminder_escalation`, `high_contrast`), prescriptions, medicines, schedules, dose records, reminder KV state, education bookmarks + reading history (keyed by content SLUG so restores survive a fresh install), and AI chat history
+- `importFromJSON()` is a full transactional restore: wipes clinical + education tables then re-inserts in FK-safe order, skipping orphan rows; chat history is validated and restored after the transaction
+- Backward compatible with older exports (v1/v2) lacking the newer sections
+- **Encrypted backups** (audit Feature 17): `createEncryptedBackup()` wraps the same snapshot in an AES envelope (`nusxa-encrypted-backup` format) behind a user password (min 8 chars, confirmed twice); the import path detects the envelope, asks for the password, and only wipes data after a successful decrypt — wrong password shows an inline error and aborts
 - Import is confirmed with an Alert before wiping data, and reports restored counts on success
 
 ### 11. Onboarding Gate & Image Aspect Normalization
@@ -569,7 +577,7 @@ A complete educational content system for medication literacy:
 | **Enhanced elderly mode redesign** | 🔴 CRITICAL | Real accessibility improvement (target audience!) | Medium-High | Larger touch targets (>48dp), simplified navigation flow, higher contrast colors, icon simplification. NOT just larger fonts. |
 | **Full theme/settings persistence** | 🟠 HIGH | Prevent settings reset confusion | Low-Medium | Add DB columns: `notifications_enabled`, `reduced_motion`, `theme_preference`. Already mostly done, needs final polish. |
 | **Tablet layout optimization** | 🟢 LOW | Expand user base to tablets | Medium | Responsive layouts using Flexbox. Test on various screen sizes. |
-| **Data backup & cloud sync** | 🟡 MEDIUM | Prevent total data loss if device lost | Medium-High | Optional Google Drive/iCloud backup. Encrypt data before upload. Critical feature for retention. |
+| **Data backup & cloud sync** | 🟡 PARTIAL | Prevent total data loss if device lost | Medium-High | Password-encrypted backup files (AES, user stores them anywhere — Drive/email/WhatsApp) shipped in Settings → Data. Auto cloud sync still open. |
 | **Offline AI capabilities** | 🟢 LOW | Scan prescriptions without internet | High | On-device ML models (TensorFlow Lite). Complex but valuable niche feature. |
 | **Family caregiver view** | 🟢 LOW | Share medication schedule with family | Medium | Role-based permissions. Family member can see schedules, edit emergency info. |
 | **Pharmacy integration** | 🟡 PLANNED | Direct refill requests to pharmacies | High | Entry point shipped as an "Order refill" (coming soon) row on the medicine detail screen; build plan in `docs/REFILL_ORDERING_GUIDE.md`. |

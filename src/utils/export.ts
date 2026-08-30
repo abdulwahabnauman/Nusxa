@@ -1,26 +1,41 @@
 import Constants from 'expo-constants';
+import CryptoJS from 'crypto-js';
 import { getDatabase } from '../db/database';
 import { getProfile } from '../db/repositories/profile';
 import { getActiveMedicines } from '../db/repositories/medicine';
 import { getActiveSchedules } from '../db/repositories/schedule';
 import { getAllDoseRecords } from '../db/repositories/dose';
 import { getAllPrescriptions } from '../db/repositories/prescription';
+import { loadChatHistory, saveChatHistory } from './chatHistory';
 import type { Medicine, DoseRecord } from '../types/models';
 
 /** Export all app data as a JSON object (full dose history — a real backup) */
 export async function exportAsJSON(): Promise<Record<string, unknown>> {
-  const [profile, prescriptions, medicines, schedules, doseRecords, kvRows] = await Promise.all([
+  const [
+    profile,
+    prescriptions,
+    medicines,
+    schedules,
+    doseRecords,
+    kvRows,
+    bookmarks,
+    readingHistory,
+    chatHistory,
+  ] = await Promise.all([
     getProfile(),
     getAllPrescriptions(),
     getActiveMedicines(),
     getActiveSchedules(),
     getAllDoseRecords(),
     getKVState(),
+    getEducationBookmarks(),
+    getEducationReadingHistory(),
+    loadChatHistory(),
   ]);
 
   return {
     exportFormat: 'nusxa-export',
-    exportVersion: 2,
+    exportVersion: 3,
     exportDate: new Date().toISOString(),
     appVersion: Constants.expoConfig?.version ?? '0.0.0',
     profile,
@@ -29,6 +44,10 @@ export async function exportAsJSON(): Promise<Record<string, unknown>> {
     schedules,
     doseRecords,
     kv: kvRows,
+    // Learn-tab state + AI chat transcript (audit Perf 13)
+    bookmarks,
+    readingHistory,
+    chatHistory,
   };
 }
 
@@ -43,6 +62,93 @@ async function getKVState(): Promise<Array<{ key: string; value: string }>> {
   }
 }
 
+/**
+ * Education bookmarks keyed by content SLUG (not the autoincrement id) so a
+ * restore onto a fresh install still resolves to the right articles.
+ */
+async function getEducationBookmarks(): Promise<Array<{ user_id: string; content_slug: string; added_at: string | null }>> {
+  try {
+    return await getDatabase().getAllAsync<{ user_id: string; content_slug: string; added_at: string | null }>(
+      `SELECT b.user_id, c.slug AS content_slug, b.added_at
+       FROM education_bookmarks b
+       INNER JOIN education_content c ON c.id = b.content_id;`
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function getEducationReadingHistory(): Promise<Array<{
+  user_id: string;
+  content_slug: string;
+  last_read_position: number;
+  completed_at: string | null;
+  started_at: string | null;
+  total_time_spent_seconds: number;
+}>> {
+  try {
+    return await getDatabase().getAllAsync(
+      `SELECT h.user_id, c.slug AS content_slug, h.last_read_position, h.completed_at, h.started_at, h.total_time_spent_seconds
+       FROM education_reading_history h
+       INNER JOIN education_content c ON c.id = h.content_id;`
+    );
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Encrypted backups (audit Feature 17). The full export JSON is AES-encrypted
+ * with a user password (crypto-js applies PBKDF-style key stretching + salt)
+ * and wrapped in a small identifiable envelope, so the user can store the
+ * file anywhere — Google Drive, email, WhatsApp — without exposing PHI.
+ */
+export const ENCRYPTED_BACKUP_FORMAT = 'nusxa-encrypted-backup';
+
+/** Build an encrypted backup envelope (JSON string) protected by a password */
+export async function createEncryptedBackup(password: string): Promise<string> {
+  const data = await exportAsJSON();
+  const cipher = CryptoJS.AES.encrypt(JSON.stringify(data), password).toString();
+  return JSON.stringify({
+    exportFormat: ENCRYPTED_BACKUP_FORMAT,
+    exportVersion: 1,
+    exportDate: new Date().toISOString(),
+    appVersion: Constants.expoConfig?.version ?? '0.0.0',
+    cipher,
+  });
+}
+
+/** True when the raw file content looks like an encrypted backup envelope */
+export function isEncryptedBackup(raw: string): boolean {
+  try {
+    const parsed = JSON.parse(raw) as { exportFormat?: unknown; cipher?: unknown } | null;
+    return (
+      !!parsed &&
+      typeof parsed === 'object' &&
+      parsed.exportFormat === ENCRYPTED_BACKUP_FORMAT &&
+      typeof parsed.cipher === 'string'
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Decrypt an encrypted backup envelope back into the inner export JSON.
+ * Throws Error('wrong-password') when the password does not match.
+ */
+export function openEncryptedBackup(raw: string, password: string): string {
+  try {
+    const wrapper = JSON.parse(raw) as { cipher?: string };
+    if (!wrapper.cipher) throw new Error('bad envelope');
+    const decrypted = CryptoJS.AES.decrypt(wrapper.cipher, password).toString(CryptoJS.enc.Utf8);
+    if (!decrypted) throw new Error('bad password');
+    return decrypted;
+  } catch {
+    throw new Error('wrong-password');
+  }
+}
+
 /** Shape of a Nusxa JSON export file (fields are untrusted until validated) */
 interface NusxaExport {
   exportFormat?: string;
@@ -53,6 +159,9 @@ interface NusxaExport {
   schedules?: Record<string, unknown>[];
   doseRecords?: Record<string, unknown>[];
   kv?: Record<string, unknown>[];
+  bookmarks?: Record<string, unknown>[];
+  readingHistory?: Record<string, unknown>[];
+  chatHistory?: Record<string, unknown>[];
 }
 
 export interface ImportResult {
@@ -257,6 +366,52 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       }
     }
 
+    // Restore Learn-tab state (bookmarks + reading history), resolving the
+    // exported content slugs back to local autoincrement ids.
+    if (Array.isArray(data.bookmarks) || Array.isArray(data.readingHistory)) {
+      try {
+        const slugToId = new Map<string, number>();
+        const contentRows = await db.getAllAsync<{ id: number; slug: string }>(
+          'SELECT id, slug FROM education_content;'
+        );
+        for (const row of contentRows) slugToId.set(row.slug, row.id);
+
+        await db.execAsync('DELETE FROM education_bookmarks;');
+        for (const b of data.bookmarks ?? []) {
+          const contentId = slugToId.get(asString(b.content_slug) ?? '');
+          if (contentId === undefined) continue; // article no longer shipped
+          await db.runAsync(
+            'INSERT OR IGNORE INTO education_bookmarks (user_id, content_id, added_at) VALUES (?, ?, COALESCE(?, CURRENT_TIMESTAMP));',
+            [asString(b.user_id) ?? 'local', contentId, asString(b.added_at)]
+          );
+        }
+
+        await db.execAsync('DELETE FROM education_reading_history;');
+        for (const h of data.readingHistory ?? []) {
+          const contentId = slugToId.get(asString(h.content_slug) ?? '');
+          if (contentId === undefined) continue;
+          await db.runAsync(
+            `INSERT INTO education_reading_history (user_id, content_id, last_read_position, completed_at, started_at, total_time_spent_seconds)
+             VALUES (?, ?, ?, ?, COALESCE(?, CURRENT_TIMESTAMP), ?)
+             ON CONFLICT(user_id, content_id) DO UPDATE SET
+               last_read_position = excluded.last_read_position,
+               completed_at = excluded.completed_at,
+               total_time_spent_seconds = excluded.total_time_spent_seconds;`,
+            [
+              asString(h.user_id) ?? 'local',
+              contentId,
+              asNumber(h.last_read_position) ?? 0,
+              asString(h.completed_at),
+              asString(h.started_at),
+              asNumber(h.total_time_spent_seconds) ?? 0,
+            ]
+          );
+        }
+      } catch {
+        // education tables missing on very old installs — skip silently
+      }
+    }
+
     // Restore the profile last so the app state reflects the imported data.
     // Onboarding stays complete only when the imported profile actually has
     // a name — same rule the startup gate applies.
@@ -264,8 +419,8 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       const p = data.profile;
       const importedName = typeof p.name === 'string' && p.name.trim() ? p.name.trim() : null;
       await db.runAsync(
-        `INSERT OR REPLACE INTO profile (id, name, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, theme_preference, created_at, updated_at)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT OR REPLACE INTO profile (id, name, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, reminder_escalation, eastern_numerals, snooze_minutes, high_contrast, theme_preference, created_at, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           importedName,
           asString(p.date_of_birth),
@@ -278,6 +433,10 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
           typeof p.language === 'string' ? p.language : 'en',
           p.notifications_enabled === false ? 0 : 1,
           p.reduced_motion ? 1 : 0,
+          p.reminder_escalation === false ? 0 : 1,
+          p.eastern_numerals ? 1 : 0,
+          typeof p.snooze_minutes === 'number' ? p.snooze_minutes : 10,
+          p.high_contrast ? 1 : 0,
           typeof p.theme_preference === 'string' ? p.theme_preference : 'system',
           asString(p.created_at) ?? now,
           asString(p.updated_at) ?? now,
@@ -285,6 +444,21 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       );
     }
   });
+
+  // Chat history lives in a JSON file, not SQLite — restore it after the
+  // transaction so a DB failure never half-restores the transcript.
+  if (Array.isArray(data.chatHistory) && data.chatHistory.length > 0) {
+    const messages = data.chatHistory.filter(
+      (m) =>
+        m &&
+        typeof m.id === 'string' &&
+        typeof m.content === 'string' &&
+        (m.role === 'user' || m.role === 'assistant')
+    ) as Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp?: string }>;
+    await saveChatHistory(
+      messages.map((m) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? m.timestamp : new Date().toISOString() }))
+    );
+  }
 
   return {
     medicines: medicines.length,

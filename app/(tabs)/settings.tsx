@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -10,6 +10,7 @@ import { useThemeStore } from '../../src/stores/theme-store';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useAuthStore } from '../../src/stores/auth-store';
 import { Card } from '../../src/components/ui/Card';
+import { Button } from '../../src/components/ui/Button';
 import { Modal } from '../../src/components/ui/Modal';
 import { PinKeypad } from '../../src/components/ui/PinKeypad';
 import { showToast } from '../../src/components/ui/GlobalToast';
@@ -26,7 +27,8 @@ import {
   withLockExemption,
 } from '../../src/utils/appLock';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
-import { exportAsJSON, importFromJSON } from '../../src/utils/export';
+import { exportAsJSON, importFromJSON, createEncryptedBackup, isEncryptedBackup, openEncryptedBackup } from '../../src/utils/export';
+import type { ImportResult } from '../../src/utils/export';
 import { syncDoseNotifications } from '../../src/utils/notifications';
 import { isValidDate } from '../../src/utils/date';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
@@ -169,6 +171,14 @@ export default function SettingsScreen() {
   const [pinDraft, setPinDraft] = useState('');
   const [pinEntry, setPinEntry] = useState('');
   const [pinError, setPinError] = useState<string | null>(null);
+  // Encrypted backup flow (audit Feature 17): one modal serves both creating
+  // an encrypted export ('export') and restoring one ('import').
+  const [encModal, setEncModal] = useState<'none' | 'export' | 'import'>('none');
+  const [encPassword, setEncPassword] = useState('');
+  const [encConfirm, setEncConfirm] = useState('');
+  const [encError, setEncError] = useState<string | null>(null);
+  const [encBusy, setEncBusy] = useState(false);
+  const pendingEncryptedRaw = useRef<string | null>(null);
 
   useEffect(() => {
     getBiometricSupport().then(setBiometricSupport);
@@ -193,6 +203,33 @@ export default function SettingsScreen() {
     );
   };
 
+  // Shared tail of every successful import (plain or encrypted): reflect the
+  // restored profile in the stores so settings flip live without a restart.
+  const finishImport = async (counts: ImportResult) => {
+    try {
+      const restored = await getProfile();
+      if (restored) {
+        setProfile(restored);
+        const s = useSettingsStore.getState();
+        s.setLanguage(restored.language === 'ur' ? 'ur' : 'en');
+        s.setNotificationsEnabled(restored.notifications_enabled);
+        s.setReminderEscalation(restored.reminder_escalation ?? true);
+        s.setReducedMotion(restored.reduced_motion);
+        s.setEasternNumerals(restored.eastern_numerals ?? false);
+        s.setSnoozeMinutes(restored.snooze_minutes ?? 10);
+      }
+    } catch { /* profile section refreshes on next load */ }
+
+    showToast(
+      t.toasts.importComplete
+        .replace('{medicines}', String(counts.medicines))
+        .replace('{schedules}', String(counts.schedules))
+        .replace('{doseRecords}', String(counts.doseRecords)),
+      'success',
+      6000,
+    );
+  };
+
   const handleImportData = () => {
     Alert.alert(
       'Import data',
@@ -213,22 +250,20 @@ export default function SettingsScreen() {
 
               setImporting(true);
               const raw = await FileSystem.readAsStringAsync(result.assets[0].uri);
+
+              // Encrypted backups need a password before they can be restored
+              if (isEncryptedBackup(raw)) {
+                setImporting(false);
+                pendingEncryptedRaw.current = raw;
+                setEncPassword('');
+                setEncConfirm('');
+                setEncError(null);
+                setEncModal('import');
+                return;
+              }
+
               const counts = await importFromJSON(raw);
-
-              // Reflect the restored profile in the app state
-              try {
-                const restored = await getProfile();
-                if (restored) setProfile(restored);
-              } catch { /* profile section refreshes on next load */ }
-
-              showToast(
-                t.toasts.importComplete
-                  .replace('{medicines}', String(counts.medicines))
-                  .replace('{schedules}', String(counts.schedules))
-                  .replace('{doseRecords}', String(counts.doseRecords)),
-                'success',
-                6000,
-              );
+              await finishImport(counts);
             } catch (err) {
               const message = err instanceof Error ? err.message : 'The file could not be imported.';
               showToast(t.toasts.importFailed.replace('{error}', message), 'error', 6000);
@@ -239,6 +274,69 @@ export default function SettingsScreen() {
         },
       ]
     );
+  };
+
+  const closeEncModal = () => {
+    setEncModal('none');
+    setEncPassword('');
+    setEncConfirm('');
+    setEncError(null);
+    pendingEncryptedRaw.current = null;
+  };
+
+  const handleEncryptedExport = async () => {
+    if (encBusy) return;
+    if (encPassword.length < 8) {
+      setEncError(t.settings.backupPasswordTooShort);
+      return;
+    }
+    if (encPassword !== encConfirm) {
+      setEncError(t.settings.backupPasswordMismatch);
+      return;
+    }
+    setEncBusy(true);
+    try {
+      const envelope = await createEncryptedBackup(encPassword);
+      const fileName = `Nusxa_Encrypted_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, envelope, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+      closeEncModal();
+      await withLockExemption(() =>
+        Sharing.shareAsync(fileUri, {
+          mimeType: 'application/json',
+          dialogTitle: t.settings.encryptedBackup,
+        })
+      );
+      showToast(t.settings.encryptedBackupReady, 'success');
+    } catch {
+      showToast(t.toasts.exportFailed, 'error');
+    } finally {
+      setEncBusy(false);
+    }
+  };
+
+  const handleEncryptedImport = async () => {
+    const raw = pendingEncryptedRaw.current;
+    if (encBusy || !raw) return;
+    setEncBusy(true);
+    try {
+      const decrypted = openEncryptedBackup(raw, encPassword);
+      const counts = await importFromJSON(decrypted);
+      closeEncModal();
+      await finishImport(counts);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'wrong-password') {
+        setEncError(t.settings.wrongBackupPassword);
+      } else {
+        const message = err instanceof Error ? err.message : 'The file could not be imported.';
+        closeEncModal();
+        showToast(t.toasts.importFailed.replace('{error}', message), 'error', 6000);
+      }
+    } finally {
+      setEncBusy(false);
+    }
   };
 
   const closePinModal = () => {
@@ -745,6 +843,26 @@ export default function SettingsScreen() {
             <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
             <TouchableOpacity
               style={styles.row}
+              onPress={() => {
+                setEncPassword('');
+                setEncConfirm('');
+                setEncError(null);
+                setEncModal('export');
+              }}
+              accessibilityLabel="Create encrypted backup"
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <MaterialCommunityIcons name="lock-outline" size={20} color={colors.text.primary} />
+                <View style={{ marginLeft: 8, flexShrink: 1 }}>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.encryptedBackup}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.encryptedBackupDesc}</Text>
+                </View>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
+            </TouchableOpacity>
+            <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+            <TouchableOpacity
+              style={styles.row}
               onPress={handleImportData}
               disabled={importing}
               accessibilityLabel="Import data from JSON"
@@ -803,6 +921,59 @@ export default function SettingsScreen() {
           onBackspace={() => setPinEntry((prev) => prev.slice(0, -1))}
         />
         <View style={{ height: spacing.md }} />
+      </Modal>
+
+      {/* Encrypted backup password (create or restore) */}
+      <Modal
+        visible={encModal !== 'none'}
+        onClose={closeEncModal}
+        title={encModal === 'import' ? t.settings.enterBackupPassword : t.settings.setBackupPassword}
+      >
+        <Text style={[typography.body.sm, { color: colors.text.secondary, marginBottom: spacing.md }]}>
+          {encModal === 'import' ? t.settings.enterBackupPasswordHint : t.settings.backupPasswordHint}
+        </Text>
+        <TextInput
+          style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: spacing.sm }]}
+          value={encPassword}
+          onChangeText={(v) => { setEncPassword(v); setEncError(null); }}
+          placeholder={t.settings.backupPasswordLabel}
+          placeholderTextColor={colors.text.disabled}
+          secureTextEntry
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="Backup password"
+        />
+        {encModal === 'export' && (
+          <TextInput
+            style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: spacing.sm }]}
+            value={encConfirm}
+            onChangeText={(v) => { setEncConfirm(v); setEncError(null); }}
+            placeholder={t.settings.backupPasswordConfirmLabel}
+            placeholderTextColor={colors.text.disabled}
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+            accessibilityLabel="Confirm backup password"
+          />
+        )}
+        {encError !== null && (
+          <Text style={[typography.body.sm, { color: colors.error, marginBottom: spacing.sm }]}>{encError}</Text>
+        )}
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Button
+            title={t.common.cancel}
+            variant="secondary"
+            onPress={closeEncModal}
+            style={{ flex: 1 }}
+          />
+          <Button
+            title={encModal === 'import' ? t.settings.backupRestore : t.settings.backupCreate}
+            onPress={encModal === 'import' ? handleEncryptedImport : handleEncryptedExport}
+            loading={encBusy}
+            disabled={!encPassword}
+            style={{ flex: 1 }}
+          />
+        </View>
       </Modal>
     </SafeAreaView>
   );
