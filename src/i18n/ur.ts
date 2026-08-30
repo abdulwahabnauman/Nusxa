@@ -270,6 +270,8 @@ export const ur: TranslationKeys = {
     resumedToast: 'کورس دوبارہ شروع — یاد دہانیاں فعال ہیں',
     deletedToast: 'دوا حذف کر دی گئی',
     deleteHint: 'دوا حذف کریں (آپ اسے واپس لا سکتے ہیں)',
+    notFound: 'دوا نہیں ملی',
+    notFoundDesc: 'ہو سکتا ہے اسے حذف کر دیا گیا ہو۔',
   },
   history: {
     title: 'تاریخ',
@@ -289,6 +291,11 @@ export const ur: TranslationKeys = {
     medicineCountOne: '{n} دوا',
     medicineCountMany: '{n} ادویات',
     swipeHint: 'کارڈ پر سوائپ کر کے آرکائیو یا حذف کریں',
+    medicinesTitle: 'ادویات',
+    followUp: 'فالو اپ دورہ: {date}',
+    notFound: 'نسخہ نہیں ملا',
+    notFoundDesc: 'ہو سکتا ہے اسے حذف کر دیا گیا ہو۔',
+    noMedicinesOnRx: 'اس نسخے پر کوئی دوا نہیں',
   },
   emergency: {
     title: 'ایمرجنسی کارڈ',

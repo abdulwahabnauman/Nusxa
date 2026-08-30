@@ -15,6 +15,7 @@ import { Input } from '../../src/components/ui/Input';
 import { Modal } from '../../src/components/ui/Modal';
 import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
+import { EmptyState } from '../../src/components/ui/EmptyState';
 import { showToast, showToastWithAction } from '../../src/components/ui/GlobalToast';
 import { strengthColor } from '../../src/theme/tokens';
 import { getMedicine, updateMedicine, deleteMedicine, restoreMedicine } from '../../src/db/repositories/medicine';
@@ -42,6 +43,7 @@ export default function MedicineDetailScreen() {
   const invalidateData = useInvalidateData();
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   // Edit modal state
   const [editVisible, setEditVisible] = useState(false);
@@ -77,6 +79,8 @@ export default function MedicineDetailScreen() {
       }
     } catch (err) {
       console.error('Failed to load medicine:', err);
+    } finally {
+      setLoaded(true);
     }
   }, [id]);
 
@@ -195,6 +199,19 @@ export default function MedicineDetailScreen() {
   }, [medicine, router, t, invalidateData]);
 
   if (!medicine) {
+    // Once the load has finished with no result the id is gone (deleted or
+    // mistyped) — show an empty state instead of spinning the skeleton forever.
+    if (loaded) {
+      return (
+        <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+          <EmptyState
+            icon="pill-off-outline"
+            title={t.medicine.notFound}
+            description={t.medicine.notFoundDesc}
+          />
+        </SafeAreaView>
+      );
+    }
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={{ padding: spacing.base, paddingTop: spacing.md, gap: spacing.md }}>

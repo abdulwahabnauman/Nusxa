@@ -278,6 +278,8 @@ export const en = {
     resumedToast: 'Course resumed — reminders are back on',
     deletedToast: 'Medicine deleted',
     deleteHint: 'Delete medicine (you can undo this)',
+    notFound: 'Medicine not found',
+    notFoundDesc: 'It may have been deleted.',
   },
   // History
   history: {
@@ -298,6 +300,11 @@ export const en = {
     medicineCountOne: '{n} medicine',
     medicineCountMany: '{n} medicines',
     swipeHint: 'Swipe a card to archive or delete',
+    medicinesTitle: 'Medicines',
+    followUp: 'Follow-up visit: {date}',
+    notFound: 'Prescription not found',
+    notFoundDesc: 'It may have been deleted.',
+    noMedicinesOnRx: 'No medicines on this prescription',
   },
   // Emergency card
   emergency: {

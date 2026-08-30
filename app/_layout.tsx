@@ -247,6 +247,7 @@ function AppContent() {
         <Stack.Screen name="processing" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="review" options={{ presentation: 'card' }} />
         <Stack.Screen name="medicine/[id]" options={{ presentation: 'card' }} />
+        <Stack.Screen name="prescription/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="schedule" options={{ presentation: 'card' }} />
         <Stack.Screen name="chat" options={{ presentation: 'card' }} />
         <Stack.Screen name="emergency-card" options={{ presentation: 'card' }} />
