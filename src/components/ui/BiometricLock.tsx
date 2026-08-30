@@ -30,7 +30,13 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricPreferred, setBiometricPreferred] = useState(false);
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
+  // Set when the OS reports biometrics can NEVER prompt in this build (iOS
+  // without NSFaceIDUsageDescription). Retrying just makes the screen blink,
+  // so attempts stop until the next mount and the PIN pad takes over.
+  const [biometricBroken, setBiometricBroken] = useState(false);
+  const brokenRef = useRef(false);
   const [prompting, setPrompting] = useState(false);
   const verifying = useRef(false);
   const promptingRef = useRef(false);
@@ -54,8 +60,9 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
     return () => clearInterval(timer);
   }, [lockedOut]);
 
-  const tryBiometric = useCallback(async (interactive: boolean) => {
+  const tryBiometric = useCallback(async (interactive: boolean, bypassPrefCheck = false) => {
     if (promptingRef.current) return;
+    if (brokenRef.current) return;
     // Android cancels BiometricPrompt instantly when the activity is not
     // fully resumed — and on re-lock the app can still be mid-resume (the
     // RN AppState 'active' event trails the visible foreground by seconds).
@@ -68,6 +75,13 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
     // lock cycle — otherwise the old error sits on screen like a bug.
     setError(null);
     try {
+      // The Settings "Unlock with biometrics" toggle is authoritative: when
+      // it is off, biometric unlock is fully disabled — no auto-prompt AND
+      // no manual button. Read fresh from SecureStore (not the in-memory
+      // state) so a toggle flip takes effect on the very next lock. An
+      // explicit tap on a visible button bypasses this: the button only
+      // renders when biometrics are preferred.
+      if (!bypassPrefCheck && !(await isBiometricPreferred())) return;
       const authPromise = authenticateWithBiometrics('Unlock Nusxa');
       // Real hardware ALWAYS resolves the prompt (success / cancel / error),
       // however long the user takes placing their finger — so await it fully.
@@ -78,14 +92,23 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       const result = biometricDevBypass()
         ? await Promise.race([
             authPromise,
-            new Promise<{ ok: boolean; cancelled: boolean }>((resolve) =>
-              setTimeout(() => resolve({ ok: false, cancelled: false }), 8_000)
+            new Promise<{ ok: boolean; cancelled: boolean; misconfigured: boolean }>((resolve) =>
+              setTimeout(() => resolve({ ok: false, cancelled: false, misconfigured: false }), 8_000)
             ),
           ])
         : await authPromise;
       if (!mountedRef.current) return;
       if (result.ok) {
         onUnlock();
+        return;
+      }
+      // iOS builds without NSFaceIDUsageDescription resolve instantly with
+      // missing_usage_description and can never show a prompt — retrying
+      // only blinks the screen. Stop trying and tell the user why.
+      if (result.misconfigured) {
+        brokenRef.current = true;
+        setBiometricBroken(true);
+        setError('Biometric unlock needs an app update. Enter your PIN.');
         return;
       }
       // Simulators have no real biometric hardware — a genuine prompt can
@@ -123,6 +146,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       ]);
       if (cancelled) return;
       setBiometricAvailable(support.available);
+      setBiometricPreferred(preferred);
       setBiometricLabel(support.label);
       if (support.available && preferred) {
         void tryBiometric(false);
@@ -205,10 +229,10 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
         />
       </View>
 
-      {biometricAvailable && !lockedOut && (
+      {biometricAvailable && biometricPreferred && !biometricBroken && !lockedOut && (
         <TouchableOpacity
           style={styles.biometricBtn}
-          onPress={() => void tryBiometric(true)}
+          onPress={() => void tryBiometric(true, true)}
           disabled={prompting}
           accessibilityLabel={`Unlock with ${biometricLabel ?? 'biometrics'}`}
         >

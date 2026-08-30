@@ -44,13 +44,7 @@ Nusxa uses three separate free-tier AI providers, split by task:
 2. **Groq** (chat/explanations, primary, ~1,000 req/day free) — get a key from https://console.groq.com/keys
 3. **OpenRouter** (chat/explanations, fallback when Groq is unavailable) — get a key from https://openrouter.ai/keys
 
-Enter all three in **Settings**, each has its own card and input field. Keys are stored via `expo-secure-store` (encrypted on-device). Alternatively, set them in `.env`:
-```
-EXPO_PUBLIC_GEMINI_API_KEY=your_key_here
-EXPO_PUBLIC_OPENROUTER_API_KEY=your_key_here
-EXPO_PUBLIC_GROQ_API_KEY=your_key_here
-```
-(then restart with `--clear`)
+Enter all three in **Settings**, each has its own card and input field. Keys are stored via `expo-secure-store` (encrypted on-device). For development you can instead set `EXPO_PUBLIC_GEMINI_API_KEY`, `EXPO_PUBLIC_OPENROUTER_API_KEY` and `EXPO_PUBLIC_GROQ_API_KEY` in `.env` (then restart with `--clear`). **Never put real shared keys in `.env`**: `EXPO_PUBLIC_*` values are baked into the app bundle and extractable by anyone. Production builds route all AI calls through the serverless proxy (see `worker/README.md`), which holds the provider keys server-side.
 
 ---
 
@@ -662,11 +656,13 @@ npx expo start --clear   # Clear cache and restart
 
 | Variable | Purpose | Required |
 |----------|---------|----------|
-| `EXPO_PUBLIC_GEMINI_API_KEY` | Fallback Gemini key (vision/OCR) if secure store is empty | For scanning |
-| `EXPO_PUBLIC_OPENROUTER_API_KEY` | Fallback OpenRouter key (chat/explain, primary) if secure store is empty | For chat/explain |
-| `EXPO_PUBLIC_GROQ_API_KEY` | Fallback Groq key (chat/explain, fallback provider) if secure store is empty | For chat/explain fallback |
+| `EXPO_PUBLIC_AI_PROXY_URL` | Serverless proxy that holds all provider keys server-side (production path) | Yes (production) |
+| `EXPO_PUBLIC_AI_PROXY_APP_KEY` | Shared secret sent as `x-app-key` with every proxy request | With proxy |
+| `EXPO_PUBLIC_GEMINI_API_KEY` | Dev-only fallback Gemini key (vision/OCR) if secure store is empty | No |
+| `EXPO_PUBLIC_OPENROUTER_API_KEY` | Dev-only fallback OpenRouter key (chat/explain) if secure store is empty | No |
+| `EXPO_PUBLIC_GROQ_API_KEY` | Dev-only fallback Groq key (chat/explain) if secure store is empty | No |
 
-The `.env` file is gitignored. Users should enter API keys through the Settings screen (secure store) rather than the `.env` file for production use.
+The `.env` file is gitignored, and `EXPO_PUBLIC_*` values are baked into the app bundle — never store real shared keys there. Users should enter personal keys through the Settings screen (secure store); production builds route through the proxy instead.
 
 ---
 

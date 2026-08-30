@@ -130,6 +130,8 @@ export interface BiometricAuthResult {
   ok: boolean;
   /** User dismissed the prompt themselves — fall back to PIN silently. */
   cancelled: boolean;
+  /** iOS build lacks NSFaceIDUsageDescription — the prompt can never show. */
+  misconfigured: boolean;
 }
 
 /** One biometric prompt. Only call while the app is in the foreground:
@@ -146,9 +148,16 @@ export async function authenticateWithBiometrics(promptMessage: string): Promise
     });
     return {
       ok: result.success,
-      cancelled: !result.success && result.error === 'user_cancel',
+      // user_cancel is the Android cancel; iOS reports system_cancel when the
+      // sheet is dismissed. Both mean "user stepped away from biometrics" —
+      // fall back to the PIN pad silently instead of showing an error.
+      cancelled: !result.success && (result.error === 'user_cancel' || result.error === 'system_cancel'),
+      // iOS resolves instantly with this when the built app has no
+      // NSFaceIDUsageDescription — attempting again just "blinks". Not in
+      // the published LocalAuthenticationError union, hence the cast.
+      misconfigured: !result.success && (result.error as string) === 'missing_usage_description',
     };
   } catch {
-    return { ok: false, cancelled: false };
+    return { ok: false, cancelled: false, misconfigured: false };
   }
 }

@@ -46,6 +46,19 @@ Three problems compounded:
    worker URL above. `EXPO_PUBLIC_AI_PROXY_APP_KEY` already matched the
    `APP_KEY` secret.
 
+## Follow-up hardening (same day)
+
+The three provider keys were removed from the app `.env`
+(`EXPO_PUBLIC_GEMINI_API_KEY`, `EXPO_PUBLIC_OPENROUTER_API_KEY`,
+`EXPO_PUBLIC_GROQ_API_KEY`). They are `EXPO_PUBLIC_*` values, i.e. baked into
+every app bundle and extractable by anyone — keeping real shared keys there
+would have defeated the purpose of the proxy. The worker secrets on
+Cloudflare are now the only copy. `env.example` and `readme.md` were updated
+to mark the fallback variables as dev-only (commented out).
+
+Keep in `.env`: `EXPO_PUBLIC_AI_PROXY_URL` and `EXPO_PUBLIC_AI_PROXY_APP_KEY`
+— the app needs both to reach and authenticate against the proxy.
+
 ## Verification (all passed)
 
 | Check | Expected | Result |
