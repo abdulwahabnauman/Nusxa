@@ -35,7 +35,7 @@ import type { Medicine, Schedule } from '../../src/types/models';
 
 export default function MedicineDetailScreen() {
   const { colors, typography, spacing } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
   const router = useRouter();
@@ -352,8 +352,8 @@ export default function MedicineDetailScreen() {
             <Card>
               {schedules.map((sch) => {
                 const range = t.dose.timeRange
-                  .replace('{start}', nf(formatTime12h(sch.time)))
-                  .replace('{end}', nf(formatTime12h(addMinutesToTime(sch.time, sch.window_minutes ?? 120))));
+                  .replace('{start}', nf(formatTime12h(sch.time, language)))
+                  .replace('{end}', nf(formatTime12h(addMinutesToTime(sch.time, sch.window_minutes ?? 120), language)));
                 return (
                 <View key={sch.id} style={styles.scheduleRow}>
                   <MaterialCommunityIcons
@@ -363,10 +363,11 @@ export default function MedicineDetailScreen() {
                   />
                   <Text style={[typography.body.base, {
                     color: sch.is_active ? colors.text.primary : colors.text.disabled,
-                    marginLeft: 8,
+                    marginStart: 8,
                   }]}>
                     {range} — {sch.frequency}
-                    {sch.meal_instruction && sch.meal_instruction !== 'none' && ` (${sch.meal_instruction} meals)`}
+                    {sch.meal_instruction && sch.meal_instruction !== 'none' &&
+                      ` (${sch.meal_instruction === 'before' ? t.dose.beforeMeals : sch.meal_instruction === 'with' ? t.dose.withMeals : t.dose.afterMeals})`}
                   </Text>
                 </View>
                 );
@@ -591,7 +592,7 @@ export default function MedicineDetailScreen() {
             return (
               <Input
                 key={sch.id}
-                label={`${t.medicine.timeLabel} (${formatTime12h(sch.time)})`}
+                label={`${t.medicine.timeLabel} (${formatTime12h(sch.time, language)})`}
                 value={val}
                 onChangeText={(text) => setEditTimes((prev) => ({ ...prev, [sch.id]: text }))}
                 placeholder="HH:MM"
