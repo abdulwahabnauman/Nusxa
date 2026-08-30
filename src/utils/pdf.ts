@@ -285,7 +285,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
       if (!med) return '';
       return `
         <tr>
-          <td class="mono">${esc(getTimeRangeParts(s.time, s.window_minutes ?? 120).join(ur ? ' تا ' : ' to '))}</td>
+          <td class="mono">${esc(getTimeRangeParts(s.time, s.window_minutes ?? 120, ur ? 'ur' : 'en').join(ur ? ' تا ' : ' to '))}</td>
           <td>${dashL(med.name)}${med.strength ? ` <span class="muted">(${esc(med.strength)})</span>` : ''}</td>
           <td>${dashL(med.dosage)}</td>
           <td>${mealLabel(s.meal_instruction)}</td>
