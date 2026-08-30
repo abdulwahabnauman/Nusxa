@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, I18nManager, type ViewStyle }
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../theme/provider';
 
 export interface SwipeAction {
   label: string;
@@ -31,6 +32,7 @@ export function SwipeActions({
 }) {
   // +1 in LTR (reveal on left swipe), -1 in RTL (reveal on right swipe)
   const dirSign = I18nManager.isRTL ? -1 : 1;
+  const { typography } = useTheme();
   const maxShift = SWIPE_ACTION_WIDTH * actions.length;
   // 0 = closed, -maxShift = fully open
   const tx = useSharedValue(0);
@@ -77,7 +79,7 @@ export function SwipeActions({
             accessibilityLabel={action.label}
           >
             <MaterialCommunityIcons name={action.icon} size={22} color={action.foreground ?? '#FFFFFF'} />
-            <Text numberOfLines={1} style={[styles.actionLabel, { color: action.foreground ?? '#FFFFFF' }]}>
+            <Text numberOfLines={1} style={[styles.actionLabel, { color: action.foreground ?? '#FFFFFF', fontFamily: typography.families.semibold }]}>
               {action.label}
             </Text>
           </TouchableOpacity>
@@ -111,6 +113,5 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     fontSize: 11,
-    fontWeight: '600',
   },
 });
