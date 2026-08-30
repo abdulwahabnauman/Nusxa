@@ -2,6 +2,7 @@ import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
 import { Asset } from 'expo-asset';
 import { formatDateReadable, getTimeRangeParts, calculateAge } from './date';
+import { PAGE_CSS, getPrintFileOptions } from './pdfPage';
 import type { Medicine, Schedule } from '../types/models';
 
 /** Escape a string for safe inclusion in HTML */
@@ -311,7 +312,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
   <meta charset="utf-8" />
   <style>
     ${fontCss}
-    @page { size: A4; margin: 18mm 16mm; }
+    ${PAGE_CSS}
     * { box-sizing: border-box; }
     body {
       font-family: Helvetica, Arial, sans-serif;
@@ -452,7 +453,7 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
 </body>
 </html>`;
 
-  const { uri } = await Print.printToFileAsync({ html });
+  const { uri } = await Print.printToFileAsync({ html, ...getPrintFileOptions() });
 
   // expo-print names its temp file arbitrarily; copy it to a human-friendly
   // name so the share sheet / saved file reads "Nusxa_DoctorVisit_<patient>_<date>.pdf".
@@ -537,7 +538,7 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
   <meta charset="utf-8" />
   <style>
     ${fontCss}
-    @page { size: A4; margin: 18mm 16mm; }
+    ${PAGE_CSS}
     * { box-sizing: border-box; }
     body {
       font-family: Helvetica, Arial, sans-serif;
@@ -682,7 +683,7 @@ export async function generateAnalyticsReportPdf(params: AnalyticsReportPdfParam
 </body>
 </html>`;
 
-  const { uri } = await Print.printToFileAsync({ html });
+  const { uri } = await Print.printToFileAsync({ html, ...getPrintFileOptions() });
 
   const safeName = profileName.trim().replace(/[^\w\- ]+/g, '').replace(/\s+/g, '_') || 'Patient';
   const dated = new Date().toISOString().slice(0, 10);
