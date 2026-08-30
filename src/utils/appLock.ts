@@ -8,6 +8,7 @@
 import * as SecureStore from 'expo-secure-store';
 import * as LocalAuthentication from 'expo-local-authentication';
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 /** Dev-only allowance: simulators have no real biometric hardware, so a
  * genuine prompt can never succeed there. Never true on real devices or
@@ -104,19 +105,37 @@ export async function getBiometricSupport(): Promise<BiometricSupport> {
       return { available: false, label: null };
     }
     const types = await LocalAuthentication.supportedAuthenticationTypesAsync();
-    const label = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)
-      ? 'Face'
-      : types.includes(LocalAuthentication.AuthenticationType.IRIS)
-        ? 'Iris'
-        : 'Fingerprint';
+    // Android's BiometricPrompt requires BIOMETRIC_STRONG, and Samsung-style
+    // face unlock is usually classified WEAK — so even when face hardware is
+    // reported, the actual prompt is the fingerprint sensor. Label what the
+    // user will really see: fingerprint first on Android, face first on iOS.
+    const hasFingerprint = types.includes(LocalAuthentication.AuthenticationType.FINGERPRINT);
+    const hasFace = types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION);
+    const hasIris = types.includes(LocalAuthentication.AuthenticationType.IRIS);
+    const label =
+      Platform.OS === 'android' && hasFingerprint
+        ? 'Fingerprint'
+        : hasFace
+          ? 'Face'
+          : hasIris
+            ? 'Iris'
+            : 'Fingerprint';
     return { available: true, label };
   } catch {
     return { available: false, label: null };
   }
 }
 
-/** One biometric prompt; resolves true only on successful authentication */
-export async function authenticateWithBiometrics(promptMessage: string): Promise<boolean> {
+export interface BiometricAuthResult {
+  ok: boolean;
+  /** User dismissed the prompt themselves — fall back to PIN silently. */
+  cancelled: boolean;
+}
+
+/** One biometric prompt. Only call while the app is in the foreground:
+ * Android cancels BiometricPrompt instantly if the activity is not fully
+ * resumed, which surfaces as a spurious "did not succeed" error. */
+export async function authenticateWithBiometrics(promptMessage: string): Promise<BiometricAuthResult> {
   try {
     const result = await LocalAuthentication.authenticateAsync({
       promptMessage,
@@ -125,8 +144,11 @@ export async function authenticateWithBiometrics(promptMessage: string): Promise
       // returns to our own PIN pad, never to the device passcode sheet.
       disableDeviceFallback: true,
     });
-    return result.success;
+    return {
+      ok: result.success,
+      cancelled: !result.success && result.error === 'user_cancel',
+    };
   } catch {
-    return false;
+    return { ok: false, cancelled: false };
   }
 }

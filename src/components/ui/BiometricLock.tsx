@@ -5,7 +5,7 @@
  * cannot be brute-forced.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, AppState } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { spacing } from '../../theme/spacing';
@@ -32,9 +32,15 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [biometricLabel, setBiometricLabel] = useState<string | null>(null);
   const [prompting, setPrompting] = useState(false);
-  const promptedOnce = useRef(false);
   const verifying = useRef(false);
   const promptingRef = useRef(false);
+  const mountedRef = useRef(true);
+
+  // Ignore late biometric results once the gate unmounts: a prompt that was
+  // pending when the user unlocked via PIN must not unlock a LATER lock.
+  useEffect(() => () => {
+    mountedRef.current = false;
+  }, []);
 
   const lockedOut = lockoutUntil !== null && lockoutUntil > now;
   const lockoutRemaining = lockoutUntil
@@ -50,17 +56,35 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
 
   const tryBiometric = useCallback(async (interactive: boolean) => {
     if (promptingRef.current) return;
+    // Android cancels BiometricPrompt instantly when the activity is not
+    // fully resumed — and on re-lock the app can still be mid-resume (the
+    // RN AppState 'active' event trails the visible foreground by seconds).
+    // Prompting then surfaces a spurious "did not succeed" error, so skip
+    // silently and let the AppState listener retry once we're really active.
+    if (AppState.currentState !== 'active') return;
     promptingRef.current = true;
     setPrompting(true);
+    // A fresh attempt invalidates any stale failure message from a previous
+    // lock cycle — otherwise the old error sits on screen like a bug.
+    setError(null);
     try {
-      // Race the native prompt against a timeout: on some platforms (notably
-      // the simulator) the biometric call can hang forever, which used to
-      // leave this screen frozen with the button disabled.
-      const ok = await Promise.race([
-        authenticateWithBiometrics('Unlock Nusxa'),
-        new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 8_000)),
-      ]);
-      if (ok) {
+      const authPromise = authenticateWithBiometrics('Unlock Nusxa');
+      // Real hardware ALWAYS resolves the prompt (success / cancel / error),
+      // however long the user takes placing their finger — so await it fully.
+      // The old 8s race timed out first on slow attempts, showed a bogus
+      // "did not succeed" error while the prompt was still up, and discarded
+      // the later genuine success ("biometrics only work once"). Only
+      // simulators can hang forever, so keep the safety timeout there alone.
+      const result = biometricDevBypass()
+        ? await Promise.race([
+            authPromise,
+            new Promise<{ ok: boolean; cancelled: boolean }>((resolve) =>
+              setTimeout(() => resolve({ ok: false, cancelled: false }), 8_000)
+            ),
+          ])
+        : await authPromise;
+      if (!mountedRef.current) return;
+      if (result.ok) {
         onUnlock();
         return;
       }
@@ -72,18 +96,27 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
         onUnlock();
         return;
       }
-      setError('Biometric check did not succeed. Enter your PIN.');
+      // A deliberate cancel just falls back to the PIN pad quietly; only a
+      // genuine failure (read errors, lockout) deserves the error text.
+      if (!result.cancelled) {
+        setError('Biometric check did not succeed. Enter your PIN.');
+      }
     } finally {
-      promptingRef.current = false;
-      setPrompting(false);
+      if (mountedRef.current) {
+        promptingRef.current = false;
+        setPrompting(false);
+      }
     }
   }, [onUnlock]);
 
-  // Auto-prompt biometrics once on mount when the hardware exists and the
-  // user opted in.
+  // Auto-prompt biometrics when the hardware exists and the user opted in.
+  // Fires on mount IF already in the foreground, and again on every return
+  // to 'active': backgrounding re-locks the app while this component stays
+  // mounted, so without the AppState hook the prompt would never come back
+  // after the first unlock ("biometrics only work once").
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const maybePrompt = async () => {
       const [support, preferred] = await Promise.all([
         getBiometricSupport(),
         isBiometricPreferred(),
@@ -91,13 +124,17 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       if (cancelled) return;
       setBiometricAvailable(support.available);
       setBiometricLabel(support.label);
-      if (support.available && preferred && !promptedOnce.current) {
-        promptedOnce.current = true;
+      if (support.available && preferred) {
         void tryBiometric(false);
       }
-    })();
+    };
+    void maybePrompt();
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void maybePrompt();
+    });
     return () => {
       cancelled = true;
+      sub.remove();
     };
   }, [tryBiometric]);
 

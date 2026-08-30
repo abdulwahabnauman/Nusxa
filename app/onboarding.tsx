@@ -90,8 +90,14 @@ export default function OnboardingScreen() {
       });
       setProfile(profile);
 
-      // Navigate to main tabs after successful setup
-      router.replace('/');
+      // Navigate to main tabs after successful setup. When onboarding is
+      // rendered as the root gate (stack not mounted yet), setProfile alone
+      // swaps the gate for the stack — the replace is best-effort there.
+      try {
+        router.replace('/');
+      } catch {
+        // gate swap handles navigation when the stack mounts
+      }
     } catch (error) {
       console.error('Onboarding error:', error);
       showToast(t.toasts.profileSetupFailed, 'error');
