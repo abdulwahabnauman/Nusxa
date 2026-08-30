@@ -1,7 +1,15 @@
 import React, { useEffect } from 'react';
-import { Text, View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -42,6 +50,7 @@ export function Toast({
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(10);
+  const translateX = useSharedValue(0);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
@@ -64,9 +73,39 @@ export function Toast({
   }, [visible, duration, onDismiss, translateY, opacity, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
     opacity: opacity.value,
   }));
+
+  // Swipe left or right to dismiss: the toast follows the finger and fades
+  // with distance; past the threshold (or on a confident flick) it flings
+  // off-screen and dismisses, otherwise it springs back into place.
+  const swipeDismiss = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .onUpdate((e) => {
+      'worklet';
+      translateX.value = e.translationX;
+      opacity.value = Math.max(0.25, 1 - Math.abs(e.translationX) / 240);
+    })
+    .onEnd((e) => {
+      'worklet';
+      const shouldDismiss = Math.abs(e.translationX) > 96 || Math.abs(e.velocityX) > 600;
+      if (shouldDismiss && reducedMotion) {
+        // Reduced-motion: no fling, just drop the toast instantly
+        runOnJS(onDismiss)();
+        return;
+      }
+      if (shouldDismiss) {
+        const dir = e.translationX > 0 ? 1 : -1;
+        translateX.value = withTiming(dir * 480, { duration: 200, easing: Easing.in(Easing.quad) });
+        opacity.value = withTiming(0, { duration: 200 }, (finished) => {
+          if (finished) runOnJS(onDismiss)();
+        });
+      } else {
+        translateX.value = withSpring(0, { damping: 22, stiffness: 300 });
+        opacity.value = withTiming(1, { duration: 150 });
+      }
+    });
 
   const colorMap: Record<ToastType, string> = {
     success: colors.success,
@@ -78,6 +117,7 @@ export function Toast({
   const iconColor = colorMap[type];
 
   return (
+    <GestureDetector gesture={swipeDismiss}>
     <Animated.View
       style={[
         styles.container,
@@ -97,7 +137,7 @@ export function Toast({
         style={[styles.content, action ? { flex: 1 } : null]}
         onPress={onDismiss}
         activeOpacity={0.8}
-        accessibilityLabel={`${type}: ${message}. Tap to dismiss.`}
+        accessibilityLabel={`${type}: ${message}. Tap or swipe to dismiss.`}
       >
         <MaterialCommunityIcons name={ICON_MAP[type]} size={22} color={iconColor} />
         <Text style={[typography.body.sm, { color: colors.text.primary, flex: 1, marginStart: spacing.sm }]}>
@@ -119,6 +159,7 @@ export function Toast({
         </TouchableOpacity>
       )}
     </Animated.View>
+    </GestureDetector>
   );
 }
 

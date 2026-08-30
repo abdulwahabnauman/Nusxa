@@ -12,7 +12,15 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { Text, StyleSheet, TouchableOpacity } from 'react-native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  withSpring,
+  runOnJS,
+  Easing,
+} from 'react-native-reanimated';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/provider';
@@ -38,10 +46,13 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(120);
+  const translateX = useSharedValue(0);
   const opacity = useSharedValue(0);
 
   useEffect(() => {
     if (state.visible) {
+      // A reused toast may still carry a leftover swipe offset — reset it
+      translateX.value = 0;
       // Calm entrance: deceleration slide-up that lands with no bounce.
       // Reduced-motion users get a plain fade with no movement.
       if (reducedMotion) {
@@ -57,12 +68,42 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
       translateY.value = withTiming(120, { duration: 160, easing: Easing.in(Easing.quad) });
       opacity.value = withTiming(0, { duration: 160 });
     }
-  }, [state.visible, onDismiss, translateY, opacity, reducedMotion]);
+  }, [state.visible, onDismiss, translateY, translateX, opacity, reducedMotion]);
 
   const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateY: translateY.value }],
+    transform: [{ translateX: translateX.value }, { translateY: translateY.value }],
     opacity: opacity.value,
   }));
+
+  // Swipe left or right to dismiss: the toast follows the finger and fades
+  // with distance; past the threshold (or on a confident flick) it flings
+  // off-screen and dismisses, otherwise it springs back into place.
+  const swipeDismiss = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .onUpdate((e) => {
+      'worklet';
+      translateX.value = e.translationX;
+      opacity.value = Math.max(0.25, 1 - Math.abs(e.translationX) / 240);
+    })
+    .onEnd((e) => {
+      'worklet';
+      const shouldDismiss = Math.abs(e.translationX) > 96 || Math.abs(e.velocityX) > 600;
+      if (shouldDismiss && reducedMotion) {
+        // Reduced-motion: no fling, just drop the toast instantly
+        runOnJS(onDismiss)();
+        return;
+      }
+      if (shouldDismiss) {
+        const dir = e.translationX > 0 ? 1 : -1;
+        translateX.value = withTiming(dir * 480, { duration: 200, easing: Easing.in(Easing.quad) });
+        opacity.value = withTiming(0, { duration: 200 }, (finished) => {
+          if (finished) runOnJS(onDismiss)();
+        });
+      } else {
+        translateX.value = withSpring(0, { damping: 22, stiffness: 300 });
+        opacity.value = withTiming(1, { duration: 150 });
+      }
+    });
 
   const handleUndo = () => {
     state.onUndo();
@@ -70,6 +111,7 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
   };
 
   return (
+    <GestureDetector gesture={swipeDismiss}>
     <Animated.View
       style={[
         styles.container,
@@ -107,6 +149,7 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
         </Text>
       </TouchableOpacity>
     </Animated.View>
+    </GestureDetector>
   );
 }
 
