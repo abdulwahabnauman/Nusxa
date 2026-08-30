@@ -31,6 +31,12 @@ Scan the QR code with Expo Go on your phone.
 
 > **Web mode (`npx expo start` then pressing `w`) is not supported.** `react-native-web` isn't a real pinned dependency here, it resolves to whatever version npm happens to pick, which is usually incompatible. This app targets Android/iOS only — don't chase web bundling errors, they're expected.
 
+### Run the Tests
+```bash
+npm test
+```
+Jest + `jest-expo` unit suites live in `src/utils/__tests__/` and cover the pure logic that clinical UX depends on: validation, inventory math, interaction checking, and `savePrescription` fuzzy duplicate matching (DB + notifications mocked).
+
 ### Configure the AI Services
 Nusxa uses three separate free-tier AI providers, split by task:
 
@@ -68,6 +74,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Splash             | expo-splash-screen + custom animated capsule-halves intro |
 | Theming            | Custom token system (light/dark/elderly)|
 | i18n               | Custom context (English + Urdu/RTL)     |
+| Testing            | Jest + jest-expo (`npm test`, suites in `src/utils/__tests__/`) |
 
 ---
 
