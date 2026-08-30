@@ -402,6 +402,19 @@ const migration_v16: Migration = {
   },
 };
 
+/** v17: preference to route AI calls to the user's own provider keys */
+const migration_v17: Migration = {
+  version: 17,
+  up: async (db) => {
+    try {
+      await db.execAsync('ALTER TABLE profile ADD COLUMN use_own_keys INTEGER DEFAULT 0;');
+    } catch {
+      // Column already exists — nothing to do
+    }
+    await db.runAsync('UPDATE schema_version SET version = 17;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -419,6 +432,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v14,
   migration_v15,
   migration_v16,
+  migration_v17,
 ];
 
 /** Run pending migrations */

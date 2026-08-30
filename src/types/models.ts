@@ -22,6 +22,7 @@ export interface Profile {
   eastern_numerals?: boolean;
   snooze_minutes?: number;
   high_contrast?: boolean;
+  use_own_keys?: boolean;
   theme_preference?: 'system' | 'light' | 'dark';
   created_at: string;
   updated_at: string;

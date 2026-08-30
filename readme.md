@@ -44,7 +44,7 @@ Nusxa uses three separate free-tier AI providers, split by task:
 2. **Groq** (chat/explanations, primary, ~1,000 req/day free) — get a key from https://console.groq.com/keys
 3. **OpenRouter** (chat/explanations, fallback when Groq is unavailable) — get a key from https://openrouter.ai/keys
 
-Enter all three in **Settings**, each has its own card and input field. Keys are stored via `expo-secure-store` (encrypted on-device). For development you can instead set `EXPO_PUBLIC_GEMINI_API_KEY`, `EXPO_PUBLIC_OPENROUTER_API_KEY` and `EXPO_PUBLIC_GROQ_API_KEY` in `.env` (then restart with `--clear`). **Never put real shared keys in `.env`**: `EXPO_PUBLIC_*` values are baked into the app bundle and extractable by anyone. Production builds route all AI calls through the serverless proxy (see `worker/README.md`), which holds the provider keys server-side.
+Enter all three in **Settings**, each has its own card and input field. Keys are stored via `expo-secure-store` (encrypted on-device). For development you can instead set `EXPO_PUBLIC_GEMINI_API_KEY`, `EXPO_PUBLIC_OPENROUTER_API_KEY` and `EXPO_PUBLIC_GROQ_API_KEY` in `.env` (then restart with `--clear`). **Never put real shared keys in `.env`**: `EXPO_PUBLIC_*` values are baked into the app bundle and extractable by anyone. Production builds route all AI calls through the serverless proxy (see `worker/README.md`), which holds the provider keys server-side. When the proxy is configured, Settings shows a "Use my own keys" toggle under the ready-to-use card: turning it on reveals the three key fields and sends those providers straight to the user's own accounts, while providers without a saved key keep using the built-in service.
 
 ---
 

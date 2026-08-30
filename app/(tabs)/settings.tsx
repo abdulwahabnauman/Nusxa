@@ -147,6 +147,8 @@ export default function SettingsScreen() {
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const setEasternNumerals = useSettingsStore((s) => s.setEasternNumerals);
+  const useOwnKeys = useSettingsStore((s) => s.useOwnKeys);
+  const setUseOwnKeys = useSettingsStore((s) => s.setUseOwnKeys);
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
@@ -415,6 +417,43 @@ export default function SettingsScreen() {
     // Brief delay so the final dot is visible before feedback
     setTimeout(() => void finishPinEntry(next), 150);
   };
+
+  const aiKeyFields = (
+    <>
+      <ApiKeyField
+        description={t.settings.aiServiceDesc}
+        url="https://aistudio.google.com/app/apikey"
+        placeholder={t.settings.apiKeyPlaceholder}
+        savedPlaceholder={t.settings.apiKeySaved}
+        keyLabel="Gemini"
+        loadKey={getApiKey}
+        saveKey={saveApiKey}
+        deleteKey={deleteApiKey}
+      />
+      <View style={{ height: spacing.sm }} />
+      <ApiKeyField
+        description={t.settings.groqServiceDesc}
+        url="https://console.groq.com/keys"
+        placeholder={t.settings.groqKeyPlaceholder}
+        savedPlaceholder={t.settings.apiKeySaved}
+        keyLabel="Groq"
+        loadKey={getGroqKey}
+        saveKey={saveGroqKey}
+        deleteKey={deleteGroqKey}
+      />
+      <View style={{ height: spacing.sm }} />
+      <ApiKeyField
+        description={t.settings.openRouterServiceDesc}
+        url="https://openrouter.ai/keys"
+        placeholder={t.settings.openRouterKeyPlaceholder}
+        savedPlaceholder={t.settings.apiKeySaved}
+        keyLabel="OpenRouter"
+        loadKey={getOpenRouterKey}
+        saveKey={saveOpenRouterKey}
+        deleteKey={deleteOpenRouterKey}
+      />
+    </>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -772,6 +811,7 @@ export default function SettingsScreen() {
         <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiService}</Text>
           {isAiProxyConfigured() ? (
+            <>
             <Card>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="check-decagram" size={24} color={colors.success} />
@@ -780,42 +820,28 @@ export default function SettingsScreen() {
                   <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>{t.settings.aiPreconfiguredDesc}</Text>
                 </View>
               </View>
+              <View style={[styles.row, { marginTop: spacing.md }]}>
+                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.ownKeys}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.ownKeysDesc}</Text>
+                </View>
+                <Switch
+                  value={useOwnKeys}
+                  onValueChange={(value) => {
+                    selectionHaptic();
+                    setUseOwnKeys(value);
+                  }}
+                  trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                  accessibilityLabel="Toggle use my own keys"
+                />
+              </View>
             </Card>
-          ) : (
-            <>
-              <ApiKeyField
-                description={t.settings.aiServiceDesc}
-                url="https://aistudio.google.com/app/apikey"
-                placeholder={t.settings.apiKeyPlaceholder}
-                savedPlaceholder={t.settings.apiKeySaved}
-                keyLabel="Gemini"
-                loadKey={getApiKey}
-                saveKey={saveApiKey}
-                deleteKey={deleteApiKey}
-              />
-              <View style={{ height: spacing.sm }} />
-              <ApiKeyField
-                description={t.settings.groqServiceDesc}
-                url="https://console.groq.com/keys"
-                placeholder={t.settings.groqKeyPlaceholder}
-                savedPlaceholder={t.settings.apiKeySaved}
-                keyLabel="Groq"
-                loadKey={getGroqKey}
-                saveKey={saveGroqKey}
-                deleteKey={deleteGroqKey}
-              />
-              <View style={{ height: spacing.sm }} />
-              <ApiKeyField
-                description={t.settings.openRouterServiceDesc}
-                url="https://openrouter.ai/keys"
-                placeholder={t.settings.openRouterKeyPlaceholder}
-                savedPlaceholder={t.settings.apiKeySaved}
-                keyLabel="OpenRouter"
-                loadKey={getOpenRouterKey}
-                saveKey={saveOpenRouterKey}
-                deleteKey={deleteOpenRouterKey}
-              />
+            {useOwnKeys && (
+              <View style={{ marginTop: spacing.sm }}>{aiKeyFields}</View>
+            )}
             </>
+          ) : (
+            aiKeyFields
           )}
         </View>
 

@@ -9,12 +9,14 @@ interface SettingsState {
   reminderEscalation: boolean;
   reducedMotion: boolean;
   easternNumerals: boolean;
+  useOwnKeys: boolean;
   snoozeMinutes: number;
   setLanguage: (lang: Language) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
   setEasternNumerals: (enabled: boolean) => void;
+  setUseOwnKeys: (enabled: boolean) => void;
   setSnoozeMinutes: (minutes: number) => void;
 }
 
@@ -28,6 +30,7 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
       eastern_numerals: state.easternNumerals,
       snooze_minutes: state.snoozeMinutes,
       reminder_escalation: state.reminderEscalation,
+      use_own_keys: state.useOwnKeys,
     });
   } catch (error) {
     console.error('Failed to save settings to database:', error);
@@ -46,6 +49,7 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
         easternNumerals: !!profile.eastern_numerals,
         snoozeMinutes: profile.snooze_minutes ?? 10,
         reminderEscalation: profile.reminder_escalation ?? true,
+        useOwnKeys: profile.use_own_keys ?? false,
       };
     }
   } catch (error) {
@@ -83,6 +87,7 @@ export async function hydrateSettings(): Promise<void> {
     easternNumerals: loaded.easternNumerals ?? false,
     snoozeMinutes: loaded.snoozeMinutes ?? 10,
     reminderEscalation: loaded.reminderEscalation ?? true,
+    useOwnKeys: loaded.useOwnKeys ?? false,
   });
 }
 
@@ -99,6 +104,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       easternNumerals: initialSettings.easternNumerals ?? false,
       snoozeMinutes: initialSettings.snoozeMinutes ?? 10,
       reminderEscalation: initialSettings.reminderEscalation ?? true,
+      useOwnKeys: initialSettings.useOwnKeys ?? false,
     });
   });
 
@@ -109,6 +115,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     reminderEscalation: true,
     reducedMotion: false,
     easternNumerals: false,
+    useOwnKeys: false,
     snoozeMinutes: 10,
     
     setLanguage: (language) => {
@@ -133,6 +140,11 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
 
     setEasternNumerals: (easternNumerals) => {
       set({ easternNumerals });
+      saveSettingsToDatabase(get());
+    },
+
+    setUseOwnKeys: (useOwnKeys) => {
+      set({ useOwnKeys });
       saveSettingsToDatabase(get());
     },
 

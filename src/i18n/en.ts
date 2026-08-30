@@ -135,6 +135,8 @@ export const en = {
     aiServiceDesc: 'Reads your prescriptions. Free key from:',
     aiPreconfigured: 'Ready to use',
     aiPreconfiguredDesc: 'AI is already set up for you. No keys or extra steps needed.',
+    ownKeys: 'Use my own keys',
+    ownKeysDesc: 'Send requests straight to your own AI accounts. Providers without a saved key keep using the built-in service.',
     openRouterServiceDesc: 'Optional automatic fallback when Groq is unavailable. Key from:',
     groqServiceDesc: 'Powers chat & medicine explanations. Free key from:',
     apiKeyPlaceholder: 'Paste Gemini API key',
