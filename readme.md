@@ -92,7 +92,7 @@ nusxa/
 │       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Learn, Settings)
 │       ├── index.tsx             # Home — today's schedule, adherence ring, streak, weekly chart
 │       ├── medicines.tsx         # Active medicines list with refill estimates
-│       ├── history.tsx           # Prescription history with search, archive, delete
+│       ├── history.tsx           # Prescription history with search + swipe-to archive/delete
 │       ├── education.tsx         # Education library (browse, bookmarks, reading history)
 │       └── settings.tsx          # Theme, language, profile (name/DOB/blood group), API keys, data export/import
 │
@@ -125,6 +125,7 @@ nusxa/
 │   │       ├── Badge.tsx, Button.tsx (spring press feedback), Card.tsx
 │   │       ├── EmptyState.tsx (accepts icon name or custom node), Input.tsx, Modal.tsx
 │   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx (all Reanimated)
+│   │       ├── SwipeActions.tsx   # Swipe-to-reveal row actions (RTL-aware)
 │   │       ├── PillIcon.tsx      # Shared brand capsule SVG (replaces all ad-hoc pill icons)
 │   │       ├── BiometricLock.tsx # PIN + biometric app lock
 │   │       ├── MarkdownText.tsx  # Markdown renderer for AI chat responses

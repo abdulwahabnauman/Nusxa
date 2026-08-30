@@ -274,6 +274,11 @@ export const en = {
     deleteMsg: 'This will permanently delete this prescription and all associated data.',
     archivedToast: 'Prescription archived',
     deletedToast: 'Prescription deleted',
+    unknownDoctor: 'Unknown doctor',
+    noDate: 'No date',
+    medicineCountOne: '{n} medicine',
+    medicineCountMany: '{n} medicines',
+    swipeHint: 'Swipe a card to archive or delete',
   },
   // Emergency card
   emergency: {

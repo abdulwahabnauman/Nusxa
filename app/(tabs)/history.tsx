@@ -26,6 +26,7 @@ import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { useUndoToast } from '../../src/components/ui/UndoToast';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
+import { SwipeActions, type SwipeAction } from '../../src/components/ui/SwipeActions';
 import { useI18n } from '../../src/i18n';
 import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { usePrescriptionList, PrescriptionItem } from '../../src/hooks/queries';
@@ -51,59 +52,57 @@ const PrescriptionRow = memo(function PrescriptionRow({
 }) {
   const { colors, typography } = useTheme();
   const { t } = useI18n();
-  return (
-    <Card style={{ marginBottom: 16 }}>
-      <TouchableOpacity
-        onPress={() => onOpen(rx)}
-        accessibilityLabel={`Prescription from ${rx.date ?? 'unknown date'}`}
-      >
-        <View style={styles.rxHeader}>
-          <View style={{ flex: 1 }}>
-            <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-              {rx.doctor_name ?? 'Unknown doctor'}
-            </Text>
-            <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-              {rx.date ?? 'No date'}, {rx.medicineCount} {rx.medicineCount === 1 ? 'medicine' : 'medicines'}
-            </Text>
-            {rx.hospital && (
-              <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 2 }]}>
-                {rx.hospital}
-              </Text>
-            )}
-          </View>
-          <Badge
-            label={rx.treatment_status}
-            variant={rx.treatment_status === 'active' ? 'verified' : 'info'}
-          />
-        </View>
-      </TouchableOpacity>
 
-      {/* Actions */}
-      <View style={styles.actions}>
-        {rx.treatment_status === 'active' && (
-          <TouchableOpacity
-            onPress={() => onArchive(rx)}
-            style={styles.actionBtn}
-            accessibilityLabel="Archive prescription"
-          >
-            <MaterialCommunityIcons name="archive-outline" size={18} color={colors.text.secondary} />
-            <Text style={[typography.body.xs, { color: colors.text.secondary, marginLeft: 4 }]}>
-              {t.history.archive}
-            </Text>
-          </TouchableOpacity>
-        )}
+  // Swipe-revealed actions replace the old always-visible button row (UX17)
+  const actions: SwipeAction[] = [];
+  if (rx.treatment_status === 'active') {
+    actions.push({
+      label: t.history.archive,
+      icon: 'archive-outline',
+      background: colors.accent.primary,
+      onPress: () => onArchive(rx),
+    });
+  }
+  actions.push({
+    label: t.common.delete,
+    icon: 'delete-outline',
+    background: colors.error,
+    onPress: () => onDelete(rx),
+  });
+
+  return (
+    <SwipeActions actions={actions} style={{ marginBottom: 16 }}>
+      <Card>
         <TouchableOpacity
-          onPress={() => onDelete(rx)}
-          style={styles.actionBtn}
-          accessibilityLabel="Delete prescription"
+          onPress={() => onOpen(rx)}
+          accessibilityLabel={`Prescription from ${rx.date ?? t.history.noDate}`}
         >
-          <MaterialCommunityIcons name="delete-outline" size={18} color={colors.error} />
-          <Text style={[typography.body.xs, { color: colors.error, marginLeft: 4 }]}>
-            {t.common.delete}
-          </Text>
+          <View style={styles.rxHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                {rx.doctor_name ?? t.history.unknownDoctor}
+              </Text>
+              <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                {rx.date ?? t.history.noDate},{' '}
+                {(rx.medicineCount === 1 ? t.history.medicineCountOne : t.history.medicineCountMany).replace(
+                  '{n}',
+                  String(rx.medicineCount),
+                )}
+              </Text>
+              {rx.hospital && (
+                <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 2 }]}>
+                  {rx.hospital}
+                </Text>
+              )}
+            </View>
+            <Badge
+              label={rx.treatment_status}
+              variant={rx.treatment_status === 'active' ? 'verified' : 'info'}
+            />
+          </View>
         </TouchableOpacity>
-      </View>
-    </Card>
+      </Card>
+    </SwipeActions>
   );
 });
 
@@ -217,7 +216,7 @@ export default function HistoryScreen() {
           {t.history.title}
         </Text>
         <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-          {t.history.subtitle}
+          {t.history.subtitle} · {t.history.swipeHint}
         </Text>
       </View>
 
@@ -358,17 +357,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ccc',
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
 });

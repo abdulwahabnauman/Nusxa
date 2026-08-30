@@ -265,6 +265,11 @@ export const ur: TranslationKeys = {
     deleteMsg: 'یہ نسخے اور تمام متعلقہ ڈیٹا کو مستقل طور پر حذف کر دے گا۔',
     archivedToast: 'نسخہ آرکائیو کر دیا گیا',
     deletedToast: 'نسخہ حذف کر دیا گیا',
+    unknownDoctor: 'نامعلوم ڈاکٹر',
+    noDate: 'کوئی تاریخ نہیں',
+    medicineCountOne: '{n} دوا',
+    medicineCountMany: '{n} ادویات',
+    swipeHint: 'کارڈ پر سوائپ کر کے آرکائیو یا حذف کریں',
   },
   emergency: {
     title: 'ایمرجنسی کارڈ',
