@@ -148,8 +148,6 @@ export const en = {
     language: 'Language',
     english: 'English',
     urdu: 'اردو',
-    easternNumerals: 'Eastern Arabic numerals',
-    easternNumeralsDesc: 'Display numbers as ۰۱۲۳۴۵۶۷۸۹',
     security: 'Security',
     appLock: 'App lock',
     appLockDesc: 'Require PIN or biometric to open Nusxa',
