@@ -32,6 +32,7 @@ import { isValidDate } from '../../src/utils/date';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../../src/constants/config';
 import { formatDigits } from '../../src/utils/numerals';
+import { selectionHaptic } from '../../src/utils/haptics';
 import { useSuccessMorph } from '../../src/hooks/useSuccessMorph';
 import { useI18n } from '../../src/i18n';
 
@@ -491,7 +492,7 @@ export default function SettingsScreen() {
               <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.theme}</Text>
               <View style={styles.themeOptions}>
                 {(['system', 'light', 'dark'] as const).map((opt) => (
-                  <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => setPreference(opt)} accessibilityLabel={`Set theme to ${opt}`} accessibilityState={{ selected: themePref === opt }}>
+                  <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => { if (themePref !== opt) { selectionHaptic(); setPreference(opt); } }} accessibilityLabel={`Set theme to ${opt}`} accessibilityState={{ selected: themePref === opt }}>
                     <Text style={[typography.label.sm, { color: themePref === opt ? '#FFFFFF' : colors.text.secondary }]}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
                   </TouchableOpacity>
                 ))}
@@ -502,21 +503,21 @@ export default function SettingsScreen() {
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.elderlyMode}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.elderlyModeDesc}</Text>
               </View>
-              <Switch value={elderlyMode} onValueChange={setElderlyMode} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle elderly mode" />
+              <Switch value={elderlyMode} onValueChange={(v) => { selectionHaptic(); setElderlyMode(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle elderly mode" />
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
               <View>
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.highContrast}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.highContrastDesc}</Text>
               </View>
-              <Switch value={highContrast} onValueChange={setHighContrast} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle high contrast mode" />
+              <Switch value={highContrast} onValueChange={(v) => { selectionHaptic(); setHighContrast(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle high contrast mode" />
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
               <View>
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reducedMotion}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reducedMotionDesc}</Text>
               </View>
-              <Switch value={reducedMotion} onValueChange={setReducedMotion} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle reduced motion" />
+              <Switch value={reducedMotion} onValueChange={(v) => { selectionHaptic(); setReducedMotion(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle reduced motion" />
             </View>
           </Card>
         </View>
@@ -531,6 +532,7 @@ export default function SettingsScreen() {
                 {(['en', 'ur'] as const).map((lang) => (
                   <TouchableOpacity key={lang} style={[styles.themeChip, { backgroundColor: language === lang ? colors.accent.primary : colors.background.subtle, borderColor: language === lang ? colors.accent.primary : colors.border.default }]} onPress={async () => {
                     if (language !== lang) {
+                      selectionHaptic();
                       setLanguage(lang);
                       try { await updateProfile({ language: lang }); }
                       catch { console.log('Database not ready'); }
@@ -551,7 +553,7 @@ export default function SettingsScreen() {
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.easternNumerals}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.easternNumeralsDesc}</Text>
               </View>
-              <Switch value={easternNumerals} onValueChange={setEasternNumerals} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle Eastern Arabic numerals" />
+              <Switch value={easternNumerals} onValueChange={(v) => { selectionHaptic(); setEasternNumerals(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle Eastern Arabic numerals" />
             </View>
           </Card>
         </View>
@@ -565,7 +567,7 @@ export default function SettingsScreen() {
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.medicineReminders}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.medicineRemindersDesc}</Text>
               </View>
-              <Switch value={notificationsEnabled} onValueChange={setNotificationsEnabled} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle medicine reminders" />
+              <Switch value={notificationsEnabled} onValueChange={(v) => { selectionHaptic(); setNotificationsEnabled(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle medicine reminders" />
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
               <View style={{ flex: 1, marginRight: spacing.sm }}>
@@ -577,7 +579,7 @@ export default function SettingsScreen() {
                   <TouchableOpacity
                     key={min}
                     style={[styles.themeChip, { backgroundColor: snoozeMinutes === min ? colors.accent.primary : colors.background.subtle, borderColor: snoozeMinutes === min ? colors.accent.primary : colors.border.default }]}
-                    onPress={() => setSnoozeMinutes(min)}
+                    onPress={() => { if (snoozeMinutes !== min) { selectionHaptic(); setSnoozeMinutes(min); } }}
                     accessibilityLabel={`Set snooze to ${min} minutes`}
                     accessibilityState={{ selected: snoozeMinutes === min }}
                   >
@@ -594,6 +596,7 @@ export default function SettingsScreen() {
               <Switch
                 value={reminderEscalation}
                 onValueChange={(value) => {
+                  selectionHaptic();
                   setReminderEscalation(value);
                   // Arm/disarm the post-window re-rings right away
                   void syncDoseNotifications();

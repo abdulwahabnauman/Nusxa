@@ -28,6 +28,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '../src/theme/provider';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
+import { selectionHaptic } from '../src/utils/haptics';
 import { useI18n } from '../src/i18n';
 
 const AnimatedImage = createAnimatedComponent(Image);
@@ -228,6 +229,7 @@ export default function ScanScreen() {
         exif: true,
       });
       if (photo?.uri) {
+        selectionHaptic();
         setLowLight(looksDim(photo.exif as Record<string, unknown> | undefined));
         // Camera shots are cropped to the focus box: everything outside the
         // guide frame is discarded. Any failure keeps the full photo so a

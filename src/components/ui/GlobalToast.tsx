@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Toast, type ToastAction } from './Toast';
+import { successHaptic, errorHaptic } from '../../utils/haptics';
 
 export type GlobalToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -30,6 +31,9 @@ export function showToast(
   duration = 4000,
 ): void {
   const payload: ToastPayload = { id: ++nextId, message, type, duration };
+  // Haptic reinforcement for every success/error toast (audit UX22)
+  if (type === 'success') void successHaptic();
+  else if (type === 'error') void errorHaptic();
   if (listener) {
     listener(payload);
   } else {
@@ -49,6 +53,8 @@ export function showToastWithAction(
   duration = 5000,
 ): void {
   const payload: ToastPayload = { id: ++nextId, message, type, duration, action };
+  if (type === 'success') void successHaptic();
+  else if (type === 'error') void errorHaptic();
   if (listener) {
     listener(payload);
   } else {
