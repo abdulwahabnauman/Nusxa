@@ -317,6 +317,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonContainer: {
+    marginTop: 24,
     width: '100%',
     gap: 12,
     alignItems: 'center',
