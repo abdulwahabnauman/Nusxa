@@ -66,7 +66,7 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 | Vector Graphics    | react-native-svg (brand pill icon, charts) |
 | File Picking       | expo-document-picker (JSON data import) |
 | Splash             | expo-splash-screen + custom animated capsule-halves intro |
-| Theming            | Custom token system (light/dark/elderly)|
+| Theming            | Custom token system (light/dark/elderly); bundled Inter (Latin) + Noto Nastaliq (Urdu) so iOS and Android share identical text metrics |
 | i18n               | Custom context (English + Urdu/RTL)     |
 | Testing            | Jest + jest-expo (`npm test`, suites in `src/utils/__tests__/`) |
 
