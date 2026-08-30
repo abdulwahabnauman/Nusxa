@@ -32,15 +32,13 @@ import {
   getAllPrescriptions,
   searchPrescriptions,
   deletePrescription,
+  restorePrescription,
   archivePrescription,
-  getPrescription,
-  createPrescription,
   updatePrescription,
 } from '../../src/db/repositories/prescription';
-import { getMedicinesByPrescription, createMedicine } from '../../src/db/repositories/medicine';
-import { getSchedulesByMedicine, createSchedule } from '../../src/db/repositories/schedule';
-import { getDoseRecordsByMedicine, createDoseRecord } from '../../src/db/repositories/dose';
-import type { Prescription, Medicine, Schedule, DoseRecord } from '../../src/types/models';
+import { getMedicinesByPrescription } from '../../src/db/repositories/medicine';
+import { syncDoseNotifications } from '../../src/utils/notifications';
+import type { Prescription } from '../../src/types/models';
 
 interface PrescriptionItem extends Prescription {
   medicineCount: number;
@@ -59,6 +57,7 @@ const PrescriptionRow = memo(function PrescriptionRow({
   onDelete: (rx: PrescriptionItem) => void;
 }) {
   const { colors, typography } = useTheme();
+  const { t } = useI18n();
   return (
     <Card style={{ marginBottom: 16 }}>
       <TouchableOpacity
@@ -96,7 +95,7 @@ const PrescriptionRow = memo(function PrescriptionRow({
           >
             <MaterialCommunityIcons name="archive-outline" size={18} color={colors.text.secondary} />
             <Text style={[typography.body.xs, { color: colors.text.secondary, marginLeft: 4 }]}>
-              Archive
+              {t.history.archive}
             </Text>
           </TouchableOpacity>
         )}
@@ -107,7 +106,7 @@ const PrescriptionRow = memo(function PrescriptionRow({
         >
           <MaterialCommunityIcons name="delete-outline" size={18} color={colors.error} />
           <Text style={[typography.body.xs, { color: colors.error, marginLeft: 4 }]}>
-            Delete
+            {t.common.delete}
           </Text>
         </TouchableOpacity>
       </View>
@@ -193,53 +192,31 @@ export default function HistoryScreen() {
     try {
       await archivePrescription(rx.id);
       await loadPrescriptions();
-      showUndoToast('Prescription archived', async () => {
+      showUndoToast(t.history.archivedToast, async () => {
         try {
           await updatePrescription(rx.id, { treatment_status: prevStatus });
           await loadPrescriptions();
         } catch { /* undo is best-effort */ }
       });
     } catch { /* action failed silently */ }
-  }, [loadPrescriptions, showUndoToast]);
+  }, [loadPrescriptions, showUndoToast, t]);
 
   const handleDelete = useCallback(async (rx: PrescriptionItem) => {
     try {
-      // Snapshot everything the cascade delete will remove so Undo can restore it
-      const medicines = await getMedicinesByPrescription(rx.id);
-      const scheduleSnapshot: Schedule[] = [];
-      const doseSnapshot: DoseRecord[] = [];
-      for (const med of medicines) {
-        scheduleSnapshot.push(...await getSchedulesByMedicine(med.id));
-        doseSnapshot.push(...await getDoseRecordsByMedicine(med.id));
-      }
-      const rxSnapshot = await getPrescription(rx.id);
-
+      // Soft delete tombstones the prescription + its medicines; Undo just clears the tombstone
       await deletePrescription(rx.id);
+      await syncDoseNotifications();
       await loadPrescriptions();
 
-      showUndoToast('Prescription deleted', async () => {
+      showUndoToast(t.history.deletedToast, async () => {
         try {
-          if (rxSnapshot) {
-            const { created_at: _c, updated_at: _u, ...rxData } = rxSnapshot;
-            await createPrescription(rxData);
-          }
-          for (const med of medicines) {
-            const { created_at: _c, updated_at: _u, ...medData } = med;
-            await createMedicine(medData as Omit<Medicine, 'created_at' | 'updated_at'>);
-          }
-          for (const sch of scheduleSnapshot) {
-            const { created_at: _c, ...schData } = sch;
-            await createSchedule(schData);
-          }
-          for (const rec of doseSnapshot) {
-            const { created_at: _c, updated_at: _u, ...recData } = rec;
-            await createDoseRecord(recData);
-          }
+          await restorePrescription(rx.id);
+          await syncDoseNotifications();
           await loadPrescriptions();
         } catch { /* undo is best-effort */ }
       });
     } catch { /* action failed silently */ }
-  }, [loadPrescriptions, showUndoToast]);
+  }, [loadPrescriptions, showUndoToast, t]);
 
   const handleOpen = useCallback((rx: PrescriptionItem) => {
     router.push(`/medicine/${rx.id}`);

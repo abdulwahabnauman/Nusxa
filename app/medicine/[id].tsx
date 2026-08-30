@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Alert, Linking } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -11,12 +11,21 @@ import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
+import { Input } from '../../src/components/ui/Input';
+import { Modal } from '../../src/components/ui/Modal';
 import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
+import { showToast, showToastWithAction } from '../../src/components/ui/GlobalToast';
 import { strengthColor } from '../../src/theme/tokens';
-import { getMedicine, deleteMedicine } from '../../src/db/repositories/medicine';
-import { getSchedulesByMedicine, deactivateSchedulesByMedicine } from '../../src/db/repositories/schedule';
-import { cancelAllNotifications } from '../../src/utils/notifications';
+import { getMedicine, updateMedicine, deleteMedicine, restoreMedicine } from '../../src/db/repositories/medicine';
+import {
+  getSchedulesByMedicine,
+  updateSchedule,
+  deactivateSchedulesByMedicine,
+  activateSchedulesByMedicine,
+} from '../../src/db/repositories/schedule';
+import { syncDoseNotifications } from '../../src/utils/notifications';
+import { isValidTimeFormat } from '../../src/utils/validation';
 import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
 import { formatTime12h, addMinutesToTime } from '../../src/utils/date';
 import { formatDigits } from '../../src/utils/numerals';
@@ -32,26 +41,148 @@ export default function MedicineDetailScreen() {
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
 
+  // Edit modal state
+  const [editVisible, setEditVisible] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editDosage, setEditDosage] = useState('');
+  const [editFrequency, setEditFrequency] = useState('');
+  const [editDuration, setEditDuration] = useState('');
+  const [editRemaining, setEditRemaining] = useState('');
+  const [editTimes, setEditTimes] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState(false);
+
+  const nf = useCallback(
+    (v: string | number) => formatDigits(v, easternNumerals),
+    [easternNumerals]
+  );
+
   // Staggered entrance so the detail screen feels like it grows out of the card
   const enter = (index: number) =>
     reducedMotion ? undefined : FadeInUp.duration(280).delay(index * 55).springify();
 
-  useEffect(() => {
-    async function load() {
-      if (!id) return;
-      try {
-        const med = await getMedicine(id);
-        if (med) {
-          setMedicine(med);
-          const sch = await getSchedulesByMedicine(id);
-          setSchedules(sch);
-        }
-      } catch (err) {
-        console.error('Failed to load medicine:', err);
+  const load = useCallback(async () => {
+    if (!id) return;
+    try {
+      const med = await getMedicine(id);
+      if (med) {
+        setMedicine(med);
+        const sch = await getSchedulesByMedicine(id);
+        setSchedules(sch);
       }
+    } catch (err) {
+      console.error('Failed to load medicine:', err);
     }
-    load();
   }, [id]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const openEdit = useCallback(() => {
+    if (!medicine) return;
+    setEditName(medicine.name ?? '');
+    setEditDosage(medicine.dosage ?? '');
+    setEditFrequency(medicine.frequency ?? '');
+    setEditDuration(medicine.duration ?? '');
+    setEditRemaining(medicine.remaining_quantity != null ? String(medicine.remaining_quantity) : '');
+    const times: Record<string, string> = {};
+    for (const sch of schedules) times[sch.id] = sch.time;
+    setEditTimes(times);
+    setEditVisible(true);
+  }, [medicine, schedules]);
+
+  const invalidTimes = Object.entries(editTimes).filter(
+    ([, time]) => time.trim() !== '' && !isValidTimeFormat(time.trim())
+  );
+  const remainingInvalid =
+    editRemaining.trim() !== '' &&
+    (!/^\d+$/.test(editRemaining.trim()) || Number(editRemaining.trim()) < 0);
+  const editValid = editName.trim().length > 0 && invalidTimes.length === 0 && !remainingInvalid;
+
+  const handleSaveEdit = useCallback(async () => {
+    if (!medicine || !editValid) return;
+    setSaving(true);
+    try {
+      await updateMedicine(medicine.id, {
+        name: editName.trim(),
+        dosage: editDosage.trim() || null,
+        frequency: editFrequency.trim() || null,
+        duration: editDuration.trim() || null,
+        remaining_quantity: editRemaining.trim() === '' ? null : Number(editRemaining.trim()),
+      });
+      let timesChanged = false;
+      for (const sch of schedules) {
+        const newTime = editTimes[sch.id]?.trim();
+        if (newTime && newTime !== sch.time && isValidTimeFormat(newTime)) {
+          await updateSchedule(sch.id, { time: newTime });
+          timesChanged = true;
+        }
+      }
+      if (timesChanged) await syncDoseNotifications();
+      setEditVisible(false);
+      await load();
+      showToast(t.medicine.savedToast, 'success');
+    } catch (err) {
+      console.error('Failed to update medicine:', err);
+    } finally {
+      setSaving(false);
+    }
+  }, [medicine, editValid, editName, editDosage, editFrequency, editDuration, editRemaining, editTimes, schedules, load, t]);
+
+  // Pause = all schedules deactivated; resume reactivates them
+  const isPaused = schedules.length > 0 && schedules.every((s) => !s.is_active);
+
+  const handleTogglePause = useCallback(async () => {
+    if (!medicine) return;
+    try {
+      if (isPaused) {
+        await activateSchedulesByMedicine(medicine.id);
+        await syncDoseNotifications();
+        showToast(t.medicine.resumedToast, 'success');
+      } else {
+        await deactivateSchedulesByMedicine(medicine.id);
+        await syncDoseNotifications();
+        showToast(t.medicine.pausedToast, 'info');
+      }
+      await load();
+    } catch (err) {
+      console.error('Failed to toggle pause:', err);
+    }
+  }, [medicine, isPaused, load, t]);
+
+  const handleDelete = useCallback(() => {
+    if (!medicine) return;
+    Alert.alert(
+      t.common.delete,
+      t.medicine.deleteHint,
+      [
+        { text: t.common.cancel, style: 'cancel' },
+        {
+          text: t.common.delete,
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const medId = medicine.id;
+              await deleteMedicine(medId); // soft delete — undo clears the tombstone
+              await syncDoseNotifications();
+              router.back();
+              showToastWithAction(t.medicine.deletedToast, {
+                label: t.common.undo,
+                onPress: async () => {
+                  try {
+                    await restoreMedicine(medId);
+                    await syncDoseNotifications();
+                  } catch { /* undo is best-effort */ }
+                },
+              });
+            } catch (err) {
+              console.error('Failed to delete medicine:', err);
+            }
+          },
+        },
+      ]
+    );
+  }, [medicine, router, t]);
 
   if (!medicine) {
     return (
@@ -92,6 +223,10 @@ export default function MedicineDetailScreen() {
     { label: 'Purpose', value: medicine.purpose },
     { label: 'Storage', value: medicine.storage },
   ].filter((f) => f.value);
+
+  const estDays = medicine.remaining_quantity !== null && medicine.frequency
+    ? estimateDaysUntilRefillFromFrequency(medicine.remaining_quantity, medicine.frequency)
+    : null;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -149,9 +284,18 @@ export default function MedicineDetailScreen() {
 
         {/* Details */}
         <Animated.View entering={enter(1)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-            Details
-          </Text>
+          <View style={styles.sectionHeader}>
+            <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+              {t.medicine.details}
+            </Text>
+            <Button
+              title={t.medicine.editTitle}
+              variant="ghost"
+              size="sm"
+              icon={<MaterialCommunityIcons name="pencil-outline" size={16} color={colors.accent.primary} />}
+              onPress={openEdit}
+            />
+          </View>
           <Card>
             {fields.map((field, i) => (
               <View key={i} style={[styles.fieldRow, i > 0 && { marginTop: spacing.md }]}>
@@ -170,18 +314,24 @@ export default function MedicineDetailScreen() {
         {schedules.length > 0 && (
           <Animated.View entering={enter(2)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              Schedule
+              {t.medicine.schedule}
             </Text>
             <Card>
               {schedules.map((sch) => {
-                const nf = (v: string | number) => formatDigits(v, easternNumerals);
                 const range = t.dose.timeRange
                   .replace('{start}', nf(formatTime12h(sch.time)))
                   .replace('{end}', nf(formatTime12h(addMinutesToTime(sch.time, sch.window_minutes ?? 120))));
                 return (
                 <View key={sch.id} style={styles.scheduleRow}>
-                  <MaterialCommunityIcons name="clock-outline" size={20} color={colors.accent.primary} />
-                  <Text style={[typography.body.base, { color: colors.text.primary, marginLeft: 8 }]}>
+                  <MaterialCommunityIcons
+                    name={sch.is_active ? 'clock-outline' : 'clock-remove-outline'}
+                    size={20}
+                    color={sch.is_active ? colors.accent.primary : colors.text.disabled}
+                  />
+                  <Text style={[typography.body.base, {
+                    color: sch.is_active ? colors.text.primary : colors.text.disabled,
+                    marginLeft: 8,
+                  }]}>
                     {range} — {sch.frequency}
                     {sch.meal_instruction && sch.meal_instruction !== 'none' && ` (${sch.meal_instruction} meals)`}
                   </Text>
@@ -196,7 +346,7 @@ export default function MedicineDetailScreen() {
         {medicine.side_effects.length > 0 && (
           <Animated.View entering={enter(3)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              Common side effects
+              {t.medicine.sideEffects}
             </Text>
             <Card>
               {medicine.side_effects.map((effect, i) => (
@@ -231,23 +381,22 @@ export default function MedicineDetailScreen() {
         {medicine.initial_quantity != null && (
           <Animated.View entering={enter(5)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              Inventory
+              {t.medicine.inventory}
             </Text>
             <Card>
               <View style={styles.fieldRow}>
-                <Text style={[typography.label.base, { color: colors.text.secondary }]}>Remaining</Text>
+                <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.medicine.remaining}</Text>
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>
-                  {medicine.remaining_quantity ?? '?'} of {medicine.initial_quantity}
+                  {nf(medicine.remaining_quantity ?? '?')} / {nf(medicine.initial_quantity)}
                 </Text>
               </View>
-              {medicine.remaining_quantity !== null && medicine.frequency && (
+              {estDays != null && (
                 <View style={[styles.fieldRow, { marginTop: spacing.sm }]}>
-                  <Text style={[typography.label.base, { color: colors.text.secondary }]}>Est. days remaining</Text>
+                  <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.medicine.estDaysRemaining}</Text>
                   <Text style={[typography.body.base, {
-                    color: (estimateDaysUntilRefillFromFrequency(medicine.remaining_quantity, medicine.frequency) ?? Infinity) <= 7
-                      ? colors.warning : colors.text.primary,
+                    color: (estDays ?? Infinity) <= 7 ? colors.warning : colors.text.primary,
                   }]}>
-                    ~{estimateDaysUntilRefillFromFrequency(medicine.remaining_quantity, medicine.frequency) ?? '?'} days
+                    {t.medicine.daysRemaining.replace('{n}', nf(estDays ?? '?'))}
                   </Text>
                 </View>
               )}
@@ -259,7 +408,7 @@ export default function MedicineDetailScreen() {
         {medicine.food_interactions.length > 0 && (
           <Animated.View entering={enter(6)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              Food interactions
+              {t.medicine.foodInteractions}
             </Text>
             <Card>
               {medicine.food_interactions.map((item, i) => (
@@ -277,24 +426,52 @@ export default function MedicineDetailScreen() {
         {/* Actions */}
         <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Button
-            title="Ask AI about this medicine"
+            title={t.medicine.askAI}
             variant="secondary"
             icon={<MaterialCommunityIcons name="message-outline" size={20} color={colors.accent.primary} />}
             onPress={() => router.push({ pathname: '/chat', params: { medicineId: medicine.id, medicineName: medicine.name ?? '' } })}
           />
+          {schedules.length > 0 && (
+            <Card style={{ marginTop: spacing.sm }}>
+              <View style={styles.fieldRow}>
+                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                  <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                    {isPaused ? t.medicine.resume : t.medicine.pause}
+                  </Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
+                    {t.medicine.pauseDesc}
+                  </Text>
+                </View>
+                <Button
+                  title={isPaused ? t.medicine.resume : t.medicine.pause}
+                  variant={isPaused ? 'primary' : 'ghost'}
+                  size="sm"
+                  icon={
+                    <MaterialCommunityIcons
+                      name={isPaused ? 'play-outline' : 'pause'}
+                      size={16}
+                      color={isPaused ? colors.text.inverse : colors.text.secondary}
+                    />
+                  }
+                  onPress={handleTogglePause}
+                />
+              </View>
+            </Card>
+          )}
           <Button
-            title="Complete treatment"
+            title={t.medicine.completeTreatment}
             variant="ghost"
-            onPress={async () => {
+            onPress={() => {
               Alert.alert(
-                'Complete treatment',
-                'Mark this medicine as completed? Active schedules will be deactivated.',
+                t.medicine.completeTreatment,
+                t.medicine.completeMsg,
                 [
-                  { text: 'Cancel', style: 'cancel' },
+                  { text: t.common.cancel, style: 'cancel' },
                   {
-                    text: 'Complete',
+                    text: t.common.confirm,
                     onPress: async () => {
                       await deactivateSchedulesByMedicine(medicine.id);
+                      await syncDoseNotifications();
                       router.back();
                     },
                   },
@@ -303,8 +480,77 @@ export default function MedicineDetailScreen() {
             }}
             style={{ marginTop: spacing.sm }}
           />
+          <Button
+            title={t.common.delete}
+            variant="ghost"
+            icon={<MaterialCommunityIcons name="delete-outline" size={18} color={colors.error} />}
+            onPress={handleDelete}
+            style={{ marginTop: spacing.sm }}
+          />
         </Animated.View>
       </ScrollView>
+
+      {/* Edit modal */}
+      <Modal visible={editVisible} onClose={() => setEditVisible(false)} title={t.medicine.editTitle}>
+        <View style={{ gap: spacing.sm }}>
+          <Input
+            label={t.medicine.nameLabel}
+            value={editName}
+            onChangeText={setEditName}
+          />
+          <Input
+            label={t.medicine.dosageLabel}
+            value={editDosage}
+            onChangeText={setEditDosage}
+          />
+          <Input
+            label={t.medicine.frequencyLabel}
+            value={editFrequency}
+            onChangeText={setEditFrequency}
+          />
+          <Input
+            label={t.medicine.durationLabel}
+            value={editDuration}
+            onChangeText={setEditDuration}
+          />
+          <Input
+            label={t.medicine.remainingLabel}
+            value={editRemaining}
+            onChangeText={setEditRemaining}
+            keyboardType="numeric"
+          />
+          {schedules.map((sch) => {
+            const val = editTimes[sch.id] ?? sch.time;
+            const invalid = val.trim() !== '' && !isValidTimeFormat(val.trim());
+            return (
+              <Input
+                key={sch.id}
+                label={`${t.medicine.timeLabel} (${formatTime12h(sch.time)})`}
+                value={val}
+                onChangeText={(text) => setEditTimes((prev) => ({ ...prev, [sch.id]: text }))}
+                placeholder="HH:MM"
+                error={invalid ? t.schedule.timeInvalid : undefined}
+              />
+            );
+          })}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+            <Button
+              title={t.common.cancel}
+              variant="ghost"
+              onPress={() => setEditVisible(false)}
+              style={{ flex: 1 }}
+            />
+            <Button
+              title={t.common.save}
+              variant="primary"
+              loading={saving}
+              disabled={!editValid}
+              onPress={handleSaveEdit}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -315,6 +561,7 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 48 },
   header: { marginTop: 16 },
   section: { marginTop: 24 },
+  sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   fieldRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   listItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },

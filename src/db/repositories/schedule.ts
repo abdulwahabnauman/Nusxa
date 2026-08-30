@@ -54,6 +54,7 @@ export async function getActiveSchedules(): Promise<Schedule[]> {
      INNER JOIN medicines m ON s.medicine_id = m.id
      INNER JOIN prescriptions p ON m.prescription_id = p.id
      WHERE s.is_active = 1 AND p.treatment_status = 'active'
+       AND m.deleted_at IS NULL AND p.deleted_at IS NULL
      ORDER BY s.time ASC;`
   );
   return rows.map(parseSchedule);
@@ -98,6 +99,15 @@ export async function deactivateSchedulesByMedicine(medicineId: string): Promise
   const db = getDatabase();
   await db.runAsync(
     'UPDATE schedules SET is_active = 0 WHERE medicine_id = ?;',
+    [medicineId]
+  );
+}
+
+/** Resume a paused course — reactivates all schedules for a medicine. */
+export async function activateSchedulesByMedicine(medicineId: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync(
+    'UPDATE schedules SET is_active = 1 WHERE medicine_id = ?;',
     [medicineId]
   );
 }

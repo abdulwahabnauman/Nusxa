@@ -29,6 +29,7 @@ function parseMedicine(row: Record<string, unknown>): Medicine {
     verification_status: row.verification_status as Medicine['verification_status'],
     initial_quantity: row.initial_quantity as number | null,
     remaining_quantity: row.remaining_quantity as number | null,
+    deleted_at: (row.deleted_at as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -69,7 +70,7 @@ export async function getMedicine(id: string): Promise<Medicine | null> {
 export async function getMedicinesByPrescription(prescriptionId: string): Promise<Medicine[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM medicines WHERE prescription_id = ? ORDER BY created_at ASC;',
+    'SELECT * FROM medicines WHERE prescription_id = ? AND deleted_at IS NULL ORDER BY created_at ASC;',
     [prescriptionId]
   );
   return rows.map(parseMedicine);
@@ -94,6 +95,7 @@ export async function getActiveMedicines(): Promise<Medicine[]> {
     `SELECT m.* FROM medicines m
      INNER JOIN prescriptions p ON m.prescription_id = p.id
      WHERE p.treatment_status = 'active' AND m.verification_status = 'verified'
+       AND m.deleted_at IS NULL
      ORDER BY m.created_at ASC;`
   );
   return rows.map(parseMedicine);
@@ -130,7 +132,30 @@ export async function updateMedicine(
   );
 }
 
+/**
+ * Soft delete: stamps a tombstone instead of dropping the row, so Undo can
+ * restore the medicine (with schedules + dose history intact) and exports
+ * stay consistent. All list queries filter tombstones out.
+ */
 export async function deleteMedicine(id: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync(
+    'UPDATE medicines SET deleted_at = ?, updated_at = ? WHERE id = ?;',
+    [new Date().toISOString(), new Date().toISOString(), id]
+  );
+}
+
+/** Undo a soft delete — clears the tombstone. */
+export async function restoreMedicine(id: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync(
+    'UPDATE medicines SET deleted_at = NULL, updated_at = ? WHERE id = ?;',
+    [new Date().toISOString(), id]
+  );
+}
+
+/** Hard delete for internal cleanup (dedupe) where undo is not a goal. */
+export async function hardDeleteMedicine(id: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM medicines WHERE id = ?;', [id]);
 }
@@ -149,7 +174,7 @@ export async function updateInventory(
 export async function searchMedicinesByName(query: string): Promise<Medicine[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM medicines WHERE name LIKE ? OR generic_name LIKE ? OR brand_name LIKE ?
+    `SELECT * FROM medicines WHERE deleted_at IS NULL AND (name LIKE ? OR generic_name LIKE ? OR brand_name LIKE ?)
      ORDER BY created_at DESC;`,
     [`%${query}%`, `%${query}%`, `%${query}%`]
   );

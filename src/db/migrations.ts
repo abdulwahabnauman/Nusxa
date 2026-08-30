@@ -373,6 +373,35 @@ const migration_v15: Migration = {
   },
 };
 
+/**
+ * Version 16: Soft-delete tombstones + analytics index.
+ * Medicines and prescriptions gain a `deleted_at` column so user deletes are
+ * reversible (undo) and exports stay consistent: list queries filter
+ * tombstones out instead of losing rows to cascades. Also guarantees the
+ * dose_records.scheduled_time index exists on databases created before it
+ * was part of the v1 index set (analytics range queries).
+ */
+const migration_v16: Migration = {
+  version: 16,
+  up: async (db) => {
+    const columns = [
+      'ALTER TABLE medicines ADD COLUMN deleted_at TEXT;',
+      'ALTER TABLE prescriptions ADD COLUMN deleted_at TEXT;',
+    ];
+    for (const sql of columns) {
+      try {
+        await db.execAsync(sql);
+      } catch {
+        // Column already exists — nothing to do
+      }
+    }
+    await db.execAsync(
+      'CREATE INDEX IF NOT EXISTS idx_dose_records_scheduled ON dose_records(scheduled_time);'
+    );
+    await db.runAsync('UPDATE schema_version SET version = 16;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -389,6 +418,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v13,
   migration_v14,
   migration_v15,
+  migration_v16,
 ];
 
 /** Run pending migrations */

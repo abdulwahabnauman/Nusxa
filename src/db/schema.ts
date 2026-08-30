@@ -5,7 +5,7 @@
  * updates the stored `schema_version` row to its own version, so after all
  * migrations run the stored value always equals this constant.
  */
-export const CURRENT_SCHEMA_VERSION = 15;
+export const CURRENT_SCHEMA_VERSION = 16;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
   overall_confidence REAL DEFAULT 0,
   patient_notes TEXT,
   treatment_status TEXT DEFAULT 'active',
+  deleted_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -71,6 +72,7 @@ CREATE TABLE IF NOT EXISTS medicines (
   verification_status TEXT DEFAULT 'pending',
   initial_quantity REAL,
   remaining_quantity REAL,
+  deleted_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

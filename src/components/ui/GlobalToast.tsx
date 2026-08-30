@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Toast } from './Toast';
+import { Toast, type ToastAction } from './Toast';
 
 export type GlobalToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -8,6 +8,7 @@ interface ToastPayload {
   message: string;
   type: GlobalToastType;
   duration: number;
+  action?: ToastAction;
 }
 
 type ToastListener = (payload: ToastPayload) => void;
@@ -29,6 +30,25 @@ export function showToast(
   duration = 4000,
 ): void {
   const payload: ToastPayload = { id: ++nextId, message, type, duration };
+  if (listener) {
+    listener(payload);
+  } else {
+    buffer.push(payload);
+  }
+}
+
+/**
+ * Toast with a trailing action button (e.g. Undo). Lives in the root layout,
+ * so it survives navigating away from the screen that triggered it — used
+ * for destructive actions like delete-with-undo.
+ */
+export function showToastWithAction(
+  message: string,
+  action: ToastAction,
+  type: GlobalToastType = 'info',
+  duration = 5000,
+): void {
+  const payload: ToastPayload = { id: ++nextId, message, type, duration, action };
   if (listener) {
     listener(payload);
   } else {
@@ -75,6 +95,7 @@ export function GlobalToast() {
       visible
       onDismiss={handleDismiss}
       duration={current.duration}
+      action={current.action}
     />
   );
 }

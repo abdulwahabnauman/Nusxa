@@ -38,6 +38,8 @@ export interface Prescription {
   overall_confidence: number;
   patient_notes: string | null;
   treatment_status: TreatmentStatus;
+  /** Soft-delete tombstone timestamp; null while alive */
+  deleted_at?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +71,8 @@ export interface Medicine {
   verification_status: VerificationStatus;
   initial_quantity: number | null;
   remaining_quantity: number | null;
+  /** Soft-delete tombstone timestamp; null while alive */
+  deleted_at?: string | null;
   created_at: string;
   updated_at: string;
 }

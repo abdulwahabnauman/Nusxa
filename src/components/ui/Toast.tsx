@@ -8,12 +8,19 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
 
+export interface ToastAction {
+  label: string;
+  onPress: () => void;
+}
+
 interface ToastProps {
   message: string;
   type?: ToastType;
   visible: boolean;
   onDismiss: () => void;
   duration?: number;
+  /** Optional trailing action button (e.g. Undo) */
+  action?: ToastAction;
 }
 
 const ICON_MAP: Record<ToastType, keyof typeof MaterialCommunityIcons.glyphMap> = {
@@ -29,6 +36,7 @@ export function Toast({
   visible,
   onDismiss,
   duration = 4000,
+  action,
 }: ToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const reducedMotion = useReducedMotion();
@@ -86,7 +94,7 @@ export function Toast({
       accessibilityLiveRegion="polite"
     >
       <TouchableOpacity
-        style={styles.content}
+        style={[styles.content, action ? { flex: 1 } : null]}
         onPress={onDismiss}
         activeOpacity={0.8}
         accessibilityLabel={`${type}: ${message}. Tap to dismiss.`}
@@ -96,6 +104,20 @@ export function Toast({
           {message}
         </Text>
       </TouchableOpacity>
+      {action && (
+        <TouchableOpacity
+          onPress={() => {
+            action.onPress();
+            onDismiss();
+          }}
+          style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, marginStart: spacing.xs }}
+          accessibilityLabel={action.label}
+        >
+          <Text style={[typography.label.base, { color: colors.accent.primary, fontWeight: '700' }]}>
+            {action.label.toUpperCase()}
+          </Text>
+        </TouchableOpacity>
+      )}
     </Animated.View>
   );
 }
@@ -107,6 +129,8 @@ const styles = StyleSheet.create({
     right: 16,
     zIndex: 9999,
     borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,

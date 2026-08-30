@@ -56,7 +56,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Language           | TypeScript (strict mode)                |
 | Navigation         | Expo Router v6 (file-based routing)     |
 | State Management   | Zustand v5 (3 stores: auth, theme, settings) |
-| Database           | expo-sqlite (SQLite, offline-first, schema v12) |
+| Database           | expo-sqlite (SQLite, offline-first, schema v16) |
 | AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
 | AI — Chat/Explain  | Groq gpt-oss-120b (free, primary), Nemotron 3 Ultra via OpenRouter (free, fallback) |
 | Notifications      | expo-notifications (local scheduled)    |
@@ -87,7 +87,7 @@ nusxa/
 │   ├── doctor-visit.tsx          # Doctor visit report — generates & shares an on-device PDF
 │   ├── emergency-card.tsx        # Emergency info card
 │   ├── medicine/
-│   │   └── [id].tsx              # Medicine detail page (dynamic route)
+│   │   └── [id].tsx              # Medicine detail — edit, pause/resume, delete (undoable)
 │   └── (tabs)/                   # Bottom tab navigation
 │       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Learn, Settings)
 │       ├── index.tsx             # Home — today's schedule, adherence ring, streak, weekly chart
@@ -191,7 +191,7 @@ nusxa/
 
 ---
 
-## Database Schema (v12)
+## Database Schema (v16)
 
 Core schema + settings columns + education library extension:
 
@@ -209,7 +209,8 @@ prescriptions
 ├── id (UUID), doctor_name, hospital, date, follow_up_date
 ├── source_image_uri, verification_status, overall_confidence
 ├── treatment_status (active/completed/archived)
-└── → medicines (cascade delete)
+├── deleted_at (v16 — soft-delete tombstone; list queries filter it out)
+└── → medicines (soft delete cascades the tombstone)
 
 medicines
 ├── id (UUID), prescription_id (FK)
@@ -218,6 +219,7 @@ medicines
 ├── side_effects (JSON), food_interactions (JSON), warnings (JSON)
 ├── confidence, verification_status
 ├── initial_quantity, remaining_quantity
+├── deleted_at (v16 — soft-delete tombstone; undo restores it)
 └── → schedules (cascade delete)
 
 schedules
@@ -228,7 +230,7 @@ schedules
 
 dose_records
 ├── id (UUID), schedule_id (FK), medicine_id (FK)
-├── scheduled_time, actual_time, status (taken/skipped/missed/pending)
+├── scheduled_time (indexed, v16), actual_time, status (taken/skipped/missed/pending)
 └── notes
 ```
 

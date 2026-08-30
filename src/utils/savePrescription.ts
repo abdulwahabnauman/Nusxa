@@ -5,8 +5,8 @@
  */
 import { PrescriptionJSON } from '../ai/types';
 import { DEFAULT_SCHEDULE_TIMES } from '../constants/medical';
-import { createPrescription, getAllPrescriptions, deletePrescription } from '../db/repositories/prescription';
-import { createMedicine, getActiveMedicines, updateMedicine, deleteMedicine, getMedicinesByPrescription } from '../db/repositories/medicine';
+import { createPrescription, getAllPrescriptions, hardDeletePrescription } from '../db/repositories/prescription';
+import { createMedicine, getActiveMedicines, updateMedicine, hardDeleteMedicine, getMedicinesByPrescription } from '../db/repositories/medicine';
 import { createSchedule, getSchedulesByMedicine, updateSchedule } from '../db/repositories/schedule';
 import { scheduleDoseNotification, cancelNotification } from './notifications';
 import { getTodayISO } from './date';
@@ -196,12 +196,12 @@ export async function dedupeActiveMedicines(): Promise<number> {
     }
 
     const prescriptionId = med.prescription_id;
-    await deleteMedicine(med.id);
+    await hardDeleteMedicine(med.id);
     removed++;
 
     try {
       const remaining = await getMedicinesByPrescription(prescriptionId);
-      if (remaining.length === 0) await deletePrescription(prescriptionId);
+      if (remaining.length === 0) await hardDeletePrescription(prescriptionId);
     } catch {
       // Cosmetic cleanup only — never fail the dedupe over it
     }
