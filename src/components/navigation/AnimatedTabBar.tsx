@@ -65,7 +65,7 @@ function TabButton({ focused, color, label, icon, labelStyle, onPress, onLongPre
           numberOfLines={1}
           style={[
             labelStyle,
-            { color, fontWeight: focused ? '600' : '500' },
+            { color },
           ]}
         >
           {label}
@@ -136,6 +136,9 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
               fontSize: typography.sizes.xs,
               lineHeight: isRTL ? 20 : 16,
               marginTop: 2,
+              fontFamily: focused
+                ? typography.families.semibold
+                : typography.families.medium,
             }}
             onPress={onPress}
             onLongPress={onLongPress}
