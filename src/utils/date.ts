@@ -1,4 +1,5 @@
 import { format, parse, isValid, startOfDay, endOfDay, addDays, differenceInDays, differenceInYears } from 'date-fns';
+import { toEasternNumerals } from './numerals';
 
 /** Format a date to YYYY-MM-DD */
 export function formatDateISO(date: Date): string {
@@ -22,12 +23,17 @@ export function formatDateLocalized(isoDate: string, locale = 'en-US'): string {
 }
 
 /** Format time string (HH:mm) to 12-hour format */
-export function formatTime12h(time24: string): string {
+export function formatTime12h(time24: string, language: 'en' | 'ur' = 'en'): string {
   const [h, m] = time24.split(':').map(Number);
   if (h == null || m == null) return time24;
-  const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+  const clock = `${hour12}:${String(m).padStart(2, '0')}`;
+  if (language === 'ur') {
+    // Fully-RTL token (Eastern digits + Urdu period mark) so time ranges
+    // don't get shuffled by bidi inside RTL sentences.
+    return `${toEasternNumerals(clock)} ${h >= 12 ? 'ش' : 'ص'}`;
+  }
+  return `${clock} ${h >= 12 ? 'PM' : 'AM'}`;
 }
 
 /** Add minutes to an HH:mm time, wrapping past midnight */
@@ -41,8 +47,12 @@ export function addMinutesToTime(time24: string, minutes: number): string {
 }
 
 /** 12-hour [start, end] pair for a reminder window (start time + window minutes) */
-export function getTimeRangeParts(time24: string, windowMinutes: number): [string, string] {
-  return [formatTime12h(time24), formatTime12h(addMinutesToTime(time24, windowMinutes))];
+export function getTimeRangeParts(
+  time24: string,
+  windowMinutes: number,
+  language: 'en' | 'ur' = 'en',
+): [string, string] {
+  return [formatTime12h(time24, language), formatTime12h(addMinutesToTime(time24, windowMinutes), language)];
 }
 
 /** Get today's date string in ISO format */
