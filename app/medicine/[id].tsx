@@ -295,7 +295,7 @@ export default function MedicineDetailScreen() {
                         backgroundColor: (strengthColor(medicine.strength) ?? colors.text.secondary) + '22',
                       }}
                     >
-                      <Text style={[typography.label.sm, { color: strengthColor(medicine.strength) ?? colors.text.secondary, fontWeight: '700' }]}>
+                      <Text style={[typography.label.sm, { color: strengthColor(medicine.strength) ?? colors.text.secondary, fontFamily: typography.families.bold }]}>
                         {medicine.strength}
                       </Text>
                     </View>
