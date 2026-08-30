@@ -1,3 +1,6 @@
+// Must precede crypto-js: installs the globalThis.crypto CSPRNG shim that
+// crypto-js captures at module load (Hermes ships no WebCrypto/Node crypto).
+import './webCryptoShim';
 import Constants from 'expo-constants';
 import CryptoJS from 'crypto-js';
 import { getDatabase } from '../db/database';
