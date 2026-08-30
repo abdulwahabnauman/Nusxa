@@ -11,6 +11,8 @@ import {
   AI_PROXY_APP_KEY,
   isAiProxyConfigured,
 } from '../constants/config';
+import { shouldUseProxy } from './routing';
+import { useSettingsStore } from '../stores/settings-store';
 
 interface GeminiPart {
   text?: string;
@@ -338,7 +340,14 @@ export async function chatCompletion(
   userMessage: string,
   keys: TextProviderKeys
 ): Promise<string> {
-  if (isAiProxyConfigured()) {
+  const hasTextKeys = keys.groqKey.trim().length > 0 || keys.openRouterKey.trim().length > 0;
+  if (
+    shouldUseProxy(
+      isAiProxyConfigured(),
+      useSettingsStore.getState().useOwnKeys,
+      hasTextKeys
+    )
+  ) {
     return callProxy('/chat', {
       system: systemPrompt,
       messages: [{ role: 'user', content: userMessage }],
@@ -363,7 +372,13 @@ export async function visionCompletion(
   imageBase64: string,
   apiKey: string
 ): Promise<string> {
-  if (isAiProxyConfigured()) {
+  if (
+    shouldUseProxy(
+      isAiProxyConfigured(),
+      useSettingsStore.getState().useOwnKeys,
+      apiKey.trim().length > 0
+    )
+  ) {
     return callProxy('/vision', {
       system: systemPrompt,
       text: userText,
@@ -410,7 +425,13 @@ export async function multiTurnChat(
       content: m.content,
     }));
 
-  if (isAiProxyConfigured()) {
+  if (
+    shouldUseProxy(
+      isAiProxyConfigured(),
+      useSettingsStore.getState().useOwnKeys,
+      keys.groqKey.trim().length > 0 || keys.openRouterKey.trim().length > 0
+    )
+  ) {
     return callProxy('/chat', {
       system: systemPrompt,
       messages: chatMessages,
