@@ -468,10 +468,12 @@ export default function SettingsScreen() {
           <Card>
             {editingName ? (
               <View style={{ gap: 16 }}>
+                <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
                 <TextInput
                   value={nameInput}
                   onChangeText={setNameInput}
-                  placeholder="Enter your name"
+                  placeholder={t.onboarding.yourName}
+                  placeholderTextColor={colors.text.disabled}
                   autoFocus
                   style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16 }]}
                 />
@@ -519,15 +521,18 @@ export default function SettingsScreen() {
               </View>
             ) : (
               <>
-                <View style={styles.row}>
-                  <Text style={[typography.body.base, { color: colors.text.primary, flex: 1 }]}>{profile?.name || t.common.loading}</Text>
-                  {nameMorph.active && (
-                    <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
-                  )}
-                  <TouchableOpacity style={{ padding: 4 }} onPress={() => setEditingName(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                    <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.accent.primary} />
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity style={styles.row} onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(true); }}>
+                  <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                      {profile?.name || t.common.loading}
+                    </Text>
+                    {nameMorph.active && (
+                      <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
+                    )}
+                    <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
+                  </View>
+                </TouchableOpacity>
 
                 {/* Date of birth — optional; leave empty to keep it unset */}
                 <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
