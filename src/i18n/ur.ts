@@ -132,6 +132,8 @@ export const ur: TranslationKeys = {
     aiServiceDesc: 'نسخے پڑھنے کے لیے۔ مفت کلید:',
     aiPreconfigured: 'استعمال کے لیے تیار',
     aiPreconfiguredDesc: 'AI آپ کے لیے پہلے سے تیار ہے۔ کسی کلید یا اضافی قدم کی ضرورت نہیں۔',
+    ownKeys: 'اپنی ذاتی کلیدیں استعمال کریں',
+    ownKeysDesc: 'درخواستیں براہِ راست آپ کے اپنے AI اکاؤنٹس کو بھیجی جائیں گی۔ جس فراہم کنندہ کی کلید محفوظ نہیں ہوگی، اس کے لیے بلٹ ان سروس ہی استعمال ہوگی۔',
     openRouterServiceDesc: 'Groq دستیاب نہ ہو تو خودکار متبادل۔ کلید:',
     groqServiceDesc: 'چیٹ اور وضاحتوں کے لیے۔ مفت کلید:',
     apiKeyPlaceholder: 'Gemini API کلید پیسٹ کریں',
