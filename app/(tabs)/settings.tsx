@@ -28,11 +28,14 @@ import {
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
 import { exportAsJSON, importFromJSON } from '../../src/utils/export';
 import { syncDoseNotifications } from '../../src/utils/notifications';
+import { isValidDate } from '../../src/utils/date';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../../src/constants/config';
 import { formatDigits } from '../../src/utils/numerals';
 import { useSuccessMorph } from '../../src/hooks/useSuccessMorph';
 import { useI18n } from '../../src/i18n';
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 interface ApiKeyFieldProps {
   description: string;
@@ -152,6 +155,9 @@ export default function SettingsScreen() {
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
+  const [dobInput, setDobInput] = useState('');
+  const [editingDob, setEditingDob] = useState(false);
+  const [editingBlood, setEditingBlood] = useState(false);
   const [importing, setImporting] = useState(false);
   const [biometricSupport, setBiometricSupport] = useState<{ available: boolean; label: string | null }>({
     available: false,
@@ -366,15 +372,113 @@ export default function SettingsScreen() {
                 </View>
               </View>
             ) : (
-              <View style={styles.row}>
-                <Text style={[typography.body.base, { color: colors.text.primary, flex: 1 }]}>{profile?.name || t.common.loading}</Text>
-                {nameMorph.active && (
-                  <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
+              <>
+                <View style={styles.row}>
+                  <Text style={[typography.body.base, { color: colors.text.primary, flex: 1 }]}>{profile?.name || t.common.loading}</Text>
+                  {nameMorph.active && (
+                    <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
+                  )}
+                  <TouchableOpacity style={{ padding: 4 }} onPress={() => setEditingName(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                    <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.accent.primary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Date of birth — optional; leave empty to keep it unset */}
+                <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+                {editingDob ? (
+                  <View style={{ gap: 12 }}>
+                    <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.onboarding.dobLabel}</Text>
+                    <TextInput
+                      value={dobInput}
+                      onChangeText={setDobInput}
+                      placeholder={t.onboarding.dobPlaceholder}
+                      placeholderTextColor={colors.text.disabled}
+                      keyboardType="numbers-and-punctuation"
+                      autoFocus
+                      style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }]}
+                    />
+                    <View style={{ flexDirection: 'row', gap: 12 }}>
+                      <TouchableOpacity
+                        style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
+                        onPress={async () => {
+                          const trimmed = dobInput.trim();
+                          if (trimmed && !isValidDate(trimmed)) {
+                            showToast(t.onboarding.dobInvalid, 'warning');
+                            return;
+                          }
+                          try {
+                            await updateProfile({ date_of_birth: trimmed || null });
+                            if (profile) setProfile({ ...profile, date_of_birth: trimmed || null });
+                            setEditingDob(false);
+                          } catch {
+                            showToast(t.toasts.saveFailed, 'error');
+                          }
+                        }}
+                      >
+                        <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
+                        onPress={() => setEditingDob(false)}
+                      >
+                        <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.common.cancel}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <TouchableOpacity style={styles.row} onPress={() => { setDobInput(profile?.date_of_birth ?? ''); setEditingDob(true); }}>
+                    <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.onboarding.dobLabel}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={[typography.body.base, { color: profile?.date_of_birth ? colors.text.primary : colors.text.disabled }]}>
+                        {profile?.date_of_birth || t.common.notSet}
+                      </Text>
+                      <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
+                    </View>
+                  </TouchableOpacity>
                 )}
-                <TouchableOpacity style={{ padding: 4 }} onPress={() => setEditingName(true)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <MaterialCommunityIcons name="pencil-outline" size={20} color={colors.accent.primary} />
-                </TouchableOpacity>
-              </View>
+
+                {/* Blood group — optional; tapping the selected chip clears it */}
+                {!editingDob && (
+                  <>
+                    <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+                    <TouchableOpacity style={styles.row} onPress={() => setEditingBlood((v) => !v)}>
+                      <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.emergency.bloodGroup}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[typography.body.base, { color: profile?.blood_group ? colors.text.primary : colors.text.disabled }]}>
+                          {profile?.blood_group || t.common.notSet}
+                        </Text>
+                        <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
+                      </View>
+                    </TouchableOpacity>
+                    {editingBlood && (
+                      <View style={[styles.themeOptions, { flexWrap: 'wrap', marginTop: spacing.sm }]}>
+                        {BLOOD_GROUPS.map((group) => {
+                          const selected = profile?.blood_group === group;
+                          return (
+                            <TouchableOpacity
+                              key={group}
+                              style={[styles.themeChip, { backgroundColor: selected ? colors.accent.primary : colors.background.subtle, borderColor: selected ? colors.accent.primary : colors.border.default }]}
+                              onPress={async () => {
+                                const next = selected ? null : group;
+                                try {
+                                  await updateProfile({ blood_group: next });
+                                  if (profile) setProfile({ ...profile, blood_group: next });
+                                } catch {
+                                  showToast(t.toasts.saveFailed, 'error');
+                                }
+                              }}
+                              accessibilityLabel={`Set blood group to ${group}`}
+                              accessibilityState={{ selected }}
+                            >
+                              <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>{group}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </>
+                )}
+              </>
             )}
           </Card>
         </View>

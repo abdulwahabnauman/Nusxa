@@ -1,4 +1,4 @@
-import { format, parse, isValid, startOfDay, endOfDay, addDays, differenceInDays } from 'date-fns';
+import { format, parse, isValid, startOfDay, endOfDay, addDays, differenceInDays, differenceInYears } from 'date-fns';
 
 /** Format a date to YYYY-MM-DD */
 export function formatDateISO(date: Date): string {
@@ -80,6 +80,13 @@ export function getDaysAgoISO(days: number): string {
 export function isValidDate(dateStr: string): boolean {
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
   return isValid(parsed);
+}
+
+/** Whole-year age from a YYYY-MM-DD date of birth, or null when unparseable */
+export function calculateAge(dateOfBirth: string): number | null {
+  const dob = parse(dateOfBirth, 'yyyy-MM-dd', new Date());
+  if (!isValid(dob)) return null;
+  return differenceInYears(new Date(), dob);
 }
 
 /** Get device timezone */

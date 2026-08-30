@@ -84,8 +84,8 @@ nusxa/
 │   ├── schedule.tsx              # Schedule confirmation (creates DB records + notifications)
 │   ├── chat.tsx                  # AI chat about medicines (history persisted until cleared)
 │   ├── analytics.tsx             # Adherence analytics dashboard (stack screen, opened from Home)
-│   ├── doctor-visit.tsx          # Doctor visit report — generates & shares an on-device PDF
-│   ├── emergency-card.tsx        # Emergency info card
+│   ├── doctor-visit.tsx          # Doctor visit report — generates & shares an on-device PDF (incl. DOB/age, blood group, allergies)
+│   ├── emergency-card.tsx        # Emergency info card — DOB/age, blood group chips, one-tap call
 │   ├── medicine/
 │   │   └── [id].tsx              # Medicine detail — edit, pause/resume, delete (undoable)
 │   └── (tabs)/                   # Bottom tab navigation
@@ -94,7 +94,7 @@ nusxa/
 │       ├── medicines.tsx         # Active medicines list with refill estimates
 │       ├── history.tsx           # Prescription history with search, archive, delete
 │       ├── education.tsx         # Education library (browse, bookmarks, reading history)
-│       └── settings.tsx          # Theme, language, API keys, data export/import
+│       └── settings.tsx          # Theme, language, profile (name/DOB/blood group), API keys, data export/import
 │
 ├── assets/                       # App icons and splash images (all 1024x1024)
 │   ├── icon.png                  # App store icon

@@ -27,6 +27,9 @@ export default function DoctorVisitScreen() {
   const [sharing, setSharing] = useState(false);
   const [questions, setQuestions] = useState('');
   const [profileName, setProfileName] = useState('Patient');
+  const [profileDob, setProfileDob] = useState<string | null>(null);
+  const [profileBloodGroup, setProfileBloodGroup] = useState<string | null>(null);
+  const [profileAllergies, setProfileAllergies] = useState<string[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -39,6 +42,9 @@ export default function DoctorVisitScreen() {
         setMedicines(meds);
         setSchedules(activeSchedules);
         if (profile?.name) setProfileName(profile.name);
+        setProfileDob(profile?.date_of_birth ?? null);
+        setProfileBloodGroup(profile?.blood_group ?? null);
+        setProfileAllergies(profile?.allergies ?? []);
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -61,6 +67,9 @@ export default function DoctorVisitScreen() {
         medicines,
         schedules,
         notes: questions || undefined,
+        dateOfBirth: profileDob,
+        bloodGroup: profileBloodGroup,
+        allergies: profileAllergies,
       });
       const shareUri = pdfUri;
       await withLockExemption(() =>

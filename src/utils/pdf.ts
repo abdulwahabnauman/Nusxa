@@ -1,6 +1,6 @@
 import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
-import { formatDateReadable, getTimeRangeParts } from './date';
+import { formatDateReadable, getTimeRangeParts, calculateAge } from './date';
 import type { Medicine, Schedule } from '../types/models';
 
 /** Escape a string for safe inclusion in HTML */
@@ -85,6 +85,10 @@ interface DoctorVisitPdfParams {
   medicines: Medicine[];
   schedules: Schedule[];
   notes?: string;
+  /** Optional patient identifiers pulled from the profile (H6) */
+  dateOfBirth?: string | null;
+  bloodGroup?: string | null;
+  allergies?: string[];
 }
 
 /**
@@ -92,8 +96,9 @@ interface DoctorVisitPdfParams {
  * The caller is responsible for sharing/cleanup of the returned file.
  */
 export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Promise<string> {
-  const { profileName, medicines, schedules, notes } = params;
+  const { profileName, medicines, schedules, notes, dateOfBirth, bloodGroup, allergies } = params;
   const generatedAt = formatDateReadable(new Date());
+  const age = dateOfBirth ? calculateAge(dateOfBirth) : null;
 
   // Build the daily schedule rows, sorted by time, with medicine names resolved
   const medicineById = new Map(medicines.map((m) => [m.id, m]));
@@ -212,9 +217,15 @@ export async function generateDoctorVisitPdf(params: DoctorVisitPdfParams): Prom
     </div>
     <div class="meta">
       Patient: <strong>${esc(profileName)}</strong><br />
+      ${dateOfBirth ? `DOB: <strong>${esc(dateOfBirth)}</strong>${age !== null ? ` (Age ${age})` : ''}<br />` : ''}
+      ${bloodGroup ? `Blood group: <strong>${esc(bloodGroup)}</strong><br />` : ''}
       Generated: <strong>${esc(generatedAt)}</strong>
     </div>
   </div>
+
+  ${allergies && allergies.length > 0 ? `
+  <h2>Allergies</h2>
+  <p><strong>${allergies.map(esc).join(', ')}</strong></p>` : ''}
 
   <h2>Current Medicines</h2>
   ${

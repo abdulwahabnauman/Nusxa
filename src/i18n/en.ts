@@ -282,6 +282,9 @@ export const en = {
     emergencyContact: 'Emergency contact',
     physician: 'Primary physician',
     noneListed: 'None listed',
+    ageYears: '{n} years old',
+    call: 'Call',
+    dobHint: 'Add your date of birth in Settings → Profile',
     saved: 'Your emergency card has been updated.',
   },
   // Doctor visit

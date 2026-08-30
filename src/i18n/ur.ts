@@ -272,6 +272,9 @@ export const ur: TranslationKeys = {
     emergencyContact: 'ہنگامی رابطہ',
     physician: 'معالج',
     noneListed: 'درج نہیں',
+    ageYears: '{n} سال',
+    call: 'کال کریں',
+    dobHint: 'اپنی تاریخ پیدائش سیٹنگز → پروفائل میں شامل کریں',
     saved: 'آپ کا ایمرجنسی کارڈ اپ ڈیٹ ہو گیا۔',
   },
   doctorVisit: {
