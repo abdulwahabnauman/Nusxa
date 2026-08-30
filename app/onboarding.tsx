@@ -140,7 +140,7 @@ export default function OnboardingScreen() {
                   </View>
                 ))}
               </View>
-              <View style={styles.buttonContainer}>
+              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
                 <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
               </View>
             </View>
@@ -317,7 +317,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   buttonContainer: {
-    marginTop: 24,
     width: '100%',
     gap: 12,
     alignItems: 'center',
