@@ -145,8 +145,6 @@ export const ur: TranslationKeys = {
     language: 'زبان',
     english: 'English',
     urdu: 'اردو',
-    easternNumerals: 'مشرقی عربی ہندسے',
-    easternNumeralsDesc: 'اعداد کو ۰۱۲۳۴۵۶۷۸۹ کی شکل میں دکھائیں',
     security: 'سیکیورٹی',
     appLock: 'ایپ لاک',
     appLockDesc: 'نسخہ کھولنے کے لیے پن یا بایومیٹرک ضروری ہوگا',

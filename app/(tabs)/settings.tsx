@@ -146,12 +146,8 @@ export default function SettingsScreen() {
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const setReducedMotion = useSettingsStore((s) => s.setReducedMotion);
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
-<<<<<<< Updated upstream
-  const setEasternNumerals = useSettingsStore((s) => s.setEasternNumerals);
   const useOwnKeys = useSettingsStore((s) => s.useOwnKeys);
   const setUseOwnKeys = useSettingsStore((s) => s.setUseOwnKeys);
-=======
->>>>>>> Stashed changes
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
