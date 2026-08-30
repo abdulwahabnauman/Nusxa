@@ -31,7 +31,7 @@ import { ChatMessage } from '../src/ai/types';
 import { resolveTextProviderKeys } from '../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../src/constants/config';
 import { CHAT_SYSTEM_PROMPT, buildChatContext } from '../src/ai/prompts';
-import { parseMarkdown } from '../src/components/ui/MarkdownText';
+import { MarkdownText } from '../src/components/ui/MarkdownText';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
@@ -371,11 +371,10 @@ export default function ChatScreen() {
               ]}
             >
               <View>
-                {parseMarkdown(displayedContent(msg), msg.role === 'user' ? '#FFFFFF' : colors.text.primary).map((node, idx) => (
-                  <React.Fragment key={idx}>
-                    {node}
-                  </React.Fragment>
-                ))}
+                <MarkdownText
+                  content={displayedContent(msg)}
+                  textColor={msg.role === 'user' ? '#FFFFFF' : colors.text.primary}
+                />
               </View>
               {/* Copy button on assistant answers */}
               {msg.role === 'assistant' && (!reveal || reveal.id !== msg.id) && (
