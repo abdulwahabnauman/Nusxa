@@ -41,7 +41,7 @@ export function MedicineCard({
   onPress,
 }: MedicineCardProps) {
   const { colors, typography, spacing, mode } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();
 
@@ -75,7 +75,7 @@ export function MedicineCard({
         activeOpacity={0.85}
         accessibilityRole="button"
       >
-      <Card style={{ borderLeftWidth: 3, borderLeftColor: catColor }}>
+      <Card style={{ borderStartWidth: 3, borderStartColor: catColor }}>
         <View style={styles.header}>
           <View
             style={{
@@ -85,7 +85,7 @@ export function MedicineCard({
               backgroundColor: colors.accent.subtle,
               alignItems: 'center',
               justifyContent: 'center',
-              marginRight: 10,
+              marginEnd: 10,
             }}
           >
             <MedicineFormIcon form={form} size={20} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
@@ -96,7 +96,9 @@ export function MedicineCard({
             </Text>
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
               {dosage ?? '?'}, {frequency ?? '?'}
-              {mealInstruction && mealInstruction !== 'none' ? `, ${mealInstruction} meals` : ''}
+              {mealInstruction && mealInstruction !== 'none'
+                ? `, ${mealInstruction === 'before' ? t.dose.beforeMeals : mealInstruction === 'with' ? t.dose.withMeals : t.dose.afterMeals}`
+                : ''}
             </Text>
             {!!strength && (
               <Text style={[typography.body.xs, { color: strengthColor(strength) ?? colors.text.secondary, marginTop: 2, fontWeight: '600' }]}>
@@ -114,8 +116,8 @@ export function MedicineCard({
         {scheduleTimes && scheduleTimes.length > 0 && (
           <View style={styles.scheduleRow}>
             <MaterialCommunityIcons name="clock-outline" size={14} color={colors.text.secondary} />
-            <Text style={[typography.body.xs, { color: colors.text.secondary, marginLeft: 4 }]}>
-              {scheduleTimes.map(formatTime12h).join(', ')}
+            <Text style={[typography.body.xs, { color: colors.text.secondary, marginStart: 4 }]}>
+              {scheduleTimes.map((time) => formatTime12h(time, language)).join(', ')}
             </Text>
           </View>
         )}
