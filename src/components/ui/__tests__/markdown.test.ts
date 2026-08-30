@@ -34,13 +34,13 @@ describe('parseMarkdown during word-by-word reveal (unclosed markers)', () => {
   it('formats an unclosed ** span as bold instead of showing raw markers', () => {
     const { joined, styled } = parse('Side effects: **nausea');
     expect(joined).not.toContain('**');
-    expect(styled.some((s) => s.style?.fontWeight === '700' && s.text === 'nausea')).toBe(true);
+    expect(styled.some((s) => s.style?.fontFamily === 'Inter_700Bold' && s.text === 'nausea')).toBe(true);
   });
 
   it('formats an unclosed * span as italic', () => {
     const { joined, styled } = parse('This is *important');
     expect(joined).not.toMatch(/\*/);
-    expect(styled.some((s) => s.style?.fontStyle === 'italic' && s.text === 'important')).toBe(true);
+    expect(styled.some((s) => s.style?.fontFamily === 'Inter_400Regular_Italic' && s.text === 'important')).toBe(true);
   });
 
   it('formats an unclosed ` span as code', () => {
@@ -52,14 +52,14 @@ describe('parseMarkdown during word-by-word reveal (unclosed markers)', () => {
   it('still formats completed spans', () => {
     const { joined, styled } = parse('Take **500 mg** once, then `rest` and *sleep*');
     expect(joined).not.toMatch(/[*`]/);
-    expect(styled.some((s) => s.style?.fontWeight === '700' && s.text === '500 mg')).toBe(true);
+    expect(styled.some((s) => s.style?.fontFamily === 'Inter_700Bold' && s.text === '500 mg')).toBe(true);
     expect(styled.some((s) => s.style?.fontFamily === 'monospace' && s.text === 'rest')).toBe(true);
-    expect(styled.some((s) => s.style?.fontStyle === 'italic' && s.text === 'sleep')).toBe(true);
+    expect(styled.some((s) => s.style?.fontFamily === 'Inter_400Regular_Italic' && s.text === 'sleep')).toBe(true);
   });
 
   it('handles a completed span followed by an unclosed one', () => {
     const { styled } = parse('**bold part** then **still going');
-    expect(styled.filter((s) => s.style?.fontWeight === '700').map((s) => s.text)).toEqual([
+    expect(styled.filter((s) => s.style?.fontFamily === 'Inter_700Bold').map((s) => s.text)).toEqual([
       'bold part',
       'still going',
     ]);
