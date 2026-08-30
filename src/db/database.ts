@@ -26,6 +26,10 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     
     await runMigrations(db);
   } catch (error) {
+    // Drop the half-migrated connection: keeping it cached would make the
+    // caller's retry return it instantly (via the `if (db)` guard) without
+    // ever re-running the migrations that failed.
+    db = null;
     console.error('[DB] Failed to initialize:', error);
     throw new Error(`Database initialization failed: ${error}`);
   }
