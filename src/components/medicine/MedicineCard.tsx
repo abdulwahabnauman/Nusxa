@@ -99,7 +99,7 @@ export function MedicineCard({
               {mealInstruction && mealInstruction !== 'none' ? `, ${mealInstruction} meals` : ''}
             </Text>
             {!!strength && (
-              <Text style={[typography.body.xs, { color: strengthColor(strength) ?? colors.text.secondary, marginTop: 2, fontWeight: '600' }]}>
+              <Text style={[typography.body.xs, { color: strengthColor(strength) ?? colors.text.secondary, marginTop: 2, fontFamily: typography.families.semibold }]}>
                 {strength}
               </Text>
             )}
