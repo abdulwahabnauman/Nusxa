@@ -48,6 +48,30 @@ const loadThemeFromDatabase = async (): Promise<{ preference: ThemeMode | 'syste
   return { preference: 'system' as ThemeMode | 'system', elderlyMode: false, highContrast: false };
 };
 
+let hydrationRan = false;
+
+/**
+ * Re-read persisted theme preferences once the database is ready.
+ * Without this, elderly/high-contrast/theme survive a restart only when the
+ * startup gate finds a complete profile — the store defaults win otherwise,
+ * so toggles appear to reset after closing the app.
+ */
+export async function hydrateTheme(): Promise<void> {
+  if (hydrationRan) return;
+  hydrationRan = true;
+  const loaded = await loadThemeFromDatabase();
+  // loadThemeFromDatabase returns defaults when no profile row exists yet;
+  // allow a retry on a later call instead of locking those in.
+  if (!loaded.elderlyMode && !loaded.highContrast && loaded.preference === 'system') {
+    const profile = await getProfile();
+    if (!profile) {
+      hydrationRan = false;
+      return;
+    }
+  }
+  useThemeStore.setState(loaded);
+}
+
 export const useThemeStore = create<ThemeState>((set) => {
   return {
     preference: 'system',

@@ -12,9 +12,10 @@ import { ThemeProvider, useTheme } from '../src/theme/provider';
 import { openDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
 import { updateProfile } from '../src/db/repositories/profile';
+import { ensureProfileRow } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';
-import { useThemeStore } from '../src/stores/theme-store';
+import { useThemeStore, hydrateTheme } from '../src/stores/theme-store';
 import { configureNotifications, syncRefillNotifications, syncFollowUpNotifications } from '../src/utils/notifications';
 import { dedupeActiveMedicines } from '../src/utils/savePrescription';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
@@ -146,6 +147,16 @@ function AppContent() {
           }
         }
 
+        // Self-heal the singleton profile row. Restores of backups exported
+        // without a profile (and some upgrade paths) can leave the table
+        // empty, which turns every preference toggle into a silent no-op —
+        // the symptom users see as "settings reset after closing the app".
+        try {
+          await ensureProfileRow();
+        } catch (stubError) {
+          console.error('[Init] Could not ensure profile row:', stubError);
+        }
+
         // The settings store's import-time load usually runs before the DB
         // opens and falls back to defaults — re-apply the saved values now so
         // the user's language/preferences survive a cold start.
@@ -153,6 +164,13 @@ function AppContent() {
           await hydrateSettings();
         } catch (hydrateError) {
           console.error('[Init] Settings hydration failed:', hydrateError);
+        }
+
+        // Same for theme preferences (elderly mode, high contrast, theme).
+        try {
+          await hydrateTheme();
+        } catch (hydrateError) {
+          console.error('[Init] Theme hydration failed:', hydrateError);
         }
 
         // Remove duplicate medicines left over from re-scans that happened
