@@ -36,6 +36,7 @@ import { getMedicine, getMedicinesByIds, updateInventory } from '../../src/db/re
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useInvalidateData } from '../../src/hooks/queries';
+import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
 import { useI18n } from '../../src/i18n';
 import type { TodayScheduleItem } from '../../src/types/models';
 
@@ -56,6 +57,8 @@ export default function HomeScreen() {
   const { showUndoToast, undoToastElement } = useUndoToast();
   // Dose actions change inventory — keep the react-query medicine cache fresh
   const invalidateData = useInvalidateData();
+  const scrollRef = useRef<ScrollView>(null);
+  useTabScrollReset(scrollRef);
 
   // One-time catch-up: installs that skipped onboarding (upgrade installs,
   // permission auto-grants) never got asked for notifications. If the OS
@@ -388,6 +391,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={styles.scrollContent}
         refreshControl={
           <RefreshControl
