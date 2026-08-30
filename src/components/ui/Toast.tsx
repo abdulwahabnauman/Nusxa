@@ -153,7 +153,7 @@ export function Toast({
           style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, marginStart: spacing.xs }}
           accessibilityLabel={action.label}
         >
-          <Text style={[typography.label.base, { color: colors.accent.primary, fontWeight: '700' }]}>
+          <Text style={[typography.label.base, { color: colors.accent.primary, fontFamily: typography.families.bold }]}>
             {action.label.toUpperCase()}
           </Text>
         </TouchableOpacity>
