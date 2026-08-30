@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useMemo, memo } from 'react';
+import React, { useCallback, useState, useMemo, memo } from 'react';
 import {
   View,
   Text,
@@ -16,16 +16,8 @@ import { EmptyState } from '../../src/components/ui/EmptyState';
 import { PillIcon } from '../../src/components/ui/PillIcon';
 import { MedicineCard } from '../../src/components/medicine/MedicineCard';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
-import { getActiveMedicines } from '../../src/db/repositories/medicine';
-import { getSchedulesByMedicine } from '../../src/db/repositories/schedule';
-import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
+import { useActiveMedicines, MedicineWithInfo } from '../../src/hooks/queries';
 import { findInteractionPairs } from '../../src/utils/interactions';
-import type { Medicine } from '../../src/types/models';
-
-interface MedicineWithInfo extends Medicine {
-  scheduleTimes: string[];
-  daysUntilRefill: number | null;
-}
 
 /** Memoized row so list scrolls stay cheap even with many medicines */
 const MedicineRow = memo(function MedicineRow({
@@ -60,38 +52,24 @@ export default function MedicinesScreen() {
   const { t } = useI18n();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [medicines, setMedicines] = useState<MedicineWithInfo[]>([]);
-
-  const loadMedicines = useCallback(async () => {
-    try {
-      const active = await getActiveMedicines();
-      const enriched: MedicineWithInfo[] = [];
-      for (const med of active) {
-        const schedules = await getSchedulesByMedicine(med.id);
-        const times = schedules.filter((s) => s.is_active).map((s) => s.time);
-        const daysUntilRefill = med.remaining_quantity !== null && med.frequency
-          ? estimateDaysUntilRefillFromFrequency(med.remaining_quantity, med.frequency)
-          : null;
-        enriched.push({ ...med, scheduleTimes: times, daysUntilRefill });
-      }
-      setMedicines(enriched);
-    } catch {
-      // Offline-safe
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadMedicines();
-  }, [loadMedicines]);
+  // react-query owns the list (Perf 2); schedules are grouped from one batch
+  // query inside the hook instead of one query per medicine (Perf 1).
+  const {
+    data: medicines = [],
+    isLoading: loading,
+    refetch,
+  } = useActiveMedicines();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadMedicines();
-    setRefreshing(false);
-  }, [loadMedicines]);
+    try {
+      await refetch();
+    } catch {
+      // Offline-safe
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refetch]);
 
   const openMedicine = useCallback(
     (id: string) => router.push(`/medicine/${id}`),

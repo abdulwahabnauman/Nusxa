@@ -33,6 +33,7 @@ import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, getMedicinesByIds, updateInventory } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
 import { useSettingsStore } from '../../src/stores/settings-store';
+import { useInvalidateData } from '../../src/hooks/queries';
 import { useI18n } from '../../src/i18n';
 import type { TodayScheduleItem } from '../../src/types/models';
 
@@ -49,6 +50,8 @@ export default function HomeScreen() {
   const [weeklyData, setWeeklyData] = useState<{ day: string; percentage: number }[]>([]);
   const [celebration, setCelebration] = useState<{ title: string; subtitle: string } | null>(null);
   const { showUndoToast, undoToastElement } = useUndoToast();
+  // Dose actions change inventory — keep the react-query medicine cache fresh
+  const invalidateData = useInvalidateData();
 
   // One-time catch-up: installs that skipped onboarding (upgrade installs,
   // permission auto-grants) never got asked for notifications. If the OS
@@ -224,6 +227,7 @@ export default function HomeScreen() {
           await updateInventory(medicineId, med.remaining_quantity - 1);
         }
       } catch { /* inventory tracking is best-effort */ }
+      invalidateData();
       await loadData();
 
       showUndoToast(t.home.doseTakenToast, async () => {
@@ -241,13 +245,14 @@ export default function HomeScreen() {
               await updateInventory(medicineId, med.remaining_quantity + 1);
             }
           } catch { /* best-effort */ }
+          invalidateData();
           await loadData();
         } catch { /* undo is best-effort */ }
       });
     } catch {
       showToast(t.toasts.recordDoseFailed, 'error');
     }
-  }, [loadData, todayItems, showUndoToast]);
+  }, [loadData, todayItems, showUndoToast, t, invalidateData]);
 
   const handleSkip = useCallback(async (scheduleId: string, medicineId: string) => {
     try {
@@ -308,6 +313,7 @@ export default function HomeScreen() {
         } catch { /* inventory tracking is best-effort */ }
       }
       doseHaptic();
+      invalidateData();
       await loadData();
 
       showUndoToast(
@@ -329,6 +335,7 @@ export default function HomeScreen() {
                 }
               } catch { /* best-effort */ }
             }
+            invalidateData();
             await loadData();
           } catch { /* undo is best-effort */ }
         }
@@ -336,7 +343,7 @@ export default function HomeScreen() {
     } catch {
       showToast(t.toasts.recordDosesFailed, 'error');
     }
-  }, [takeAllGroup, loadData, showUndoToast, t]);
+  }, [takeAllGroup, loadData, showUndoToast, t, invalidateData]);
 
   const greeting = () => {
     const hour = new Date().getHours();

@@ -55,7 +55,7 @@ EXPO_PUBLIC_GROQ_API_KEY=your_key_here
 | Framework          | React Native 0.81.5 + Expo SDK 54       |
 | Language           | TypeScript (strict mode)                |
 | Navigation         | Expo Router v6 (file-based routing)     |
-| State Management   | Zustand v5 (3 stores: auth, theme, settings) |
+| State Management   | Zustand v5 (3 stores: auth, theme, settings) + react-query (cached DB reads) |
 | Database           | expo-sqlite (SQLite, offline-first, schema v16) |
 | AI — Vision/OCR    | Google Gemini (free tier — model name in `src/constants/config.ts`) |
 | AI — Chat/Explain  | Groq gpt-oss-120b (free, primary), Nemotron 3 Ultra via OpenRouter (free, fallback) |
@@ -149,6 +149,7 @@ nusxa/
 │   │       └── education.ts      # Education content, bookmarks, reading history
 │   │
 │   ├── hooks/
+│   │   ├── queries.ts            # react-query layer: cached medicines/prescriptions/schedules + invalidation
 │   │   ├── useNotificationHandler.ts  # Notification tap → navigate to medicine
 │   │   └── useReducedMotion.ts        # Reads reduced motion preference
 │   │

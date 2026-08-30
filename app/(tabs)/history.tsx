@@ -28,21 +28,14 @@ import { useUndoToast } from '../../src/components/ui/UndoToast';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { useI18n } from '../../src/i18n';
 import { useReducedMotion } from '../../src/hooks/useReducedMotion';
+import { usePrescriptionList, PrescriptionItem } from '../../src/hooks/queries';
 import {
-  getAllPrescriptions,
-  searchPrescriptions,
   deletePrescription,
   restorePrescription,
   archivePrescription,
   updatePrescription,
 } from '../../src/db/repositories/prescription';
-import { getMedicinesByPrescription } from '../../src/db/repositories/medicine';
 import { syncDoseNotifications } from '../../src/utils/notifications';
-import type { Prescription } from '../../src/types/models';
-
-interface PrescriptionItem extends Prescription {
-  medicineCount: number;
-}
 
 /** Memoized row so the prescription list stays cheap to scroll */
 const PrescriptionRow = memo(function PrescriptionRow({
@@ -120,11 +113,17 @@ export default function HistoryScreen() {
   const { t, isRTL } = useI18n();
   const reducedMotion = useReducedMotion();
   const [refreshing, setRefreshing] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocused, setSearchFocused] = useState(false);
-  const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
   const { showUndoToast, undoToastElement } = useUndoToast();
+
+  // react-query owns the list (Perf 2): cached, keyed by search term, and
+  // enriched with medicine counts in one batch query (no N+1, Perf 1).
+  const {
+    data: prescriptions = [],
+    isLoading: loading,
+    refetch,
+  } = usePrescriptionList(searchQuery);
 
   // Marquee placeholder: the search hint stays on one line and, when it is
   // wider than the field, slides across slowly instead of wrapping/disappearing.
@@ -157,29 +156,11 @@ export default function HistoryScreen() {
 
   const loadPrescriptions = useCallback(async () => {
     try {
-      let results: Prescription[];
-      if (searchQuery.trim()) {
-        results = await searchPrescriptions(searchQuery.trim());
-      } else {
-        results = await getAllPrescriptions();
-      }
-
-      const enriched: PrescriptionItem[] = [];
-      for (const rx of results) {
-        const meds = await getMedicinesByPrescription(rx.id);
-        enriched.push({ ...rx, medicineCount: meds.length });
-      }
-      setPrescriptions(enriched);
+      await refetch();
     } catch {
       // Offline-safe
-    } finally {
-      setLoading(false);
     }
-  }, [searchQuery]);
-
-  useEffect(() => {
-    loadPrescriptions();
-  }, [loadPrescriptions]);
+  }, [refetch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

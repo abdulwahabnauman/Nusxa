@@ -26,6 +26,7 @@ import {
 } from '../../src/db/repositories/schedule';
 import { syncDoseNotifications } from '../../src/utils/notifications';
 import { isValidTimeFormat } from '../../src/utils/validation';
+import { useInvalidateData } from '../../src/hooks/queries';
 import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
 import { formatTime12h, addMinutesToTime } from '../../src/utils/date';
 import { formatDigits } from '../../src/utils/numerals';
@@ -38,6 +39,7 @@ export default function MedicineDetailScreen() {
   const reducedMotion = useReducedMotion();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const invalidateData = useInvalidateData();
   const [medicine, setMedicine] = useState<Medicine | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
 
@@ -121,13 +123,14 @@ export default function MedicineDetailScreen() {
       if (timesChanged) await syncDoseNotifications();
       setEditVisible(false);
       await load();
+      invalidateData();
       showToast(t.medicine.savedToast, 'success');
     } catch (err) {
       console.error('Failed to update medicine:', err);
     } finally {
       setSaving(false);
     }
-  }, [medicine, editValid, editName, editDosage, editFrequency, editDuration, editRemaining, editTimes, schedules, load, t]);
+  }, [medicine, editValid, editName, editDosage, editFrequency, editDuration, editRemaining, editTimes, schedules, load, t, invalidateData]);
 
   // Pause = all schedules deactivated; resume reactivates them
   const isPaused = schedules.length > 0 && schedules.every((s) => !s.is_active);
@@ -145,10 +148,11 @@ export default function MedicineDetailScreen() {
         showToast(t.medicine.pausedToast, 'info');
       }
       await load();
+      invalidateData();
     } catch (err) {
       console.error('Failed to toggle pause:', err);
     }
-  }, [medicine, isPaused, load, t]);
+  }, [medicine, isPaused, load, t, invalidateData]);
 
   const handleDelete = useCallback(() => {
     if (!medicine) return;
@@ -165,6 +169,7 @@ export default function MedicineDetailScreen() {
               const medId = medicine.id;
               await deleteMedicine(medId); // soft delete — undo clears the tombstone
               await syncDoseNotifications();
+              invalidateData();
               router.back();
               showToastWithAction(t.medicine.deletedToast, {
                 label: t.common.undo,
@@ -172,6 +177,7 @@ export default function MedicineDetailScreen() {
                   try {
                     await restoreMedicine(medId);
                     await syncDoseNotifications();
+                    invalidateData();
                   } catch { /* undo is best-effort */ }
                 },
               });
@@ -182,7 +188,7 @@ export default function MedicineDetailScreen() {
         },
       ]
     );
-  }, [medicine, router, t]);
+  }, [medicine, router, t, invalidateData]);
 
   if (!medicine) {
     return (

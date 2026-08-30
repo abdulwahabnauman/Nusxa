@@ -89,6 +89,17 @@ export async function getMedicinesByIds(ids: string[]): Promise<Medicine[]> {
   return rows.map(parseMedicine);
 }
 
+/** Medicine count per prescription in ONE query (history list enrichment) */
+export async function getMedicineCountsByPrescription(): Promise<Record<string, number>> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT prescription_id, COUNT(*) AS cnt FROM medicines WHERE deleted_at IS NULL GROUP BY prescription_id;'
+  );
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.prescription_id as string] = row.cnt as number;
+  return counts;
+}
+
 export async function getActiveMedicines(): Promise<Medicine[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
