@@ -86,7 +86,7 @@ export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = tr
             <Text
               style={[
                 typography.label.base,
-                { color: colors.text.secondary, marginLeft: 6 },
+                { color: colors.text.secondary, marginStart: 6 },
               ]}
             >
               {DAY_PART_LABELS[part]}
