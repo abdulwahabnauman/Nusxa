@@ -146,7 +146,10 @@ export async function authenticateWithBiometrics(promptMessage: string): Promise
     });
     return {
       ok: result.success,
-      cancelled: !result.success && result.error === 'user_cancel',
+      // user_cancel is the Android cancel; iOS reports system_cancel when the
+      // sheet is dismissed. Both mean "user stepped away from biometrics" —
+      // fall back to the PIN pad silently instead of showing an error.
+      cancelled: !result.success && (result.error === 'user_cancel' || result.error === 'system_cancel'),
     };
   } catch {
     return { ok: false, cancelled: false };
