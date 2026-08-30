@@ -87,7 +87,7 @@ nusxa/
 │   ├── doctor-visit.tsx          # Doctor visit report — generates & shares an on-device PDF (incl. DOB/age, blood group, allergies)
 │   ├── emergency-card.tsx        # Emergency info card — DOB/age, blood group chips, one-tap call
 │   ├── medicine/
-│   │   └── [id].tsx              # Medicine detail — edit, pause/resume, delete (undoable)
+│   │   └── [id].tsx              # Medicine detail — edit, pause/resume, delete (undoable), order-refill entry point
 │   └── (tabs)/                   # Bottom tab navigation
 │       ├── _layout.tsx           # Tab bar config (Home, Medicines, History, Learn, Settings)
 │       ├── index.tsx             # Home — today's schedule, adherence ring, streak, weekly chart
@@ -572,7 +572,7 @@ A complete educational content system for medication literacy:
 | **Data backup & cloud sync** | 🟡 MEDIUM | Prevent total data loss if device lost | Medium-High | Optional Google Drive/iCloud backup. Encrypt data before upload. Critical feature for retention. |
 | **Offline AI capabilities** | 🟢 LOW | Scan prescriptions without internet | High | On-device ML models (TensorFlow Lite). Complex but valuable niche feature. |
 | **Family caregiver view** | 🟢 LOW | Share medication schedule with family | Medium | Role-based permissions. Family member can see schedules, edit emergency info. |
-| **Pharmacy integration** | 🟢 LOW | Direct refill requests to pharmacies | High | Integration with local pharmacy APIs. Complex business requirements. |
+| **Pharmacy integration** | 🟡 PLANNED | Direct refill requests to pharmacies | High | Entry point shipped as an "Order refill" (coming soon) row on the medicine detail screen; build plan in `docs/REFILL_ORDERING_GUIDE.md`. |
 | **Adherence analytics dashboard** | ✅ DONE | — | — | Live dashboard (adherence ring, activity chart, month calendar) plus exportable PDF report via the header share button |
 | **Medicine interaction checker** | ✅ DONE | — | — | 16 curated two-sided rules in `src/constants/medical.ts`, matched over name/generic/brand (`src/utils/interactions.ts`), warned on the review screen before save and on the Medicines tab |
 | **Medication education library** | ✅ DONE | — | — | Schema v4–v6 + UI (Learn tab, article reader, bookmarks, history) all shipped |

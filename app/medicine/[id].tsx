@@ -53,6 +53,10 @@ export default function MedicineDetailScreen() {
   const [editTimes, setEditTimes] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
+  // Refill ordering is planned but not yet built (audit Feature 10) — the
+  // entry point lives in the inventory card and opens a "coming soon" sheet.
+  const [refillSoonVisible, setRefillSoonVisible] = useState(false);
+
   const nf = useCallback(
     (v: string | number) => formatDigits(v, easternNumerals),
     [easternNumerals]
@@ -406,6 +410,29 @@ export default function MedicineDetailScreen() {
                   </Text>
                 </View>
               )}
+              {/* Refill ordering — coming soon (audit Feature 10) */}
+              <View style={{ marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderTopColor: colors.border.default }}>
+                <View style={styles.fieldRow}>
+                  <View style={{ flex: 1, marginRight: spacing.sm }}>
+                    <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                      {t.medicine.orderRefill}
+                    </Text>
+                    <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
+                      {t.medicine.orderRefillDesc}
+                    </Text>
+                    <View style={{ alignSelf: 'flex-start', marginTop: 6 }}>
+                      <Badge label={t.medicine.refillComingSoon} variant="pending" />
+                    </View>
+                  </View>
+                  <Button
+                    title={t.medicine.orderRefill}
+                    variant="secondary"
+                    size="sm"
+                    icon={<MaterialCommunityIcons name="cart-outline" size={16} color={colors.accent.primary} />}
+                    onPress={() => setRefillSoonVisible(true)}
+                  />
+                </View>
+              </View>
             </Card>
           </Animated.View>
         )}
@@ -555,6 +582,29 @@ export default function MedicineDetailScreen() {
               style={{ flex: 1 }}
             />
           </View>
+        </View>
+      </Modal>
+
+      {/* Refill ordering — coming soon sheet (audit Feature 10) */}
+      <Modal visible={refillSoonVisible} onClose={() => setRefillSoonVisible(false)} title={t.medicine.refillComingSoonTitle}>
+        <View style={{ gap: spacing.md }}>
+          <View
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: 28,
+              backgroundColor: colors.accent.subtle,
+              alignItems: 'center',
+              justifyContent: 'center',
+              alignSelf: 'center',
+            }}
+          >
+            <MaterialCommunityIcons name="cart-arrow-down" size={28} color={colors.accent.primary} />
+          </View>
+          <Text style={[typography.body.base, { color: colors.text.secondary, textAlign: 'center' }]}>
+            {t.medicine.refillComingSoonDesc}
+          </Text>
+          <Button title={t.common.ok} variant="primary" onPress={() => setRefillSoonVisible(false)} />
         </View>
       </Modal>
     </SafeAreaView>
