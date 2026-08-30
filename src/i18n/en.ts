@@ -208,6 +208,8 @@ export const en = {
     discardMsg: 'Are you sure? You will need to scan it again.',
     requiredField: 'This field is required',
     lowConfidence: 'Low confidence. Please verify',
+    duplicateNames: '{names} appears more than once on this prescription. Please confirm they are not the same medicine.',
+    incomplete: 'Missing details',
   },
   // Schedule
   schedule: {
@@ -220,6 +222,8 @@ export const en = {
     confirmed: 'Schedule confirmed',
     confirmedMsg: 'Your medication schedule has been set up. You will receive reminders at the scheduled times.',
     safetyNotice: 'Reminders will activate after you confirm. If timing changes could affect treatment safety, please confirm with your doctor.',
+    timeInvalid: 'Enter a valid 24-hour time (HH:MM)',
+    sameTimeNote: '{first} and {second} are both set for {time}. Fine if intended — adjust only if they should be spaced apart.',
   },
   // Medicine
   medicine: {

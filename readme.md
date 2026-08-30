@@ -180,7 +180,7 @@ nusxa/
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
 │       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
-│       └── validation.ts         # Input validation helpers
+│       └── validation.ts         # Input validation helpers (used by review + schedule screens)
 │
 ├── .env                          # Environment variables (gitignored)
 ├── .gitignore

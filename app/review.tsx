@@ -28,6 +28,7 @@ import {
   findCrossInteractions,
 } from '../src/utils/interactions';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
+import { getMissingFields, findDuplicateMedicines, isMedicineComplete } from '../src/utils/validation';
 import type { Medicine } from '../src/types/models';
 
 export default function ReviewScreen() {
@@ -92,6 +93,12 @@ export default function ReviewScreen() {
     };
   }, [initialData]);
 
+  // Same name listed twice on one prescription — usually an OCR double-read
+  const duplicateNames = useMemo(
+    () => findDuplicateMedicines(data?.medicines ?? []),
+    [data]
+  );
+
   if (!data) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
@@ -120,13 +127,12 @@ export default function ReviewScreen() {
   };
 
   const handleVerify = async () => {
-    // Check required fields
+    // Check required fields via the shared validation toolkit
     const missing: string[] = [];
     data.medicines.forEach((med, i) => {
-      if (!med.name) missing.push(`Medicine ${i + 1}: name`);
-      if (!med.dosage) missing.push(`Medicine ${i + 1}: dosage`);
-      if (!med.frequency) missing.push(`Medicine ${i + 1}: frequency`);
-      if (!med.duration) missing.push(`Medicine ${i + 1}: duration`);
+      for (const field of getMissingFields(med)) {
+        missing.push(`Medicine ${i + 1}: ${field}`);
+      }
     });
 
     if (missing.length > 0) {
@@ -146,8 +152,8 @@ export default function ReviewScreen() {
         })),
       };
 
-      // Save to database (will be connected in Phase 5/6)
-      // For now, pass data to schedule screen
+      // Hand the verified prescription over to the schedule screen, which
+      // persists everything via savePrescription().
       router.replace({
         pathname: '/schedule',
         params: {
@@ -221,6 +227,20 @@ export default function ReviewScreen() {
                 onPress={() => router.replace('/(tabs)')}
                 style={{ marginTop: 10, alignSelf: 'flex-start' }}
               />
+            </Card>
+          </View>
+        )}
+
+        {/* Duplicate names within this prescription */}
+        {duplicateNames.length > 0 && (
+          <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+            <Card style={{ backgroundColor: colors.warning + '1A', borderColor: colors.warning }}>
+              <View style={styles.warningRow}>
+                <MaterialCommunityIcons name="content-copy" size={20} color={colors.warning} />
+                <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                  {t.review.duplicateNames.replace('{names}', duplicateNames.join(', '))}
+                </Text>
+              </View>
             </Card>
           </View>
         )}
@@ -341,6 +361,9 @@ export default function ReviewScreen() {
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   {dupes?.matched[index] && <Badge label="Already added" variant="verified" />}
+                  {!isMedicineComplete(medicine) && (
+                    <Badge label={t.review.incomplete} variant="needs_review" />
+                  )}
                   <Badge
                     label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'Good read' : 'Low confidence'}
                     variant={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'verified' : 'needs_review'}

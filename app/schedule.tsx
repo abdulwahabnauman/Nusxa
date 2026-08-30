@@ -25,6 +25,7 @@ import {
   ScheduleDraft,
 } from '../src/utils/savePrescription';
 import { syncFollowUpNotifications } from '../src/utils/notifications';
+import { isValidTimeFormat, findScheduleConflicts } from '../src/utils/validation';
 
 const WINDOW_OPTIONS = [60, 90, 120, 180];
 
@@ -52,6 +53,26 @@ export default function ScheduleScreen() {
 
   const [confirming, setConfirming] = useState(false);
 
+  // Validation (shared toolkit): a time is only accepted as HH:MM 24-hour.
+  // Same-time doses across medicines are flagged as a soft notice, since
+  // taking several together is common and usually intentional.
+  const timeIsInvalid = (time: string) => time.trim() !== '' && !isValidTimeFormat(time.trim());
+  const hasInvalidOrEmptyTimes = schedules.some((schedule) =>
+    schedule.times.some((time) => time.trim() === '' || timeIsInvalid(time))
+  );
+  const conflicts = useMemo(
+    () =>
+      findScheduleConflicts(
+        schedules.flatMap((schedule) =>
+          schedule.times
+            .map((time) => time.trim())
+            .filter((time) => isValidTimeFormat(time))
+            .map((time) => ({ medicineName: schedule.medicineName, time }))
+        )
+      ),
+    [schedules]
+  );
+
   const updateTime = (medIdx: number, timeIdx: number, value: string) => {
     setSchedules((prev) => {
       const updated = [...prev];
@@ -75,6 +96,10 @@ export default function ScheduleScreen() {
 
   const handleConfirm = async () => {
     if (!prescription) return;
+    if (hasInvalidOrEmptyTimes) {
+      showToast(t.schedule.timeInvalid, 'warning');
+      return;
+    }
     setConfirming(true);
     try {
       const outcome = await savePrescription(prescription, schedules, imageUri);
@@ -118,10 +143,10 @@ export default function ScheduleScreen() {
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
           <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            Confirm your schedule
+            {t.schedule.title}
           </Text>
           <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            Review the suggested times. You can adjust them before confirming.
+            {t.schedule.subtitle}
           </Text>
         </View>
 
@@ -131,7 +156,7 @@ export default function ScheduleScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
               <MaterialCommunityIcons name="information-outline" size={20} color={colors.info} />
               <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
-                Reminders will activate after you confirm this schedule. If timing changes could affect treatment safety, please confirm with your doctor.
+                {t.schedule.safetyNotice}
               </Text>
             </View>
           </Card>
@@ -160,7 +185,7 @@ export default function ScheduleScreen() {
               </View>
 
               <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.md }]}>
-                Reminder times
+                {t.schedule.reminderTimes}
               </Text>
 
               {schedule.times.map((time, timeIdx) => (
@@ -176,6 +201,7 @@ export default function ScheduleScreen() {
                     placeholder="HH:MM"
                     containerStyle={{ flex: 1, marginLeft: 8 }}
                     keyboardType="numbers-and-punctuation"
+                    error={timeIsInvalid(time) ? t.schedule.timeInvalid : undefined}
                   />
                 </View>
               ))}
@@ -216,17 +242,37 @@ export default function ScheduleScreen() {
           </View>
         ))}
 
+        {/* Same-time doses — informational only, never blocks confirming */}
+        {conflicts.length > 0 && (
+          <View style={[styles.notice, { paddingHorizontal: spacing.base }]}>
+            <Card style={{ backgroundColor: colors.warning + '1A', borderColor: colors.warning }}>
+              {conflicts.map((conflict, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: i === 0 ? 0 : 8 }}>
+                  <MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.warning} />
+                  <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                    {t.schedule.sameTimeNote
+                      .replace('{first}', conflict.medicine1)
+                      .replace('{second}', conflict.medicine2)
+                      .replace('{time}', formatDigits(conflict.time, easternNumerals))}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          </View>
+        )}
+
         {/* Actions */}
         <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
           <Button
-            title="Confirm schedule"
+            title={t.schedule.confirmSchedule}
             onPress={handleConfirm}
             loading={confirming}
+            disabled={hasInvalidOrEmptyTimes}
             size="lg"
             icon={<MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />}
           />
           <Button
-            title="Go back"
+            title={t.common.back}
             onPress={() => router.back()}
             variant="ghost"
           />
