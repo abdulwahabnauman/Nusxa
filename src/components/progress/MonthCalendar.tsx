@@ -12,6 +12,8 @@ import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { Card } from '../ui/Card';
 import { getDatabase } from '../../db/database';
+import { useSettingsStore } from '../../stores/settings-store';
+import { formatDigits } from '../../utils/numerals';
 
 interface DayStat {
   total: number;
@@ -28,6 +30,7 @@ function toISODate(year: number, monthIndex: number, day: number): string {
 
 export function MonthCalendar() {
   const { colors, typography: typ, spacing } = useTheme();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const { t, language } = useI18n();
 
   const today = useMemo(() => new Date(), []);
@@ -202,7 +205,7 @@ export function MonthCalendar() {
                     justifyContent: 'center',
                   }}
                 >
-                  <Text style={[typ.body.xs, { color: fg }]}>{day}</Text>
+                  <Text style={[typ.body.xs, { color: fg }]}>{formatDigits(day, easternNumerals)}</Text>
                 </View>
               </View>
             );

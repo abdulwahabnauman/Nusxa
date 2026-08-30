@@ -22,6 +22,8 @@ import { AdherenceRing } from '../src/components/progress/AdherenceRing';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { MonthCalendar } from '../src/components/progress/MonthCalendar';
 import { Skeleton, SkeletonCard } from '../src/components/ui/Skeleton';
+import { useSettingsStore } from '../src/stores/settings-store';
+import { formatDigits } from '../src/utils/numerals';
 import { getDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
 import { generateAnalyticsReportPdf } from '../src/utils/pdf';
@@ -48,6 +50,8 @@ export default function AnalyticsScreen() {
   const { colors, typography: typ, spacing, borderRadius } = useTheme();
   const { t, language } = useI18n();
   const locale = language === 'ur' ? 'ur-PK' : 'en-US';
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const nf = (v: string | number) => formatDigits(v, easternNumerals);
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
@@ -195,19 +199,19 @@ export default function AnalyticsScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-around', width: '100%', marginTop: spacing.md }}>
             <View style={{ alignItems: 'center' }}>
               <Text style={[typ.heading.h3, { color: colors.success }]}>
-                {weeklyStats?.completed || 0}
+                {nf(weeklyStats?.completed || 0)}
               </Text>
               <Text style={[typ.body.xs, { color: colors.text.secondary }]}>{t.analytics.taken}</Text>
             </View>
             <View style={{ alignItems: 'center' }}>
               <Text style={[typ.heading.h3, { color: colors.error }]}>
-                {weeklyStats?.missed || 0}
+                {nf(weeklyStats?.missed || 0)}
               </Text>
               <Text style={[typ.body.xs, { color: colors.text.secondary }]}>{t.analytics.missed}</Text>
             </View>
             <View style={{ alignItems: 'center' }}>
               <Text style={[typ.heading.h3, { color: colors.text.primary }]}>
-                {weeklyStats?.totalSchedules || 0}
+                {nf(weeklyStats?.totalSchedules || 0)}
               </Text>
               <Text style={[typ.body.xs, { color: colors.text.secondary }]}>{t.analytics.total}</Text>
             </View>

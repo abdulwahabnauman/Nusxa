@@ -10,6 +10,17 @@ export function formatDateReadable(date: Date): string {
   return format(date, 'MMM d, yyyy');
 }
 
+/** Localized human-readable date from a YYYY-MM-DD string (audit UX3) */
+export function formatDateLocalized(isoDate: string, locale = 'en-US'): string {
+  const parsed = parse(isoDate, 'yyyy-MM-dd', new Date());
+  if (!isValid(parsed)) return isoDate;
+  try {
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed);
+  } catch {
+    return formatDateReadable(parsed);
+  }
+}
+
 /** Format time string (HH:mm) to 12-hour format */
 export function formatTime12h(time24: string): string {
   const [h, m] = time24.split(':').map(Number);

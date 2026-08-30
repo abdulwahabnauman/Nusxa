@@ -30,6 +30,9 @@ import { SwipeActions, type SwipeAction } from '../../src/components/ui/SwipeAct
 import { useI18n } from '../../src/i18n';
 import { useReducedMotion } from '../../src/hooks/useReducedMotion';
 import { usePrescriptionList, PrescriptionItem } from '../../src/hooks/queries';
+import { useSettingsStore } from '../../src/stores/settings-store';
+import { formatDigits } from '../../src/utils/numerals';
+import { formatDateLocalized } from '../../src/utils/date';
 import {
   deletePrescription,
   restorePrescription,
@@ -51,7 +54,10 @@ const PrescriptionRow = memo(function PrescriptionRow({
   onDelete: (rx: PrescriptionItem) => void;
 }) {
   const { colors, typography } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const locale = language === 'ur' ? 'ur-PK' : 'en-US';
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const nf = (v: string | number) => formatDigits(v, easternNumerals);
 
   // Swipe-revealed actions replace the old always-visible button row (UX17)
   const actions: SwipeAction[] = [];
@@ -70,12 +76,14 @@ const PrescriptionRow = memo(function PrescriptionRow({
     onPress: () => onDelete(rx),
   });
 
+  const displayDate = rx.date ? formatDateLocalized(rx.date, locale) : t.history.noDate;
+
   return (
     <SwipeActions actions={actions} style={{ marginBottom: 16 }}>
       <Card>
         <TouchableOpacity
           onPress={() => onOpen(rx)}
-          accessibilityLabel={`Prescription from ${rx.date ?? t.history.noDate}`}
+          accessibilityLabel={`Prescription from ${displayDate}`}
         >
           <View style={styles.rxHeader}>
             <View style={{ flex: 1 }}>
@@ -83,10 +91,12 @@ const PrescriptionRow = memo(function PrescriptionRow({
                 {rx.doctor_name ?? t.history.unknownDoctor}
               </Text>
               <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                {rx.date ?? t.history.noDate},{' '}
-                {(rx.medicineCount === 1 ? t.history.medicineCountOne : t.history.medicineCountMany).replace(
-                  '{n}',
-                  String(rx.medicineCount),
+                {displayDate},{' '}
+                {nf(
+                  (rx.medicineCount === 1 ? t.history.medicineCountOne : t.history.medicineCountMany).replace(
+                    '{n}',
+                    String(rx.medicineCount),
+                  ),
                 )}
               </Text>
               {rx.hospital && (

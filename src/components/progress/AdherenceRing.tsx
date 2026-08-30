@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme/provider';
+import { useSettingsStore } from '../../stores/settings-store';
+import { formatDigits } from '../../utils/numerals';
 
 interface AdherenceRingProps {
   percentage: number;
@@ -16,6 +18,7 @@ export function AdherenceRing({
   label,
 }: AdherenceRingProps) {
   const { colors, typography } = useTheme();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
 
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
   const radius = (size - strokeWidth) / 2;
@@ -74,7 +77,7 @@ export function AdherenceRing({
             ]}
             accessibilityLabel={`${clampedPercentage}% adherence`}
           >
-            {Math.round(clampedPercentage)}%
+            {formatDigits(Math.round(clampedPercentage), easternNumerals)}%
           </Text>
           {label && (
             <Text
