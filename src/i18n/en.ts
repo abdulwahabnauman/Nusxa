@@ -186,7 +186,7 @@ export const en = {
   // Scanner
   scanner: {
     title: 'Scan Prescription',
-    capture: 'Capture',
+    capture: 'Take Picture',
     gallery: 'Choose from gallery',
     retake: 'Retake',
     useImage: 'Use this image',
@@ -204,10 +204,9 @@ export const en = {
     grantCamera: 'Grant camera access',
     openSettings: 'Open device settings',
     adjustCrop: 'Crop / adjust image',
-    cropHint: 'Drag to move, pinch to zoom, then apply the crop.',
+    cropHint: 'Drag the edges or corners to frame what you need, then apply the crop.',
     applyCrop: 'Apply crop',
     resetCrop: 'Reset',
-    skipCrop: 'Use full image',
   },
   // Processing
   processing: {
