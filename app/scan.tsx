@@ -463,8 +463,9 @@ export default function ScanScreen() {
     setTimeout(() => setFocusPoint(null), 800);
   };
 
-  // Permission not yet requested
-  if (!permission && !capturedImage) {
+  // Ready to scan: permission never asked, or already granted. Once granted,
+  // the primary action opens the camera straight away — no "grant" wording.
+  if (!capturedImage && !cameraActive && (!permission || permission.granted)) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={styles.centered}>
@@ -477,8 +478,8 @@ export default function ScanScreen() {
           </Text>
           <View style={[styles.buttonGroup, { marginTop: spacing.xl }]}>
             <Button
-              title={t.scanner.openCamera}
-              onPress={handleRequestCamera}
+              title={permission?.granted ? t.scanner.capture : t.scanner.openCamera}
+              onPress={permission?.granted ? () => setCameraActive(true) : handleRequestCamera}
               icon={<MaterialCommunityIcons name="camera" size={20} color="#FFFFFF" />}
               style={styles.fullWidthBtn}
             />
