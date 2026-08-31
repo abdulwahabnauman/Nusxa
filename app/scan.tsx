@@ -31,6 +31,7 @@ import { showToast } from '../src/components/ui/GlobalToast';
 import { selectionHaptic } from '../src/utils/haptics';
 import { useI18n } from '../src/i18n';
 import { ensurePermission } from '../src/utils/permissions';
+import { measureSharpness, isBlurry } from '../src/utils/sharpness';
 
 const AnimatedImage = createAnimatedComponent(Image);
 
@@ -74,6 +75,10 @@ export default function ScanScreen() {
   // Set when the captured photo's EXIF suggests low light — surfaces a
   // non-blocking banner on the preview screen (audit UX12).
   const [lowLight, setLowLight] = useState(false);
+  // Set when the on-device Laplacian sharpness check flags the capture as
+  // blurry: Process is gated so a bad photo never spends an OCR API call,
+  // with a "process anyway" escape hatch for false positives.
+  const [blurry, setBlurry] = useState(false);
   // Brief one-shot guidance shown when the camera first opens
   const [showFocusHint, setShowFocusHint] = useState(false);
   const [focusPoint, setFocusPoint] = useState<{x: number, y: number} | null>(null);
@@ -84,6 +89,18 @@ export default function ScanScreen() {
   const [focusBoost, setFocusBoost] = useState(false);
   const focusBoostTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cameraRef = useRef<ExpoCameraView>(null);
+  // Tracks the image currently on the preview so an in-flight sharpness
+  // measurement for a stale capture can't flag the wrong photo.
+  const capturedRef = useRef<string | null>(null);
+
+  /** Measure sharpness on-device and gate the process step when blurry */
+  const checkSharpness = async (uri: string) => {
+    setBlurry(false);
+    const result = await measureSharpness(uri);
+    if (capturedRef.current === uri) {
+      setBlurry(isBlurry(result));
+    }
+  };
   // Live camera view size — maps the centered focus box onto the captured
   // photo's pixel dimensions so everything outside the box is discarded.
   const cameraContainerLayout = useRef<{ width: number; height: number } | null>(null);
@@ -273,9 +290,12 @@ export default function ScanScreen() {
           }
         }
         const persistentUri = await persistImage(uri);
+        const finalUri = persistentUri ?? uri;
         setImageDims(null);
-        setCapturedImage(persistentUri ?? uri);
+        setCapturedImage(finalUri);
+        capturedRef.current = finalUri;
         setCameraActive(false);
+        void checkSharpness(finalUri);
       }
     } catch (error) {
       showToast(t.toasts.captureFailed, 'error');
@@ -357,9 +377,12 @@ export default function ScanScreen() {
       if (!result.canceled && result.assets[0]?.uri) {
         const normalizedUri = await normalizeToScanAspect(result.assets[0].uri);
         const persistentUri = await persistImage(normalizedUri);
+        const finalUri = persistentUri ?? normalizedUri;
         setImageDims(null);
         setLowLight(false);
-        setCapturedImage(persistentUri ?? normalizedUri);
+        setCapturedImage(finalUri);
+        capturedRef.current = finalUri;
+        void checkSharpness(finalUri);
       }
     } catch (error) {
       showToast(t.toasts.imagePickFailed, 'error');
@@ -368,9 +391,11 @@ export default function ScanScreen() {
 
   const handleRetake = () => {
     setCapturedImage(null);
+    capturedRef.current = null;
     setImageDims(null);
     setCropStage(false);
     setLowLight(false);
+    setBlurry(false);
     scale.value = MIN_ZOOM;
     tx.value = 0;
     ty.value = 0;
@@ -445,12 +470,15 @@ export default function ScanScreen() {
         { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 },
       );
       const persistentUri = await persistImage(result.uri);
-      setCapturedImage(persistentUri ?? result.uri);
+      const finalUri = persistentUri ?? result.uri;
+      setCapturedImage(finalUri);
+      capturedRef.current = finalUri;
       setImageDims({ width, height });
       scale.value = MIN_ZOOM;
       tx.value = 0;
       ty.value = 0;
       setCropStage(false);
+      void checkSharpness(finalUri);
     } catch (error) {
       console.error('Crop failed:', error);
       showToast(t.toasts.cropFailed, 'error');
@@ -571,6 +599,16 @@ export default function ScanScreen() {
               </Text>
             </View>
           )}
+          {/* Blur gate: measured on-device, blocks Process so a bad photo
+              never spends an OCR API call */}
+          {blurry && (
+            <View style={[styles.lowLightBanner, { backgroundColor: colors.error + '1A', borderColor: colors.error, marginHorizontal: spacing.base }]}>
+              <MaterialCommunityIcons name="blur" size={18} color={colors.error} />
+              <Text style={[typography.body.xs, { color: colors.text.primary, flex: 1, marginLeft: 8 }]}>
+                {t.scanner.blurryHint}
+              </Text>
+            </View>
+          )}
           <Image
             source={{ uri: capturedImage }}
             style={styles.previewImage}
@@ -598,10 +636,21 @@ export default function ScanScreen() {
               <Button
                 title={t.scanner.process}
                 onPress={handleProcess}
+                disabled={blurry}
                 icon={<MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />}
                 style={styles.previewHalfBtn}
               />
             </View>
+            {/* Escape hatch for false positives: the heuristic is strict on
+                purpose, but a user who insists must never be trapped */}
+            {blurry && (
+              <Button
+                title={t.scanner.processAnyway}
+                onPress={handleProcess}
+                variant="ghost"
+                style={{ marginTop: 4 }}
+              />
+            )}
           </View>
         </View>
       </SafeAreaView>

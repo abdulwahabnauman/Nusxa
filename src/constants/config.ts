@@ -35,6 +35,16 @@ export const SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'heic', 'webp'];
 /** Minimum confidence threshold to flag a field for review */
 export const LOW_CONFIDENCE_THRESHOLD = 0.6;
 
+/**
+ * Blur gate: a Laplacian-variance sharpness score below this (measured on a
+ * 512px-wide downsample) is treated as blurry and the user is asked to retake
+ * before an API call is spent on it.
+ */
+export const BLUR_VARIANCE_THRESHOLD = 55;
+
+/** Maximum images (pages) allowed in a single prescription scan session */
+export const MAX_PRESCRIPTION_PAGES = 3;
+
 /** Default database name */
 export const DB_NAME = 'nusxa.db';
 

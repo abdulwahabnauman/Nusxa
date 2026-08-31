@@ -195,6 +195,8 @@ export const en = {
     focusHint: 'Hold steady in good light. Tap the prescription to focus.',
     flash: 'Flash',
     lowLightHint: 'This photo looks dim — retake with the flash on or in better light for a more accurate read.',
+    blurryHint: 'This photo looks blurry. Hold steady and retake for an accurate read.',
+    processAnyway: 'Process anyway',
     scanSubtitle: 'Point your camera at a prescription to extract medicine information, or upload an image.',
     openCamera: 'Open camera',
     uploadImage: 'Upload image',
