@@ -52,18 +52,42 @@ export type NormalizedMedicineForm =
   | 'patch'
   | 'other';
 
-/** Map free-text form values coming from the AI (or the DB) to a known glyph. */
+/**
+ * Map free-text form values coming from the AI (or the DB) to a known glyph.
+ * Covers common prescription abbreviations (Tab/Cap/Syp/Inj/Dps/Neb) and
+ * Urdu form words so scanned Urdu prescriptions get the right icon too.
+ * Latin keywords match on whole tokens (or as substring tails like
+ * "capsuleS") so free text carrying a drug name — e.g. "Nebivolol" —
+ * never trips the short abbreviations.
+ */
 export function normalizeMedicineForm(form: string | null | undefined): NormalizedMedicineForm {
   if (!form) return 'capsule';
   const f = form.toLowerCase();
-  if (f.includes('capsul')) return 'capsule';
-  if (f.includes('tablet') || f.includes(' tab')) return 'tablet';
-  if (f.includes('syrup') || f.includes('suspension') || f.includes('solution')) return 'syrup';
-  if (f.includes('inject') || f.includes('ampoule') || f.includes('ampule') || f.includes('vial')) return 'injection';
-  if (f.includes('cream') || f.includes('ointment') || f.includes('gel') || f.includes('lotion') || f.includes('balm')) return 'cream';
-  if (f.includes('drop')) return 'drops';
-  if (f.includes('inhal')) return 'inhaler';
-  if (f.includes('patch')) return 'patch';
+  // Urdu forms first — Urdu form words never collide with Latin drug names
+  if (f.includes('گولی')) return 'tablet';
+  if (f.includes('کیپسول')) return 'capsule';
+  if (f.includes('شربت')) return 'syrup';
+  if (f.includes('انجیکشن') || f.includes('انجکشن')) return 'injection';
+  if (f.includes('قطر')) return 'drops';
+  if (f.includes('مرہم') || f.includes('کریم')) return 'cream';
+  if (f.includes('انسپائرر') || f.includes('انسپائر')) return 'inhaler';
+  if (f.includes('پیچ')) return 'patch';
+  // Latin: whole tokens only so "Nebivolol" or "Captor" in a messy form
+  // string can't masquerade as an abbreviation (plural tail only stripped
+  // from 4+ char words so "dps" survives)
+  const tokens = f
+    .split(/[^a-z]+/)
+    .filter(Boolean)
+    .map((w) => (w.length >= 4 ? w.replace(/s$/, '') : w));
+  const has = (...keys: string[]) => tokens.some((w) => keys.includes(w));
+  if (has('capsule', 'capsul', 'cap')) return 'capsule';
+  if (has('tablet', 'tab', 'caplet')) return 'tablet';
+  if (has('syrup', 'suspension', 'solution', 'syp', 'susp', 'elixir')) return 'syrup';
+  if (has('injection', 'injectable', 'ampoule', 'ampule', 'amp', 'vial', 'inj')) return 'injection';
+  if (has('cream', 'ointment', 'gel', 'lotion', 'balm', 'oint')) return 'cream';
+  if (has('drop', 'dropper', 'dps', 'spray')) return 'drops';
+  if (has('inhaler', 'inhalation', 'nebulizer', 'nebuliser', 'nebulisation', 'nebulization', 'neb', 'puffer')) return 'inhaler';
+  if (has('patch')) return 'patch';
   return 'other';
 }
 
