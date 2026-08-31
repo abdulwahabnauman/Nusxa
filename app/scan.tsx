@@ -18,12 +18,6 @@ import { withLockExemption } from '../src/utils/appLock';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withTiming,
-  createAnimatedComponent,
-} from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { useTheme } from '../src/theme/provider';
 import { Button } from '../src/components/ui/Button';
@@ -32,16 +26,20 @@ import { selectionHaptic } from '../src/utils/haptics';
 import { useI18n } from '../src/i18n';
 import { ensurePermission } from '../src/utils/permissions';
 
-const AnimatedImage = createAnimatedComponent(Image);
-
-const MIN_ZOOM = 1;
-const MAX_ZOOM = 4;
-
 // Focus-box (scan frame) geometry — must stay in sync with styles.scanFrame
 // and styles.overlayMiddle. The frame is centered in the camera view, which
 // lets captures be cropped to exactly this box without any measurement.
 const SCAN_FRAME_WIDTH = 280;
 const SCAN_FRAME_HEIGHT = 320;
+
+// Rectangular crop box: minimum selectable size and the drag-handle footprint.
+const MIN_CROP_SIZE = 48;
+const HANDLE_SIZE = 28;
+
+type CropRect = { x: number; y: number; w: number; h: number };
+// Handle ids encode which edges they move (combinations of t/b/l/r).
+type HandleId = 'tl' | 't' | 'tr' | 'r' | 'br' | 'b' | 'bl' | 'l';
+const HANDLE_IDS: HandleId[] = ['tl', 't', 'tr', 'r', 'br', 'b', 'bl', 'l'];
 
 type FlashMode = 'off' | 'auto' | 'on';
 const FLASH_ORDER: FlashMode[] = ['off', 'auto', 'on'];
@@ -90,19 +88,14 @@ export default function ScanScreen() {
 
   // ---- In-app crop state -------------------------------------------------
   // The OS crop UI (allowsEditing) can't be restyled and its CROP button is
-  // tiny, so cropping happens here: pan + pinch the preview, then apply the
-  // visible region with expo-image-manipulator.
+  // tiny, so cropping happens here: a standard rectangular crop box whose
+  // edges and corners the user drags, applied with expo-image-manipulator.
   const [cropStage, setCropStage] = useState(false);
   const [cropping, setCropping] = useState(false);
   const [imageDims, setImageDims] = useState<{ width: number; height: number } | null>(null);
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
-
-  const scale = useSharedValue(1);
-  const tx = useSharedValue(0);
-  const ty = useSharedValue(0);
-  const startScale = useRef(1);
-  const startTx = useRef(0);
-  const startTy = useRef(0);
+  const [cropRect, setCropRect] = useState<CropRect | null>(null);
+  const cropDragStart = useRef<CropRect | null>(null);
 
   const baseSize = useMemo(() => {
     if (!viewport || !imageDims) return null;
@@ -110,54 +103,65 @@ export default function ScanScreen() {
     return { width: imageDims.width * ratio, height: imageDims.height * ratio };
   }, [viewport, imageDims]);
 
-  const resetCropTransform = () => {
-    scale.value = withTiming(MIN_ZOOM, { duration: 200 });
-    tx.value = withTiming(0, { duration: 200 });
-    ty.value = withTiming(0, { duration: 200 });
+  // The fitted image's frame inside the viewport — crop coordinates live in
+  // the same space and map to source pixels via a simple ratio.
+  const imageRect = useMemo(() => {
+    if (!viewport || !baseSize) return null;
+    return {
+      x: (viewport.width - baseSize.width) / 2,
+      y: (viewport.height - baseSize.height) / 2,
+      w: baseSize.width,
+      h: baseSize.height,
+    };
+  }, [viewport, baseSize]);
+
+  // A fresh crop box covers the whole image each time the stage opens
+  useEffect(() => {
+    if (cropStage && imageRect && !cropRect) setCropRect(imageRect);
+  }, [cropStage, imageRect, cropRect]);
+
+  const resetCropRect = () => {
+    if (imageRect) setCropRect(imageRect);
   };
 
-  const panGesture = Gesture.Pan()
-    .minDistance(4)
-    .onStart(() => {
-      startTx.current = tx.value;
-      startTy.current = ty.value;
-    })
-    .onUpdate((e) => {
-      tx.value = startTx.current + e.translationX;
-      ty.value = startTy.current + e.translationY;
-    })
-    .onEnd(() => {
-      // Keep the image covering the viewport as much as possible
-      if (viewport && baseSize) {
-        const renderedW = baseSize.width * scale.value;
-        const renderedH = baseSize.height * scale.value;
-        const maxOffX = Math.max(0, (renderedW - viewport.width) / 2 + 24);
-        const maxOffY = Math.max(0, (renderedH - viewport.height) / 2 + 24);
-        tx.value = withTiming(Math.min(Math.max(tx.value, -maxOffX), maxOffX), { duration: 200 });
-        ty.value = withTiming(Math.min(Math.max(ty.value, -maxOffY), maxOffY), { duration: 200 });
-      }
-    });
-
-  const pinchGesture = Gesture.Pinch()
-    .onStart(() => {
-      startScale.current = scale.value;
-    })
-    .onUpdate((e) => {
-      scale.value = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, startScale.current * e.scale));
-    })
-    .onEnd(() => {
-      if (scale.value < MIN_ZOOM) scale.value = withTiming(MIN_ZOOM, { duration: 200 });
-    });
-
-  const cropGesture = Gesture.Simultaneous(panGesture, pinchGesture);
-
-  const cropTransformStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: tx.value },
-      { translateY: ty.value },
-      { scale: scale.value },
-    ],
-  }));
+  // One pan gesture per handle; the id encodes which edges move, so a single
+  // updater covers all eight. The rect at drag start is the source of truth —
+  // translations are applied against it, never accumulated per event.
+  const makeHandleGesture = (id: HandleId) =>
+    Gesture.Pan()
+      .onStart(() => {
+        cropDragStart.current = cropRect;
+      })
+      .onUpdate((e) => {
+        const start = cropDragStart.current;
+        if (!start || !imageRect) return;
+        let { x, y, w, h } = start;
+        const maxX = imageRect.x + imageRect.w;
+        const maxY = imageRect.y + imageRect.h;
+        if (id.includes('l')) {
+          const nx = Math.min(
+            Math.max(imageRect.x, start.x + e.translationX),
+            start.x + start.w - MIN_CROP_SIZE,
+          );
+          w = start.w - (nx - start.x);
+          x = nx;
+        }
+        if (id.includes('r')) {
+          w = Math.min(Math.max(MIN_CROP_SIZE, start.w + e.translationX), maxX - start.x);
+        }
+        if (id.includes('t')) {
+          const ny = Math.min(
+            Math.max(imageRect.y, start.y + e.translationY),
+            start.y + start.h - MIN_CROP_SIZE,
+          );
+          h = start.h - (ny - start.y);
+          y = ny;
+        }
+        if (id.includes('b')) {
+          h = Math.min(Math.max(MIN_CROP_SIZE, start.h + e.translationY), maxY - start.y);
+        }
+        setCropRect({ x, y, w, h });
+      });
 
   // Show the focus/light guidance for a few seconds when the camera opens
   useEffect(() => {
@@ -370,10 +374,8 @@ export default function ScanScreen() {
     setCapturedImage(null);
     setImageDims(null);
     setCropStage(false);
+    setCropRect(null);
     setLowLight(false);
-    scale.value = MIN_ZOOM;
-    tx.value = 0;
-    ty.value = 0;
   };
 
   const handleProcess = () => {
@@ -393,45 +395,34 @@ export default function ScanScreen() {
       }
       setImageDims(dims);
     }
-    scale.value = MIN_ZOOM;
-    tx.value = 0;
-    ty.value = 0;
+    setCropRect(null);
     setCropStage(true);
   };
 
-  /** Apply the visible region of the pan/zoom preview as the new image */
+  /** Apply the drag-adjusted crop rectangle as the new image */
   const handleApplyCrop = async () => {
-    if (!capturedImage || !imageDims || !viewport || !baseSize || cropping) return;
-    const s = scale.value;
-    const ox = tx.value;
-    const oy = ty.value;
+    if (!capturedImage || !imageDims || !imageRect || !cropRect || cropping) return;
 
     // Nothing meaningfully changed — just leave the crop stage
-    if (Math.abs(s - 1) < 0.02 && Math.abs(ox) < 4 && Math.abs(oy) < 4) {
+    const unchanged =
+      Math.abs(cropRect.x - imageRect.x) < 2 &&
+      Math.abs(cropRect.y - imageRect.y) < 2 &&
+      Math.abs(cropRect.w - imageRect.w) < 2 &&
+      Math.abs(cropRect.h - imageRect.h) < 2;
+    if (unchanged) {
       setCropStage(false);
       return;
     }
 
     setCropping(true);
     try {
-      const renderedW = baseSize.width * s;
-      const renderedH = baseSize.height * s;
-      // Rendered image's top-left relative to the viewport
-      const left = (viewport.width - renderedW) / 2 + ox;
-      const top = (viewport.height - renderedH) / 2 + oy;
-      // Portion of the rendered image actually visible (letterbox-aware)
-      const visibleW = Math.min(viewport.width, renderedW);
-      const visibleH = Math.min(viewport.height, renderedH);
-      const offX = Math.min(Math.max(-left, 0), Math.max(0, renderedW - visibleW));
-      const offY = Math.min(Math.max(-top, 0), Math.max(0, renderedH - visibleH));
-
-      // Convert visible region from rendered points to source pixels
-      const pxPerPtX = imageDims.width / renderedW;
-      const pxPerPtY = imageDims.height / renderedH;
-      let originX = Math.round(offX * pxPerPtX);
-      let originY = Math.round(offY * pxPerPtY);
-      let width = Math.round(visibleW * pxPerPtX);
-      let height = Math.round(visibleH * pxPerPtY);
+      // Convert the crop rectangle from viewport points to source pixels
+      const pxPerPtX = imageDims.width / imageRect.w;
+      const pxPerPtY = imageDims.height / imageRect.h;
+      let originX = Math.round((cropRect.x - imageRect.x) * pxPerPtX);
+      let originY = Math.round((cropRect.y - imageRect.y) * pxPerPtY);
+      let width = Math.round(cropRect.w * pxPerPtX);
+      let height = Math.round(cropRect.h * pxPerPtY);
 
       // Clamp inside the source image with a sane minimum size
       originX = Math.min(Math.max(originX, 0), imageDims.width - 1);
@@ -447,9 +438,7 @@ export default function ScanScreen() {
       const persistentUri = await persistImage(result.uri);
       setCapturedImage(persistentUri ?? result.uri);
       setImageDims({ width, height });
-      scale.value = MIN_ZOOM;
-      tx.value = 0;
-      ty.value = 0;
+      setCropRect(null);
       setCropStage(false);
     } catch (error) {
       console.error('Crop failed:', error);
@@ -508,6 +497,19 @@ export default function ScanScreen() {
 
   // In-app crop stage
   if (capturedImage && cropStage) {
+    const handlePos: Record<HandleId, { x: number; y: number }> | null = cropRect
+      ? {
+          tl: { x: cropRect.x, y: cropRect.y },
+          t: { x: cropRect.x + cropRect.w / 2, y: cropRect.y },
+          tr: { x: cropRect.x + cropRect.w, y: cropRect.y },
+          r: { x: cropRect.x + cropRect.w, y: cropRect.y + cropRect.h / 2 },
+          br: { x: cropRect.x + cropRect.w, y: cropRect.y + cropRect.h },
+          b: { x: cropRect.x + cropRect.w / 2, y: cropRect.y + cropRect.h },
+          bl: { x: cropRect.x, y: cropRect.y + cropRect.h },
+          l: { x: cropRect.x, y: cropRect.y + cropRect.h / 2 },
+        }
+      : null;
+
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={[styles.cropContainer, { paddingHorizontal: spacing.base }]}>
@@ -518,14 +520,46 @@ export default function ScanScreen() {
             style={[styles.cropViewport, { backgroundColor: colors.background.subtle, borderRadius: borderRadius.md }]}
             onLayout={(e) => setViewport({ width: e.nativeEvent.layout.width, height: e.nativeEvent.layout.height })}
           >
-            {baseSize ? (
-              <GestureDetector gesture={cropGesture}>
-                <AnimatedImage
+            {baseSize && imageRect && cropRect && handlePos ? (
+              <>
+                <Image
                   source={{ uri: capturedImage }}
-                  style={[{ width: baseSize.width, height: baseSize.height }, cropTransformStyle]}
-                  resizeMode="contain"
+                  style={{
+                    position: 'absolute',
+                    left: imageRect.x,
+                    top: imageRect.y,
+                    width: imageRect.w,
+                    height: imageRect.h,
+                  }}
                 />
-              </GestureDetector>
+                {/* Dim everything outside the crop rectangle */}
+                <View style={[styles.cropDim, { left: imageRect.x, top: imageRect.y, width: imageRect.w, height: Math.max(0, cropRect.y - imageRect.y) }]} />
+                <View style={[styles.cropDim, { left: imageRect.x, top: cropRect.y + cropRect.h, width: imageRect.w, height: Math.max(0, imageRect.y + imageRect.h - cropRect.y - cropRect.h) }]} />
+                <View style={[styles.cropDim, { left: imageRect.x, top: cropRect.y, width: Math.max(0, cropRect.x - imageRect.x), height: cropRect.h }]} />
+                <View style={[styles.cropDim, { left: cropRect.x + cropRect.w, top: cropRect.y, width: Math.max(0, imageRect.x + imageRect.w - cropRect.x - cropRect.w), height: cropRect.h }]} />
+                <View
+                  style={[
+                    styles.cropFrame,
+                    {
+                      left: cropRect.x,
+                      top: cropRect.y,
+                      width: cropRect.w,
+                      height: cropRect.h,
+                      borderColor: colors.accent.primary,
+                    },
+                  ]}
+                />
+                {HANDLE_IDS.map((id) => (
+                  <GestureDetector key={id} gesture={makeHandleGesture(id)}>
+                    <View
+                      style={[
+                        styles.cropHandle,
+                        { left: handlePos[id].x - HANDLE_SIZE / 2, top: handlePos[id].y - HANDLE_SIZE / 2 },
+                      ]}
+                    />
+                  </GestureDetector>
+                ))}
+              </>
             ) : null}
           </View>
           {/* Prominent, full-width apply button so cropping is unmistakable */}
@@ -541,12 +575,12 @@ export default function ScanScreen() {
           <View style={[styles.cropSecondaryActions, { marginTop: spacing.sm }]}>
             <Button
               title={t.scanner.resetCrop}
-              onPress={resetCropTransform}
+              onPress={resetCropRect}
               variant="secondary"
               style={{ flex: 1 }}
             />
             <Button
-              title={t.scanner.skipCrop}
+              title={t.common.cancel}
               onPress={() => setCropStage(false)}
               variant="ghost"
               style={{ flex: 1 }}
@@ -584,7 +618,7 @@ export default function ScanScreen() {
               variant="secondary"
               size="lg"
               icon={<MaterialCommunityIcons name="crop" size={22} color={colors.accent.primary} />}
-              style={{ ...styles.fullWidthBtn, ...styles.cropEntryBtn, borderColor: colors.accent.primary, borderWidth: 2 }}
+              style={styles.fullWidthBtn}
             />
             {/* flexWrap keeps elderly-mode buttons from overflowing the row */}
             <View style={styles.previewRow}>
@@ -889,16 +923,36 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingBottom: 24,
   },
+  // Same footprint as the live scan frame: captures are cropped to that box,
+  // so the preview shows exactly what was framed in the camera.
   previewImage: {
-    flex: 1,
-    width: '100%',
+    width: SCAN_FRAME_WIDTH,
+    height: SCAN_FRAME_HEIGHT,
+    alignSelf: 'center',
     marginVertical: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
   previewActions: {
     gap: 12,
   },
-  cropEntryBtn: {
-    minHeight: 52,
+  cropDim: {
+    position: 'absolute',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  cropFrame: {
+    position: 'absolute',
+    borderWidth: 2,
+    borderRadius: 8,
+  },
+  cropHandle: {
+    position: 'absolute',
+    width: HANDLE_SIZE,
+    height: HANDLE_SIZE,
+    borderRadius: 6,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.3)',
   },
   // Wrapping row: in elderly mode the two buttons can outgrow the screen
   // width, so they flow onto a second line instead of clipping off-screen.
