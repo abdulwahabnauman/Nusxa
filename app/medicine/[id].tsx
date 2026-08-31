@@ -228,7 +228,7 @@ export default function MedicineDetailScreen() {
                 height: 49,
                 borderRadius: 25,
                 backgroundColor: colors.background.subtle,
-                marginRight: 12,
+                marginEnd: 12,
               }}
             />
             <View style={{ flex: 1 }}>
@@ -274,7 +274,7 @@ export default function MedicineDetailScreen() {
                 backgroundColor: colors.accent.subtle,
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginRight: 12,
+                marginEnd: 12,
                 marginTop: 4,
               }}
             >
@@ -402,7 +402,7 @@ export default function MedicineDetailScreen() {
               {medicine.warnings.map((warning, i) => (
                 <View key={i} style={styles.warningRow}>
                   <MaterialCommunityIcons name="alert-outline" size={18} color={colors.warning} />
-                  <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                  <Text style={[typography.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                     {warning}
                   </Text>
                 </View>
@@ -443,7 +443,7 @@ export default function MedicineDetailScreen() {
         <Animated.View entering={enter(6)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
           <Card>
             <View style={styles.fieldRow}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <View style={{ flex: 1, marginEnd: spacing.sm }}>
                 <Text style={[typography.label.base, { color: colors.text.primary }]}>
                   {t.medicine.orderRefill}
                 </Text>
@@ -475,7 +475,7 @@ export default function MedicineDetailScreen() {
               {medicine.food_interactions.map((item, i) => (
                 <View key={i} style={styles.listItem}>
                   <MaterialCommunityIcons name="food-apple-outline" size={16} color={colors.warning} />
-                  <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                  <Text style={[typography.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                     {item}
                   </Text>
                 </View>
@@ -495,7 +495,7 @@ export default function MedicineDetailScreen() {
           {schedules.length > 0 && (
             <Card style={{ marginTop: spacing.sm }}>
               <View style={styles.fieldRow}>
-                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <View style={{ flex: 1, marginEnd: spacing.sm }}>
                   <Text style={[typography.label.base, { color: colors.text.primary }]}>
                     {isPaused ? t.medicine.resume : t.medicine.pause}
                   </Text>
@@ -655,6 +655,6 @@ const styles = StyleSheet.create({
   fieldRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   scheduleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   listItem: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, marginRight: 8 },
+  bullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, marginEnd: 8 },
   warningRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 6 },
 });

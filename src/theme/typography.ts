@@ -89,6 +89,15 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
       ? { fontFamily: fontFamily!, includeFontPadding: false, fontWeight: weights[weight] }
       : { fontFamily: families[weight] };
 
+  // Android's TextView right-aligns by default once the layout direction is
+  // RTL, but iOS Text does not inherit alignment from the root `direction`
+  // style — short or Latin-mixed lines stick to the left edge of their flex
+  // box there. Pin the alignment (and paragraph base direction) explicitly
+  // for Urdu so both platforms render identically; no-op in English mode.
+  const rtlText: TextStyle = urdu
+    ? { textAlign: 'right', writingDirection: 'rtl' }
+    : {};
+
   return {
     sizes,
     weights,
@@ -96,21 +105,25 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
     heading: {
       h1: {
         ...face('bold'),
+        ...rtlText,
         fontSize: fs(sizes['3xl']),
         lineHeight: lh(36),
       } as TextStyle,
       h2: {
         ...face('bold'),
+        ...rtlText,
         fontSize: fs(sizes['2xl']),
         lineHeight: lh(32),
       } as TextStyle,
       h3: {
         ...face('semibold'),
+        ...rtlText,
         fontSize: fs(sizes.xl),
         lineHeight: lh(28),
       } as TextStyle,
       h4: {
         ...face('semibold'),
+        ...rtlText,
         fontSize: fs(sizes.lg),
         lineHeight: lh(28),
       } as TextStyle,
@@ -118,21 +131,25 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
     body: {
       lg: {
         ...face('regular'),
+        ...rtlText,
         fontSize: fs(sizes.lg),
         lineHeight: lh(28),
       } as TextStyle,
       base: {
         ...face('regular'),
+        ...rtlText,
         fontSize: fs(sizes.base),
         lineHeight: lh(24),
       } as TextStyle,
       sm: {
         ...face('regular'),
+        ...rtlText,
         fontSize: fs(sizes.sm),
         lineHeight: lh(20),
       } as TextStyle,
       xs: {
         ...face('regular'),
+        ...rtlText,
         fontSize: fs(sizes.xs),
         lineHeight: lh(16),
       } as TextStyle,
@@ -140,17 +157,20 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
     label: {
       base: {
         ...face('medium'),
+        ...rtlText,
         fontSize: fs(sizes.sm),
         lineHeight: lh(20),
       } as TextStyle,
       sm: {
         ...face('medium'),
+        ...rtlText,
         fontSize: fs(sizes.xs),
         lineHeight: lh(16),
       } as TextStyle,
     },
     button: {
       ...face('semibold'),
+      ...rtlText,
       fontSize: fs(sizes.base),
       lineHeight: lh(24),
     } as TextStyle,

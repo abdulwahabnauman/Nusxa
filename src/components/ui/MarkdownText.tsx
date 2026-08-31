@@ -38,6 +38,7 @@ function buildStyles(
       borderRadius: 4,
     },
     paragraph: {
+      ...base,
       fontFamily: families.regular,
       fontSize: base.fontSize,
       lineHeight: base.lineHeight,
@@ -58,6 +59,7 @@ function buildStyles(
       minWidth: 16,
     },
     listText: {
+      ...base,
       flex: 1,
       fontFamily: families.regular,
       fontSize: base.fontSize,
@@ -163,7 +165,7 @@ export function parseMarkdown(
             {listItems.map((item, idx) => (
               <View key={idx} style={s.listItem}>
                 <Text style={[s.bullet, colorStyle]}>•</Text>
-                <Text style={[s.listText, { marginLeft: 8 }, colorStyle]}>
+                <Text style={[s.listText, { marginStart: 8 }, colorStyle]}>
                   {processInline(item)}
                 </Text>
               </View>

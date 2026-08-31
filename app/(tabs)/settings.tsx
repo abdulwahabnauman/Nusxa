@@ -155,7 +155,7 @@ export default function SettingsScreen() {
   const appLockEnabled = useAuthStore((s) => s.appLockEnabled);
   const setAppLockEnabled = useAuthStore((s) => s.setAppLockEnabled);
   const setLocked = useAuthStore((s) => s.setLocked);
-  const { t, language, setLanguage } = useI18n();
+  const { t, language, setLanguage, isRTL } = useI18n();
   const nameMorph = useSuccessMorph();
   const lockMorph = useSuccessMorph();
   const [nameInput, setNameInput] = useState(profile?.name ?? '');
@@ -747,7 +747,7 @@ export default function SettingsScreen() {
               />
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <View style={{ flex: 1, marginEnd: spacing.sm }}>
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.snoozeDuration}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.snoozeDurationDesc}</Text>
               </View>
@@ -766,7 +766,7 @@ export default function SettingsScreen() {
               </View>
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View style={{ flex: 1, marginRight: spacing.sm }}>
+              <View style={{ flex: 1, marginEnd: spacing.sm }}>
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reminderEscalation}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reminderEscalationDesc}</Text>
               </View>
@@ -790,7 +790,7 @@ export default function SettingsScreen() {
           <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.security}</Text>
           <Card>
             <View style={styles.row}>
-              <View style={{ flex: 1, marginRight: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <View style={{ flex: 1, marginEnd: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <View style={{ flexShrink: 1 }}>
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.appLock}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.appLockDesc}</Text>
@@ -803,7 +803,7 @@ export default function SettingsScreen() {
             </View>
             {appLockEnabled && biometricSupport.available && (
               <View style={[styles.row, { marginTop: spacing.md }]}>
-                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <View style={{ flex: 1, marginEnd: spacing.sm }}>
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.useBiometric}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.useBiometricDesc}</Text>
                 </View>
@@ -848,7 +848,7 @@ export default function SettingsScreen() {
                 </View>
               </View>
               <View style={[styles.row, { marginTop: spacing.md }]}>
-                <View style={{ flex: 1, marginRight: spacing.sm }}>
+                <View style={{ flex: 1, marginEnd: spacing.sm }}>
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.ownKeys}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.ownKeysDesc}</Text>
                 </View>
@@ -904,9 +904,9 @@ export default function SettingsScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="download-outline" size={20} color={colors.text.primary} />
-                <Text style={[typography.body.base, { color: colors.text.primary, marginLeft: 8 }]}>{t.settings.exportData}</Text>
+                <Text style={[typography.body.base, { color: colors.text.primary, marginStart: 8 }]}>{t.settings.exportData}</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
+              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
             </TouchableOpacity>
             <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
             <TouchableOpacity
@@ -921,12 +921,12 @@ export default function SettingsScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="lock-outline" size={20} color={colors.text.primary} />
-                <View style={{ marginLeft: 8, flexShrink: 1 }}>
+                <View style={{ marginStart: 8, flexShrink: 1 }}>
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.encryptedBackup}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.encryptedBackupDesc}</Text>
                 </View>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
+              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
             </TouchableOpacity>
             <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
             <TouchableOpacity
@@ -937,19 +937,19 @@ export default function SettingsScreen() {
             >
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="upload-outline" size={20} color={colors.text.primary} />
-                <Text style={[typography.body.base, { color: colors.text.primary, marginLeft: 8 }]}>
+                <Text style={[typography.body.base, { color: colors.text.primary, marginStart: 8 }]}>
                   {importing ? t.common.loading : t.settings.importData}
                 </Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
+              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
             </TouchableOpacity>
             <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
             <TouchableOpacity style={styles.row} onPress={handleClearData} accessibilityLabel="Delete all data">
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="delete-outline" size={20} color={colors.error} />
-                <Text style={[typography.body.base, { color: colors.error, marginLeft: 8 }]}>{t.settings.deleteAllData}</Text>
+                <Text style={[typography.body.base, { color: colors.error, marginStart: 8 }]}>{t.settings.deleteAllData}</Text>
               </View>
-              <MaterialCommunityIcons name="chevron-right" size={20} color={colors.text.disabled} />
+              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
             </TouchableOpacity>
           </Card>
         </View>

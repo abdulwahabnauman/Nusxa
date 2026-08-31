@@ -239,7 +239,7 @@ export default function MedicineEducationScreen() {
             <Card style={{ backgroundColor: colors.background.subtle }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <MaterialCommunityIcons name="information-outline" size={18} color={colors.text.secondary} />
-                <Text style={[typ.body.sm, { color: colors.text.secondary, marginLeft: spacing.sm, flex: 1 }]}>
+                <Text style={[typ.body.sm, { color: colors.text.secondary, marginStart: spacing.sm, flex: 1 }]}>
                   {t.education.aiFailed}
                 </Text>
               </View>
@@ -270,7 +270,7 @@ export default function MedicineEducationScreen() {
             <Card>
               {sideEffects.map((effect, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: i < sideEffects.length - 1 ? spacing.sm : 0 }}>
-                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.text.disabled, marginTop: 7, marginRight: 8 }} />
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.text.disabled, marginTop: 7, marginEnd: 8 }} />
                   <Text style={[typ.body.sm, { color: colors.text.primary, flex: 1 }]}>
                     {effect}
                   </Text>
@@ -290,7 +290,7 @@ export default function MedicineEducationScreen() {
               {foodInteractions.map((item, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: i < foodInteractions.length - 1 ? spacing.sm : 0 }}>
                   <MaterialCommunityIcons name="food-apple-outline" size={16} color={colors.warning} />
-                  <Text style={[typ.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                  <Text style={[typ.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                     {item}
                   </Text>
                 </View>
@@ -308,7 +308,7 @@ export default function MedicineEducationScreen() {
             <Card>
               <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
                 <MaterialCommunityIcons name="fridge-outline" size={18} color={colors.accent.primary} />
-                <Text style={[typ.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                <Text style={[typ.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                   {storage}
                 </Text>
               </View>
@@ -326,7 +326,7 @@ export default function MedicineEducationScreen() {
               {warnings.map((warning, i) => (
                 <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: i < warnings.length - 1 ? spacing.xs : 0 }}>
                   <MaterialCommunityIcons name="alert-outline" size={18} color={colors.warning} />
-                  <Text style={[typ.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                  <Text style={[typ.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                     {warning}
                   </Text>
                 </View>
