@@ -5,7 +5,7 @@
  */
 
 import React, { memo, useCallback, useState, useRef } from 'react';
-import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, Platform } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -179,7 +179,10 @@ export default function EducationScreen() {
         ListEmptyComponent={listEmpty}
         initialNumToRender={8}
         windowSize={7}
-        removeClippedSubviews
+        // iOS physically detaches clipped rows and reattached rows can lose
+        // touch responsiveness — Android clipping is purely visual, so keep
+        // it there only
+        removeClippedSubviews={Platform.OS === 'android'}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

@@ -8,6 +8,7 @@ import {
   TextInput,
   TouchableOpacity,
   KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -324,7 +325,10 @@ export default function HistoryScreen() {
           ListEmptyComponent={listEmpty}
           initialNumToRender={8}
           windowSize={7}
-          removeClippedSubviews
+          // iOS physically detaches clipped rows and reattached rows with
+          // gesture wrappers lose touch responsiveness — Android clipping is
+          // purely visual, so keep it there only
+          removeClippedSubviews={Platform.OS === 'android'}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           refreshControl={
