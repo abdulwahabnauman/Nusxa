@@ -83,10 +83,17 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
 
   // Latin text picks an explicit Inter face per weight (no fontWeight —
   // static faces would be double-bolded on Android otherwise). Urdu keeps
-  // fontWeight so Android synthesizes the bolder headings.
+  // fontWeight so Android synthesizes the bolder headings, but Nastaliq
+  // ships as a single weight: asking Android for 700 on the custom family
+  // makes it substitute the system Naskh bold (the tab-screen titles
+  // rendered flat on device), so cap Urdu at semibold.
   const face = (weight: WeightKey): TextStyle =>
     urdu
-      ? { fontFamily: fontFamily!, includeFontPadding: false, fontWeight: weights[weight] }
+      ? {
+          fontFamily: fontFamily!,
+          includeFontPadding: false,
+          fontWeight: weights[weight === 'bold' ? 'semibold' : weight],
+        }
       : { fontFamily: families[weight] };
 
   // iOS Text does not inherit alignment from the root `direction` style —
