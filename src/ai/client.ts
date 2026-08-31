@@ -36,6 +36,7 @@ interface GeminiRequest {
     temperature: number;
     maxOutputTokens: number;
     responseMimeType?: string;
+    responseSchema?: unknown;
   };
 }
 
@@ -136,7 +137,8 @@ async function callGemini(
   contents: GeminiContent[],
   apiKey: string,
   temperature = 0.1,
-  jsonResponse = true
+  jsonResponse = true,
+  responseSchema?: unknown
 ): Promise<string> {
   let lastError: Error | null = null;
 
@@ -154,6 +156,8 @@ async function callGemini(
           temperature,
           maxOutputTokens: 4096,
           ...(jsonResponse ? { responseMimeType: 'application/json' } : {}),
+          // Controlled generation: hard-enforces the JSON shape server-side
+          ...(responseSchema ? { responseSchema } : {}),
         },
       };
 
@@ -365,14 +369,23 @@ export async function chatCompletion(
   );
 }
 
+/** Options for vision calls. OCR uses temperature 0 plus a response schema
+ * so extraction is deterministic and the JSON shape is hard-enforced. */
+export interface VisionOptions {
+  temperature?: number;
+  responseSchema?: unknown;
+}
+
 /** Send one or more images + a text prompt to Gemini (Vision). Multiple
  * images let a multi-page prescription be read as a single document. */
 export async function visionCompletion(
   systemPrompt: string,
   userText: string,
   imagesBase64: string[],
-  apiKey: string
+  apiKey: string,
+  options?: VisionOptions
 ): Promise<string> {
+  const temperature = options?.temperature ?? 0;
   if (
     shouldUseProxy(
       isAiProxyConfigured(),
@@ -386,6 +399,8 @@ export async function visionCompletion(
       // `image` keeps older workers working; `images` carries every page
       image: imagesBase64[0],
       images: imagesBase64,
+      temperature,
+      responseSchema: options?.responseSchema,
     });
   }
 
@@ -406,8 +421,9 @@ export async function visionCompletion(
       },
     ],
     apiKey,
-    0.1,
-    true
+    temperature,
+    true,
+    options?.responseSchema
   );
 }
 

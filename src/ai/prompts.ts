@@ -1,17 +1,19 @@
 export const OCR_SYSTEM_PROMPT = `You are a medical prescription OCR and extraction assistant. Your job is to carefully read a prescription image and extract all visible information as structured JSON.
 
 Rules:
-- Extract ONLY what is visible in the image. Never invent or assume information.
+- Extract ONLY what is visible in the image. Never invent or assume information. If no medicine is visible, return an empty "medicines" array.
 - Use null for any field that is not clearly visible or readable.
 - Use empty arrays [] for list fields when no items are visible.
 - Provide a confidence score between 0.0 and 1.0 for each medicine, reflecting how clearly the text was readable.
-- Identify and expand common medical abbreviations (e.g., TDS = three times daily, BD = twice daily, OD = once daily, AC = before meals, PC = after meals, HS = at bedtime, PRN = as needed).
+- For each medicine also provide "field_confidence": a per-field score (0.0 to 1.0) for "name", "dosage", "frequency" and "duration". Score each field independently.
+- For each medicine provide "original_text": the verbatim line(s) exactly as written on the prescription for that medicine, including abbreviations and handwriting quirks. Use null only if the medicine has no readable source line.
+- Identify and expand common medical abbreviations (e.g., TDS = three times daily, BD = twice daily, OD = once daily, AC = before meals, PC = after meals, HS = at bedtime, PRN = as needed) into the structured fields, but keep them verbatim in "original_text".
 - Prescriptions may be written in English, Urdu (Nastaliq script), Roman Urdu, or a mix of all three. Handle every case:
-  - Transcribe Urdu text exactly as written. When a medicine name appears in Urdu script, put its English transliteration in "name" and keep the original Urdu text in "warnings" prefixed with "Original text:".
+  - Transcribe Urdu text exactly as written. When a medicine name appears in Urdu script, put its English transliteration in "name" and keep the original Urdu text in "original_text" (and also in "warnings" prefixed with "Original text:").
   - Translate Roman-Urdu instructions into the structured fields, e.g. "din mein do baar" = twice daily, "khaane ke baad" = after meals, "raat ko sone se pehle" = at bedtime, "zaroorat par" = as needed.
   - Never skip a field or lower its confidence merely because it is written in Urdu.
 - If the prescription is blurry, partially visible, or hard to read, set lower confidence scores and note this in warnings.
-- Preserve the original text when uncertain about interpretation.
+- Copy any diagnosis, chief complaint or clinical notes visible on the prescription verbatim into "raw_notes". Use null when none are present.
 
 Return JSON matching this exact structure:
 {
@@ -32,13 +34,85 @@ Return JSON matching this exact structure:
       "frequency": string | null,
       "meal_instruction": "before" | "after" | "with" | "none" | null,
       "duration": string | null,
+      "original_text": string | null,
       "confidence": number,
+      "field_confidence": { "name": number, "dosage": number, "frequency": number, "duration": number },
       "warnings": string[]
     }
   ],
   "overall_confidence": number,
   "raw_notes": string | null
+}
+
+Example: a prescription line reading "Tab Amoxicillin 500mg 1 tab TDS x 7 days (after meals)" extracts as:
+{
+  "name": "Amoxicillin",
+  "generic_name": "Amoxicillin",
+  "brand_name": null,
+  "strength": "500 mg",
+  "form": "tablet",
+  "dosage": "1 tablet",
+  "frequency": "Three times daily",
+  "meal_instruction": "after",
+  "duration": "7 days",
+  "original_text": "Tab Amoxicillin 500mg 1 tab TDS x 7 days",
+  "confidence": 0.92,
+  "field_confidence": { "name": 0.95, "dosage": 0.95, "frequency": 0.9, "duration": 0.95 },
+  "warnings": []
 }`;
+
+/**
+ * Gemini response schema (controlled generation) for the OCR call. Hard-
+ * enforces the JSON shape so the model can never drift from it; the prompt
+ * above describes the same structure in prose for readability.
+ */
+export const OCR_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    prescription: {
+      type: 'OBJECT',
+      properties: {
+        doctor_name: { type: 'STRING', nullable: true },
+        hospital: { type: 'STRING', nullable: true },
+        date: { type: 'STRING', nullable: true },
+        follow_up_date: { type: 'STRING', nullable: true },
+      },
+    },
+    medicines: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING', nullable: true },
+          generic_name: { type: 'STRING', nullable: true },
+          brand_name: { type: 'STRING', nullable: true },
+          strength: { type: 'STRING', nullable: true },
+          form: { type: 'STRING', nullable: true },
+          dosage: { type: 'STRING', nullable: true },
+          frequency: { type: 'STRING', nullable: true },
+          // Free string (not an enum) so controlled generation can emit null;
+          // parseOCRResponse clamps unexpected values back to null.
+          meal_instruction: { type: 'STRING', nullable: true },
+          duration: { type: 'STRING', nullable: true },
+          original_text: { type: 'STRING', nullable: true },
+          confidence: { type: 'NUMBER' },
+          field_confidence: {
+            type: 'OBJECT',
+            properties: {
+              name: { type: 'NUMBER' },
+              dosage: { type: 'NUMBER' },
+              frequency: { type: 'NUMBER' },
+              duration: { type: 'NUMBER' },
+            },
+          },
+          warnings: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
+      },
+    },
+    overall_confidence: { type: 'NUMBER' },
+    raw_notes: { type: 'STRING', nullable: true },
+  },
+};
 
 export const INTERPRETATION_SYSTEM_PROMPT = `You are a patient-friendly medication education assistant. Your job is to explain medicines from a verified prescription in clear, simple language.
 

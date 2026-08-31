@@ -1,10 +1,29 @@
 import * as FileSystem from 'expo-file-system/legacy';
 import { visionCompletion, chatCompletion, TextProviderKeys } from './client';
-import { OCR_SYSTEM_PROMPT, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
-import { PrescriptionJSON, PipelineStage, ValidationResult } from './types';
+import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
+import { PrescriptionJSON, PipelineStage, ValidationResult, MedicineJSON } from './types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../constants/config';
+import { postProcessPrescription } from './postprocess';
 
 type StageCallback = (stage: PipelineStage) => void;
+
+/** Clamp a raw value to the meal_instruction enum, anything else -> null */
+function parseMealInstruction(value: unknown): MedicineJSON['meal_instruction'] {
+  if (value === 'before' || value === 'after' || value === 'with' || value === 'none') {
+    return value;
+  }
+  return null;
+}
+
+/** Keep only numeric entries — the model may omit or malformed parts */
+function parseFieldConfidence(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object') return {};
+  const out: Record<string, number> = {};
+  for (const [key, num] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof num === 'number' && Number.isFinite(num)) out[key] = num;
+  }
+  return out;
+}
 
 /** Read an image file and convert to base64 */
 async function imageToBase64(uri: string): Promise<string> {
@@ -36,26 +55,38 @@ function parseOCRResponse(raw: string): PrescriptionJSON {
         source_image_id: null,
         verification_status: 'pending',
       },
-      medicines: (parsed.medicines ?? []).map((m: Record<string, unknown>) => ({
-        name: m.name ?? null,
-        generic_name: m.generic_name ?? null,
-        brand_name: m.brand_name ?? null,
-        strength: m.strength ?? null,
-        form: m.form ?? null,
-        dosage: m.dosage ?? null,
-        frequency: m.frequency ?? null,
-        meal_instruction: m.meal_instruction ?? null,
-        duration: m.duration ?? null,
-        purpose: null,
-        side_effects: [],
-        food_interactions: [],
-        storage: null,
-        confidence: typeof m.confidence === 'number' ? m.confidence : 0,
-        field_sources: {},
-        warnings: Array.isArray(m.warnings) ? m.warnings : [],
-        verification_status: 'pending' as const,
-      })),
-      patient_notes: parsed.raw_notes ?? null,
+      medicines: (parsed.medicines ?? []).map((m: Record<string, unknown>) => {
+        const medicine: MedicineJSON = {
+          name: typeof m.name === 'string' ? m.name : null,
+          generic_name: typeof m.generic_name === 'string' ? m.generic_name : null,
+          brand_name: typeof m.brand_name === 'string' ? m.brand_name : null,
+          strength: typeof m.strength === 'string' ? m.strength : null,
+          form: typeof m.form === 'string' ? m.form : null,
+          dosage: typeof m.dosage === 'string' ? m.dosage : null,
+          frequency: typeof m.frequency === 'string' ? m.frequency : null,
+          meal_instruction: parseMealInstruction(m.meal_instruction),
+          duration: typeof m.duration === 'string' ? m.duration : null,
+          original_text: typeof m.original_text === 'string' ? m.original_text : null,
+          purpose: null,
+          side_effects: [],
+          food_interactions: [],
+          storage: null,
+          confidence: typeof m.confidence === 'number' ? m.confidence : 0,
+          field_confidence: parseFieldConfidence(m.field_confidence),
+          field_sources: {},
+          warnings: Array.isArray(m.warnings) ? m.warnings : [],
+          verification_status: 'pending' as const,
+        };
+        // Every field the model actually read is marked 'ocr'; the
+        // post-processor upgrades changed fields to 'corrected' so the
+        // review screen can tell read values from adjusted ones.
+        for (const field of ['name', 'generic_name', 'brand_name', 'strength', 'form', 'dosage', 'frequency', 'duration']) {
+          if (medicine[field as keyof MedicineJSON]) medicine.field_sources[field] = 'ocr';
+        }
+        if (medicine.meal_instruction) medicine.field_sources['meal_instruction'] = 'ocr';
+        return medicine;
+      }),
+      patient_notes: typeof parsed.raw_notes === 'string' ? parsed.raw_notes : null,
       overall_confidence: typeof parsed.overall_confidence === 'number' ? parsed.overall_confidence : 0,
       verification_status: 'pending',
     };
@@ -138,10 +169,15 @@ export async function processPrescription(
       OCR_SYSTEM_PROMPT,
       userText,
       imagesBase64,
-      apiKey
+      apiKey,
+      // Temperature 0 + controlled generation keep OCR deterministic and
+      // the JSON shape hard-enforced (see OCR_RESPONSE_SCHEMA).
+      { temperature: 0, responseSchema: OCR_RESPONSE_SCHEMA }
     );
 
-    const prescriptionData = parseOCRResponse(ocrResult);
+    // Deterministic post-processing (fuzzy name correction, abbreviation
+    // expansion, strength normalization) before validation sees the data.
+    const prescriptionData = postProcessPrescription(parseOCRResponse(ocrResult));
     prescriptionData.prescription.source_image_id = imageUris[0] ?? null;
 
     // Stage 3: Validating

@@ -120,7 +120,17 @@ async function handleChat(request, env) {
   );
 }
 
-async function callGeminiOnce(env, system, text, images) {
+async function callGeminiOnce(env, system, text, images, temperature, responseSchema) {
+  const generationConfig = {
+    temperature,
+    maxOutputTokens: 4096,
+    responseMimeType: 'application/json',
+  };
+  // Controlled generation: the app sends a response schema so the OCR JSON
+  // shape is hard-enforced. Older app versions omit it — keep working.
+  if (responseSchema && typeof responseSchema === 'object') {
+    generationConfig.responseSchema = responseSchema;
+  }
   const geminiBody = {
     systemInstruction: { parts: [{ text: system }] },
     contents: [{
@@ -130,11 +140,7 @@ async function callGeminiOnce(env, system, text, images) {
         ...images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } })),
       ],
     }],
-    generationConfig: {
-      temperature: 0.1,
-      maxOutputTokens: 4096,
-      responseMimeType: 'application/json',
-    },
+    generationConfig,
   };
 
   const response = await fetchWithTimeout(
@@ -184,10 +190,14 @@ async function handleVision(request, env) {
     return jsonReply({ error: 'Invalid request body' }, 400);
   }
 
+  // OCR is deterministic (temperature 0) on newer app versions; older
+  // versions that don't send the field keep the previous 0.1 behavior.
+  const temperature = typeof body.temperature === 'number' ? body.temperature : 0.1;
+
   let lastError = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const content = await callGeminiOnce(env, body.system, body.text, images);
+      const content = await callGeminiOnce(env, body.system, body.text, images, temperature, body.responseSchema);
       return jsonReply({ content });
     } catch (error) {
       lastError = error;
