@@ -10,8 +10,8 @@
  *   - widget_strings.xml         → app/src/main/res/values/
  *   - widget_background.xml, widget_button.xml → app/src/main/res/drawable/
  * It also registers the AppWidgetProvider receiver in AndroidManifest.xml
- * and injects an onResume refresh into MainActivity so the widget tracks
- * doses taken inside the app.
+ * and injects onResume/onStop refresh hooks into MainActivity so the widget
+ * tracks doses taken inside the app.
  *
  * Registered in app.json → plugins. Runs during `expo prebuild`.
  */
@@ -30,6 +30,16 @@ const ON_RESUME_BLOCK = `
    */
   override fun onResume() {
     super.onResume()
+    NextDoseWidgetProvider.refreshAll(this)
+  }
+
+  /**
+   * Also refresh when the app goes to the background: onResume alone only
+   * catches the NEXT foregrounding, so a user who changes a schedule and
+   * then presses Home would keep seeing the stale widget until they return.
+   */
+  override fun onStop() {
+    super.onStop()
     NextDoseWidgetProvider.refreshAll(this)
   }
 `;
