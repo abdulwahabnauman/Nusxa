@@ -39,6 +39,7 @@ import { useSettingsStore } from '../../src/stores/settings-store';
 import { useInvalidateData } from '../../src/hooks/queries';
 import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
 import { useI18n } from '../../src/i18n';
+import { getLocalizedName } from '../../src/utils/profileName';
 import type { TodayScheduleItem } from '../../src/types/models';
 
 export default function HomeScreen() {
@@ -413,7 +414,7 @@ export default function HomeScreen() {
               {greeting()}
             </Text>
             <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: 2 }]}>
-              {profile?.name ?? t.home.welcome}
+              {getLocalizedName(profile, language) ?? t.home.welcome}
             </Text>
           </View>
           <TouchableOpacity

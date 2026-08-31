@@ -18,6 +18,7 @@ import { useAuthStore } from '../src/stores/auth-store';
 import { useThemeStore } from '../src/stores/theme-store';
 import { useSettingsStore } from '../src/stores/settings-store';
 import { upsertProfileForOnboarding } from '../src/db/repositories/profile';
+import { syncOtherLanguageName } from '../src/utils/profileName';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { showToast } from '../src/components/ui/GlobalToast';
@@ -96,6 +97,11 @@ export default function OnboardingScreen() {
         blood_group: bloodGroup,
       });
       setProfile(profile);
+
+      // Fill the other language's name column in the background (best-effort
+      // AI transliteration; never blocks setup and silently no-ops without
+      // AI keys).
+      void syncOtherLanguageName(name.trim(), currentLanguage);
 
       // Navigate to main tabs after successful setup. When onboarding is
       // rendered as the root gate (stack not mounted yet), setProfile alone

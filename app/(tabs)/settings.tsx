@@ -28,8 +28,10 @@ import {
   withLockExemption,
 } from '../../src/utils/appLock';
 import { deleteProfile, updateProfile, getProfile } from '../../src/db/repositories/profile';
+import { getLocalizedName, syncOtherLanguageName, ensureNameForLanguage } from '../../src/utils/profileName';
 import { exportAsJSON, importFromJSON, createEncryptedBackup, isEncryptedBackup, openEncryptedBackup } from '../../src/utils/export';
 import type { ImportResult } from '../../src/utils/export';
+import type { Profile } from '../../src/types/models';
 import { syncDoseNotifications } from '../../src/utils/notifications';
 import { isValidDate } from '../../src/utils/date';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
@@ -158,7 +160,14 @@ export default function SettingsScreen() {
   const { t, language, setLanguage, isRTL } = useI18n();
   const nameMorph = useSuccessMorph();
   const lockMorph = useSuccessMorph();
-  const [nameInput, setNameInput] = useState(profile?.name ?? '');
+  // The name is stored per language: editing writes ONLY to the column of
+  // the currently selected language (the other column is kept in sync by a
+  // background AI transliteration). Display falls back to whichever column
+  // exists so the row is never blank.
+  const nameField = language === 'ur' ? 'name_ur' : 'name';
+  const nameForCurrentLanguage = (language === 'ur' ? profile?.name_ur : profile?.name) ?? '';
+  const displayName = getLocalizedName(profile, language) ?? '';
+  const [nameInput, setNameInput] = useState(nameForCurrentLanguage);
   const [editingName, setEditingName] = useState(false);
   const [savingName, setSavingName] = useState(false);
   const [dobInput, setDobInput] = useState('');
@@ -193,8 +202,9 @@ export default function SettingsScreen() {
   }, []);
 
   useEffect(() => {
-    setNameInput(profile?.name ?? '');
-  }, [profile]);
+    setNameInput(nameForCurrentLanguage);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile, language]);
 
   const handleClearData = () => {
     Alert.alert(
@@ -219,6 +229,9 @@ export default function SettingsScreen() {
         setProfile(restored);
         const s = useSettingsStore.getState();
         s.setLanguage(restored.language === 'ur' ? 'ur' : 'en');
+        // Backfill the restored language's name spelling when the backup
+        // predates per-language names (best-effort AI transliteration).
+        void ensureNameForLanguage(restored.language === 'ur' ? 'ur' : 'en');
         s.setNotificationsEnabled(restored.notifications_enabled);
         s.setReminderEscalation(restored.reminder_escalation ?? true);
         s.setReducedMotion(restored.reduced_motion);
@@ -492,21 +505,29 @@ export default function SettingsScreen() {
                       onPress={async () => {
                         if (!nameInput.trim()) return;
                         setSavingName(true);
+                        const trimmedName = nameInput.trim();
+                        // Only the current language's column changes; the other
+                        // language is refreshed afterwards by the background
+                        // transliteration sync.
+                        const namePatch = { [nameField]: trimmedName } as Partial<Profile>;
                         try {
-                          await updateProfile({ name: nameInput.trim() });
-                          setProfile({ ...profile!, name: nameInput.trim() });
-                          setNameInput(nameInput.trim());
+                          await updateProfile(namePatch);
+                          setProfile({ ...profile!, ...namePatch });
+                          setNameInput(trimmedName);
                           setEditingName(false);
                           nameMorph.trigger();
+                          void syncOtherLanguageName(trimmedName, language);
                         } catch (err) {
                           console.error('Failed to save name:', err);
                           const errorMessage = err instanceof Error ? err.message : String(err);
                           if (errorMessage.includes('Database not initialized')) {
                             setTimeout(async () => {
                               try {
-                                await updateProfile({ name: nameInput.trim() });
+                                await updateProfile(namePatch);
+                                setProfile({ ...profile!, ...namePatch });
                                 setEditingName(false);
                                 nameMorph.trigger();
+                                void syncOtherLanguageName(trimmedName, language);
                               } catch {
                                 showToast(t.toasts.databaseNotReady, 'error');
                               }
@@ -522,7 +543,7 @@ export default function SettingsScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 14, alignItems: 'center' }]}
-                      onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(false); }}
+                      onPress={() => { setNameInput(nameForCurrentLanguage); setEditingName(false); }}
                     >
                       <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.common.cancel}</Text>
                     </TouchableOpacity>
@@ -530,11 +551,11 @@ export default function SettingsScreen() {
                 </View>
               ) : (
                 <>
-                  <TouchableOpacity style={styles.row} onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(true); }}>
+                  <TouchableOpacity style={styles.row} onPress={() => { setNameInput(nameForCurrentLanguage); setEditingName(true); }}>
                     <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                       <Text style={[typography.body.base, { color: colors.text.primary }]}>
-                        {profile?.name || t.common.loading}
+                        {displayName || t.common.loading}
                       </Text>
                       {nameMorph.active && (
                         <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
@@ -693,6 +714,9 @@ export default function SettingsScreen() {
                       if (language !== lang) {
                         selectionHaptic();
                         setLanguage(lang);
+                        // If the newly selected language has no name spelling
+                        // yet, transliterate the other one in the background.
+                        void ensureNameForLanguage(lang);
                         try { await updateProfile({ language: lang }); }
                         catch { console.log('Database not ready'); }
                         const willBeRTL = lang === 'ur';

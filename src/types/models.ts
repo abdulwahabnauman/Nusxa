@@ -6,7 +6,10 @@ export type MedicineForm = 'tablet' | 'capsule' | 'syrup' | 'injection' | 'cream
 
 export interface Profile {
   id: number;
+  /** English/Latin spelling of the user's name (edited only while the app language is English) */
   name: string | null;
+  /** Urdu-script spelling of the user's name (edited only while the app language is Urdu) */
+  name_ur?: string | null;
   date_of_birth: string | null;
   blood_group: string | null;
   allergies: string[];

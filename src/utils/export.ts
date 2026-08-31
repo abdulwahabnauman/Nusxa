@@ -442,18 +442,20 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
     if (data.profile) {
       const p = data.profile;
       const importedName = typeof p.name === 'string' && p.name.trim() ? p.name.trim() : null;
+      const importedNameUr = typeof p.name_ur === 'string' && p.name_ur.trim() ? p.name_ur.trim() : null;
       await db.runAsync(
-        `INSERT OR REPLACE INTO profile (id, name, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, reminder_escalation, eastern_numerals, snooze_minutes, high_contrast, theme_preference, created_at, updated_at)
-         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT OR REPLACE INTO profile (id, name, name_ur, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, reminder_escalation, eastern_numerals, snooze_minutes, high_contrast, theme_preference, created_at, updated_at)
+         VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           importedName,
+          importedNameUr,
           asString(p.date_of_birth),
           asString(p.blood_group),
           JSON.stringify(Array.isArray(p.allergies) ? p.allergies : []),
           p.emergency_contact ? JSON.stringify(p.emergency_contact) : null,
           asString(p.primary_physician),
           p.elderly_mode ? 1 : 0,
-          importedName && p.onboarding_complete ? 1 : 0,
+          (importedName || importedNameUr) && p.onboarding_complete ? 1 : 0,
           typeof p.language === 'string' ? p.language : 'en',
           p.notifications_enabled === false ? 0 : 1,
           p.reduced_motion ? 1 : 0,

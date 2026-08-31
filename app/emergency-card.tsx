@@ -12,13 +12,14 @@ import { useSuccessMorph } from '../src/hooks/useSuccessMorph';
 import { getProfile, updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useI18n } from '../src/i18n';
+import { getLocalizedName } from '../src/utils/profileName';
 import { calculateAge, isValidDate } from '../src/utils/date';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export default function EmergencyCardScreen() {
   const { colors, typography, spacing } = useTheme();
-  const { t, isRTL } = useI18n();
+  const { t, isRTL, language } = useI18n();
   const router = useRouter();
   const align = isRTL ? 'right' : 'left';
   const profile = useAuthStore((s) => s.profile);
@@ -186,7 +187,7 @@ export default function EmergencyCardScreen() {
                 <View style={{ marginStart: 12, flex: 1 }}>
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.patient}</Text>
                   <Text style={[typography.body.lg, { color: colors.text.primary, textAlign: align }]}>
-                    {profile?.name ?? t.common.notSet}
+                    {getLocalizedName(profile, language) ?? t.common.notSet}
                   </Text>
                 </View>
               </View>

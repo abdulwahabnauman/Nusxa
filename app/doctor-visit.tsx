@@ -15,6 +15,7 @@ import { getActiveMedicines } from '../src/db/repositories/medicine';
 import { getActiveSchedules } from '../src/db/repositories/schedule';
 import { getProfile } from '../src/db/repositories/profile';
 import { useI18n } from '../src/i18n';
+import { getLocalizedName } from '../src/utils/profileName';
 import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
@@ -41,7 +42,8 @@ export default function DoctorVisitScreen() {
         ]);
         setMedicines(meds);
         setSchedules(activeSchedules);
-        if (profile?.name) setProfileName(profile.name);
+        const localName = getLocalizedName(profile, language === 'ur' ? 'ur' : 'en');
+        if (localName) setProfileName(localName);
         setProfileDob(profile?.date_of_birth ?? null);
         setProfileBloodGroup(profile?.blood_group ?? null);
         setProfileAllergies(profile?.allergies ?? []);
@@ -52,6 +54,7 @@ export default function DoctorVisitScreen() {
       }
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleShare = async () => {

@@ -148,3 +148,24 @@ export function buildChatContext(
 
   return `The patient has the following verified medicines:\n${medicineLines.join('\n')}`;
 }
+
+export const NAME_TRANSLITERATION_SYSTEM_PROMPT = `You transliterate a person's name between scripts so a bilingual app can show it in both languages.
+
+Rules:
+- Transliterate sounds only. Never translate meaning, never add titles or honorifics (no Mr/Miss/Jan/Sahib etc.), and never drop or invent parts of the name.
+- For Urdu output use standard Urdu script spelling as used in Pakistan (e.g. "Ahmed Khan" -> "احمد خان").
+- For English output use the most common Latin spelling for the name (e.g. "فاطمہ" -> "Fatima").
+- Keep the output to the name itself, with no quotes, labels or extra text.
+
+Return JSON with a single field:
+{ "name": "<Latin spelling>" } or { "name_ur": "<Urdu spelling>" }`;
+
+/** Build the user message for a name transliteration request */
+export function buildNameTransliterationRequest(
+  name: string,
+  fromLanguage: 'en' | 'ur'
+): string {
+  return fromLanguage === 'ur'
+    ? `Transliterate this Urdu name into the Latin alphabet. Return JSON: { "name": "..." }\nName: ${name}`
+    : `Transliterate this name into Urdu script. Return JSON: { "name_ur": "..." }\nName: ${name}`;
+}

@@ -6,6 +6,7 @@ function parseProfile(row: Record<string, unknown>): Profile {
   return {
     id: row.id as number,
     name: row.name as string | null,
+    name_ur: (row.name_ur as string | null) ?? null,
     date_of_birth: row.date_of_birth as string | null,
     blood_group: row.blood_group as string | null,
     allergies: JSON.parse((row.allergies as string) || '[]'),
@@ -66,7 +67,7 @@ export async function getProfile(): Promise<Profile | null> {
 }
 
 export async function createProfile(
-  data: Partial<Pick<Profile, 'name' | 'date_of_birth' | 'blood_group' | 'allergies' | 'emergency_contact' | 'primary_physician'> & { 
+  data: Partial<Pick<Profile, 'name' | 'name_ur' | 'date_of_birth' | 'blood_group' | 'allergies' | 'emergency_contact' | 'primary_physician'> & { 
     language?: string;
     notifications_enabled?: boolean;
     reduced_motion?: boolean;
@@ -76,10 +77,11 @@ export async function createProfile(
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO profile (id, name, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, theme_preference, created_at, updated_at)
-     VALUES (1, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO profile (id, name, name_ur, date_of_birth, blood_group, allergies, emergency_contact, primary_physician, elderly_mode, onboarding_complete, language, notifications_enabled, reduced_motion, theme_preference, created_at, updated_at)
+     VALUES (1, ?, ?, ?, ?, ?, ?, ?, 0, 0, ?, ?, ?, ?, ?, ?);`,
     [
       data.name ?? null,
+      data.name_ur ?? null,
       data.date_of_birth ?? null,
       data.blood_group ?? null,
       JSON.stringify(data.allergies ?? []),
@@ -115,6 +117,10 @@ export async function updateProfile(
   if (data.name !== undefined) {
     fields.push('name = ?');
     values.push(data.name);
+  }
+  if (data.name_ur !== undefined) {
+    fields.push('name_ur = ?');
+    values.push(data.name_ur);
   }
   if (data.date_of_birth !== undefined) {
     fields.push('date_of_birth = ?');
@@ -217,10 +223,14 @@ export async function upsertProfileForOnboarding(
   language: string,
   extras?: { date_of_birth?: string | null; blood_group?: string | null }
 ): Promise<Profile> {
+  // The entered name belongs to the language active during setup: Urdu input
+  // lands in `name_ur`, English/Latin input in `name`. The other column is
+  // filled later by the background transliteration sync (never here).
+  const nameFields = language === 'ur' ? { name_ur: name } : { name };
   const existing = await getProfile();
   if (existing) {
     await updateProfile({
-      name,
+      ...nameFields,
       language,
       onboarding_complete: true,
       ...(extras?.date_of_birth !== undefined ? { date_of_birth: extras.date_of_birth } : {}),
@@ -231,7 +241,7 @@ export async function upsertProfileForOnboarding(
     return profile;
   }
   const profile = await createProfile({
-    name,
+    ...nameFields,
     language,
     date_of_birth: extras?.date_of_birth ?? null,
     blood_group: extras?.blood_group ?? null,

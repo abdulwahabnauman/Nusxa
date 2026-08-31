@@ -425,6 +425,24 @@ const migration_v17: Migration = {
   },
 };
 
+/**
+ * Version 18: Per-language profile name.
+ * Adds `name_ur` so the Urdu-script spelling of the user's name lives in
+ * its own column; edits in one app language only ever touch that language's
+ * column (`name` stays the English/Latin spelling).
+ */
+const migration_v18: Migration = {
+  version: 18,
+  up: async (db) => {
+    try {
+      await db.execAsync('ALTER TABLE profile ADD COLUMN name_ur TEXT;');
+    } catch {
+      // Column already exists — nothing to do
+    }
+    await db.runAsync('UPDATE schema_version SET version = 18;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -443,6 +461,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v15,
   migration_v16,
   migration_v17,
+  migration_v18,
 ];
 
 /** Run pending migrations */

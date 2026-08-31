@@ -17,6 +17,7 @@ import * as Sharing from 'expo-sharing';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
+import { getLocalizedName } from '../src/utils/profileName';
 import { Card } from '../src/components/ui/Card';
 import { AdherenceRing } from '../src/components/progress/AdherenceRing';
 import { showToast } from '../src/components/ui/GlobalToast';
@@ -231,7 +232,7 @@ export default function AnalyticsScreen() {
       const skipped = adherenceData.reduce((sum, d) => sum + d.skipped, 0);
 
       const uri = await generateAnalyticsReportPdf({
-        profileName: profile?.name ?? 'Patient',
+        profileName: getLocalizedName(profile, language) ?? 'Patient',
         // Patient identifiers from the profile, same as the doctor-visit PDF
         dateOfBirth: profile?.date_of_birth ?? null,
         bloodGroup: profile?.blood_group ?? null,

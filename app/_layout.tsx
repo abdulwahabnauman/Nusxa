@@ -21,6 +21,7 @@ import { openDatabase } from '../src/db/database';
 import { getProfile } from '../src/db/repositories/profile';
 import { updateProfile } from '../src/db/repositories/profile';
 import { ensureProfileRow } from '../src/db/repositories/profile';
+import { ensureNameForLanguage } from '../src/utils/profileName';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';
 import { useThemeStore, hydrateTheme } from '../src/stores/theme-store';
@@ -211,11 +212,13 @@ function AppContent() {
           return;
         }
         
-        // Onboarding counts as complete ONLY when the profile has both a name
-        // and the completion flag. Anything else forces the setup flow again —
-        // this keeps the gate deterministic across Expo Go, dev clients and
-        // release APKs (which retain the SQLite file across upgrade installs).
-        const needsOnboarding = !existingProfile.name || !existingProfile.onboarding_complete;
+        // Onboarding counts as complete ONLY when the profile has a name in
+        // either language and the completion flag. Anything else forces the
+        // setup flow again — this keeps the gate deterministic across Expo
+        // Go, dev clients and release APKs (which retain the SQLite file
+        // across upgrade installs).
+        const needsOnboarding =
+          (!existingProfile.name && !existingProfile.name_ur) || !existingProfile.onboarding_complete;
         
         if (needsOnboarding) {
           console.log('[Init] Missing name or incomplete onboarding - showing onboarding');
@@ -232,6 +235,9 @@ function AppContent() {
         // Sync language preference from DB to settings store
         if (existingProfile.language) {
           syncLanguage(existingProfile.language as 'en' | 'ur');
+          // Upgrade installs stored a single name spelling; backfill the
+          // selected language's column in the background when it is empty.
+          void ensureNameForLanguage(existingProfile.language as 'en' | 'ur');
         }
         // Sync elderly mode from DB
         if (existingProfile.elderly_mode !== undefined) {
@@ -286,7 +292,8 @@ function AppContent() {
   // (remount loop), so onboarding is rendered as a full replacement gate,
   // exactly like the lock screen: nothing underneath mounts until setup
   // completes and setProfile() flips this off.
-  const showOnboarding = !profile || !profile.onboarding_complete || !profile.name;
+  const showOnboarding =
+    !profile || !profile.onboarding_complete || (!profile.name && !profile.name_ur);
 
   if (!dbReady || !isLoaded || !splashAnimationDone || !fontsLoaded) {
     return (
