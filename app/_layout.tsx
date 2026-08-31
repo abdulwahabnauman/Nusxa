@@ -28,7 +28,7 @@ import { configureNotifications, syncRefillNotifications, syncFollowUpNotificati
 import { dedupeActiveMedicines } from '../src/utils/savePrescription';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
-import { AnimatedSplash } from '../src/components/ui/AnimatedSplash';
+import { AnimatedSplash, SPLASH_BACKGROUND } from '../src/components/ui/AnimatedSplash';
 import { BiometricLock } from '../src/components/ui/BiometricLock';
 import OnboardingScreen from './onboarding';
 import { ErrorBoundary } from '../src/components/ui/ErrorBoundary';
@@ -290,9 +290,8 @@ function AppContent() {
 
   if (!dbReady || !isLoaded || !splashAnimationDone || !fontsLoaded) {
     return (
-      <View style={[styles.loading, { backgroundColor: colors.background.primary }]}>
+      <View style={[styles.loading, { backgroundColor: SPLASH_BACKGROUND }]}>
         <AnimatedSplash
-          backgroundColor={colors.background.primary}
           onAnimationDone={() => setSplashAnimationDone(true)}
         />
       </View>

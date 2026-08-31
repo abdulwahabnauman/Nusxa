@@ -206,10 +206,9 @@ export const ur: TranslationKeys = {
     processPages: '{count} صفحات پروسیس کریں',
     pagesAdded: '{max} میں سے {count} صفحات شامل ہو گئے',
     removePage: 'صفحہ ہٹائیں',
-    cropHint: 'ہلانے کے لیے گھسیٹیں، زوم کے لیے پنچ کریں، پھر کراپ لاگو کریں۔',
+    cropHint: 'کناروں یا کونوں کو گھسیٹ کر مطلوبہ حصہ فریم کریں، پھر کراپ لاگو کریں۔',
     applyCrop: 'کراپ لاگو کریں',
     resetCrop: 'ری سیٹ',
-    skipCrop: 'پوری تصویر استعمال کریں',
   },
   processing: {
     preparing: 'تصویر تیار ہو رہی ہے',

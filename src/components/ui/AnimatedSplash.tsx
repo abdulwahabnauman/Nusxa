@@ -8,23 +8,29 @@ import Animated, {
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
-import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { LATIN_FONTS } from '../../theme/typography';
+
+// One splash look everywhere: the native splash (app.json) and this animated
+// handoff both use the same black, so there is no second color variant.
+export const SPLASH_BACKGROUND = '#000000';
 
 interface AnimatedSplashProps {
-  backgroundColor: string;
   onAnimationDone: () => void;
 }
 
 /**
  * Gentle opening: the logo fades in while softly "breathing" from 92% to
- * full size, the app name rises in beneath it, the mark holds for a beat,
+ * full size, the wordmark rises in beneath it, the mark holds for a beat,
  * then the whole screen fades into the app. Calm and slow-moving on
  * purpose — no crashes or fast flying parts — and reduced-motion users
  * get plain fades only.
+ *
+ * The wordmark always renders with the Latin Inter face: in Urdu mode the
+ * theme's heading family is Noto Nastaliq Urdu, whose shaping mangled the
+ * Latin brand text (it displayed as "Nusx").
  */
-export function AnimatedSplash({ backgroundColor, onAnimationDone }: AnimatedSplashProps) {
-  const { colors, typography } = useTheme();
+export function AnimatedSplash({ onAnimationDone }: AnimatedSplashProps) {
   const reducedMotion = useReducedMotion();
 
   const logoOpacity = useSharedValue(0);
@@ -68,7 +74,7 @@ export function AnimatedSplash({ backgroundColor, onAnimationDone }: AnimatedSpl
   }));
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor }, screenStyle]}>
+    <Animated.View style={[styles.container, screenStyle]}>
       <Animated.View style={logoStyle}>
         <Image
           source={require('../../../assets/icon.png')}
@@ -76,9 +82,7 @@ export function AnimatedSplash({ backgroundColor, onAnimationDone }: AnimatedSpl
           resizeMode="contain"
         />
       </Animated.View>
-      <Animated.Text
-        style={[nameStyle, typography.heading.h2, { color: colors.text.primary, marginTop: -52, letterSpacing: 1.5 }]}
-      >
+      <Animated.Text style={[nameStyle, styles.wordmark]}>
         Nusxa
       </Animated.Text>
     </Animated.View>
@@ -90,10 +94,20 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: SPLASH_BACKGROUND,
     zIndex: 10,
   },
   logo: {
     width: 210,
     height: 210,
+  },
+  wordmark: {
+    fontFamily: LATIN_FONTS.bold,
+    fontSize: 30,
+    letterSpacing: 3,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 4,
+    paddingHorizontal: 24,
   },
 });
