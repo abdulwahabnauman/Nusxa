@@ -89,14 +89,17 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
       ? { fontFamily: fontFamily!, includeFontPadding: false, fontWeight: weights[weight] }
       : { fontFamily: families[weight] };
 
-  // Android's TextView right-aligns by default once the layout direction is
-  // RTL, but iOS Text does not inherit alignment from the root `direction`
-  // style — short or Latin-mixed lines stick to the left edge of their flex
-  // box there. Pin the alignment (and paragraph base direction) explicitly
-  // for Urdu so both platforms render identically; no-op in English mode.
-  const rtlText: TextStyle = urdu
-    ? { textAlign: 'right', writingDirection: 'rtl' }
-    : {};
+  // iOS Text does not inherit alignment from the root `direction` style —
+  // short or Latin-mixed lines stick to the left edge of their flex box.
+  // Pin the alignment (and paragraph base direction) explicitly for Urdu.
+  // Android must NOT get this: its Fabric TextLayoutManager swaps
+  // NORMAL/OPPOSITE for RTL scripts, so an explicit `right` there flips
+  // Urdu text to the left edge (regression seen on device). Android's
+  // TextView already right-aligns RTL scripts by default.
+  const rtlText: TextStyle =
+    urdu && Platform.OS === 'ios'
+      ? { textAlign: 'right', writingDirection: 'rtl' }
+      : {};
 
   return {
     sizes,
