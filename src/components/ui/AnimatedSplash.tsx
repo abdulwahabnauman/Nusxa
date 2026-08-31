@@ -88,7 +88,8 @@ export function AnimatedSplash({ onAnimationDone, ready }: AnimatedSplashProps) 
         />
       </Animated.View>
       <Animated.Text style={[nameStyle, styles.wordmark]}>
-        Nusxa
+        {/* NBSP: Android letterSpacing clips the last glyph without it */}
+        {'Nusxa '}
       </Animated.Text>
     </Animated.View>
   );
