@@ -17,6 +17,7 @@ export const SPLASH_BACKGROUND = '#000000';
 
 interface AnimatedSplashProps {
   onAnimationDone: () => void;
+  ready: boolean;
 }
 
 /**
@@ -30,7 +31,7 @@ interface AnimatedSplashProps {
  * theme's heading family is Noto Nastaliq Urdu, whose shaping mangled the
  * Latin brand text (it displayed as "Nusx").
  */
-export function AnimatedSplash({ onAnimationDone }: AnimatedSplashProps) {
+export function AnimatedSplash({ onAnimationDone, ready }: AnimatedSplashProps) {
   const reducedMotion = useReducedMotion();
 
   const logoOpacity = useSharedValue(0);
@@ -40,6 +41,10 @@ export function AnimatedSplash({ onAnimationDone }: AnimatedSplashProps) {
   const screenOpacity = useSharedValue(1);
 
   useEffect(() => {
+    // Wait for the Inter faces: painting the wordmark with an unregistered
+    // family lets Android's fallback shaping mangle it ("Nusx").
+    if (!ready) return;
+
     const breathe = { duration: 640, easing: Easing.out(Easing.cubic) };
 
     logoOpacity.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
@@ -57,7 +62,7 @@ export function AnimatedSplash({ onAnimationDone }: AnimatedSplashProps) {
       })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ready]);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,

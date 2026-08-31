@@ -299,6 +299,7 @@ function AppContent() {
     return (
       <View style={[styles.loading, { backgroundColor: SPLASH_BACKGROUND }]}>
         <AnimatedSplash
+          ready={fontsLoaded}
           onAnimationDone={() => setSplashAnimationDone(true)}
         />
       </View>
