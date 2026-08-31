@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -94,108 +94,119 @@ export default function DoctorVisitScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            {t.doctorVisit.title}
-          </Text>
-          <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            {t.doctorVisit.subtitle}
-          </Text>
-        </View>
-
-        {medicines.length === 0 ? (
-          <View style={{ paddingHorizontal: spacing.base, marginTop: 32 }}>
-            <EmptyState
-              icon="clipboard-text-outline"
-              title={t.doctorVisit.noMedicines}
-              description={t.doctorVisit.noMedicinesDesc}
-            />
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
+              {t.doctorVisit.title}
+            </Text>
+            <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+              {t.doctorVisit.subtitle}
+            </Text>
           </View>
-        ) : (
-          <>
-            {/* Current Medicines */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-                {t.doctorVisit.currentMedicines}
-              </Text>
-              <Card>
-                {medicines.map((med, i) => (
-                  <View
-                    key={med.id}
-                    style={[
-                      styles.medRow,
-                      i > 0 && { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border.default },
-                    ]}
-                  >
-                    <Text style={[typography.body.base, { color: colors.text.primary }]}>
-                      {med.name ?? 'Unknown'} {med.strength ? `(${med.strength})` : ''}
-                    </Text>
-                    <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                      {med.dosage ?? '?'}, {med.frequency ?? '?'}, {med.duration ?? '?'}
-                    </Text>
-                  </View>
-                ))}
-              </Card>
-            </View>
 
-            {/* Questions for doctor */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-                {t.doctorVisit.questions}
-              </Text>
-              <Card>
-                <TextInput
-                  style={[
-                    typography.body.base,
-                    {
-                      color: colors.text.primary,
-                      minHeight: 80,
-                      textAlignVertical: 'top',
-                      padding: 0,
-                    },
-                  ]}
-                  placeholder={t.doctorVisit.questionsPlaceholder}
-                  placeholderTextColor={colors.text.disabled}
-                  value={questions}
-                  onChangeText={setQuestions}
-                  multiline
-                  accessibilityLabel={t.doctorVisit.questions}
-                />
-              </Card>
-            </View>
-
-            {/* Disclaimer */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.border.default }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                  <MaterialCommunityIcons name="information-outline" size={18} color={colors.info} />
-                  <Text style={[typography.body.xs, { color: colors.text.secondary, marginStart: 8, flex: 1 }]}>
-                    {t.doctorVisit.disclaimer}
-                  </Text>
-                </View>
-              </Card>
-            </View>
-
-            {/* Share */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Button
-                title={sharing ? t.doctorVisit.preparing : t.doctorVisit.shareReport}
-                onPress={handleShare}
-                loading={sharing}
-                icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color="#FFFFFF" />}
-                size="lg"
+          {medicines.length === 0 ? (
+            <View style={{ paddingHorizontal: spacing.base, marginTop: 32 }}>
+              <EmptyState
+                icon="clipboard-text-outline"
+                title={t.doctorVisit.noMedicines}
+                description={t.doctorVisit.noMedicinesDesc}
               />
             </View>
-          </>
-        )}
-      </ScrollView>
+          ) : (
+            <>
+              {/* Current Medicines */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
+                  {t.doctorVisit.currentMedicines}
+                </Text>
+                <Card>
+                  {medicines.map((med, i) => (
+                    <View
+                      key={med.id}
+                      style={[
+                        styles.medRow,
+                        i > 0 && { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border.default },
+                      ]}
+                    >
+                      <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                        {med.name ?? 'Unknown'} {med.strength ? `(${med.strength})` : ''}
+                      </Text>
+                      <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                        {med.dosage ?? '?'}, {med.frequency ?? '?'}, {med.duration ?? '?'}
+                      </Text>
+                    </View>
+                  ))}
+                </Card>
+              </View>
+
+              {/* Questions for doctor */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
+                  {t.doctorVisit.questions}
+                </Text>
+                <Card>
+                  <TextInput
+                    style={[
+                      typography.body.base,
+                      {
+                        color: colors.text.primary,
+                        minHeight: 80,
+                        textAlignVertical: 'top',
+                        padding: 0,
+                      },
+                    ]}
+                    placeholder={t.doctorVisit.questionsPlaceholder}
+                    placeholderTextColor={colors.text.disabled}
+                    value={questions}
+                    onChangeText={setQuestions}
+                    multiline
+                    accessibilityLabel={t.doctorVisit.questions}
+                  />
+                </Card>
+              </View>
+
+              {/* Disclaimer */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.border.default }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <MaterialCommunityIcons name="information-outline" size={18} color={colors.info} />
+                    <Text style={[typography.body.xs, { color: colors.text.secondary, marginStart: 8, flex: 1 }]}>
+                      {t.doctorVisit.disclaimer}
+                    </Text>
+                  </View>
+                </Card>
+              </View>
+
+              {/* Share */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Button
+                  title={sharing ? t.doctorVisit.preparing : t.doctorVisit.shareReport}
+                  onPress={handleShare}
+                  loading={sharing}
+                  icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color="#FFFFFF" />}
+                  size="lg"
+                />
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  inner: { flex: 1 },
   scrollContent: { paddingBottom: 48 },
   header: { marginTop: 16 },
   section: { marginTop: 24 },
