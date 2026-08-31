@@ -608,7 +608,7 @@ export default function ScanScreen() {
           )}
           <Image
             source={{ uri: capturedImage }}
-            style={styles.previewImage}
+            style={[styles.previewImage, { backgroundColor: colors.background.subtle }]}
             resizeMode="contain"
           />
           <View style={[styles.previewActions, { paddingHorizontal: spacing.base }]}>
