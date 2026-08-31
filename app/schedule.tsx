@@ -26,6 +26,7 @@ import {
   ScheduleDraft,
 } from '../src/utils/savePrescription';
 import { syncFollowUpNotifications } from '../src/utils/notifications';
+import { archivePrescriptionImages } from '../src/utils/archiveImages';
 import { isValidTimeFormat, findScheduleConflicts } from '../src/utils/validation';
 
 const WINDOW_OPTIONS = [60, 90, 120, 180];
@@ -35,10 +36,31 @@ export default function ScheduleScreen() {
   const { t } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const router = useRouter();
-  const { prescriptionData, imageUri } = useLocalSearchParams<{
+  const { prescriptionData, imageUri, imageUris } = useLocalSearchParams<{
     prescriptionData: string;
     imageUri: string;
+    imageUris: string;
   }>();
+
+  // Multi-page sessions arrive as a JSON array of URIs; single scans keep
+  // using the legacy imageUri param.
+  const pageUris = useMemo<string[]>(() => {
+    if (imageUris) {
+      try {
+        const parsed = JSON.parse(imageUris);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((u) => typeof u === 'string' && u.length > 0)
+        ) {
+          return parsed as string[];
+        }
+      } catch {
+        // Fall through to the single-image param
+      }
+    }
+    return imageUri ? [imageUri] : [];
+  }, [imageUri, imageUris]);
 
   const prescription = useMemo(() => {
     try {
@@ -103,7 +125,14 @@ export default function ScheduleScreen() {
     }
     setConfirming(true);
     try {
-      const outcome = await savePrescription(prescription, schedules, imageUri);
+      // Archive the source pages durably so the saved prescription keeps
+      // readable originals (working scan files get cleaned up).
+      const archived = await archivePrescriptionImages(pageUris);
+      const outcome = await savePrescription(
+        prescription,
+        schedules,
+        archived[0] ?? imageUri
+      );
 
       // A new/updated prescription may carry a follow-up visit date — arm
       // its reminder without blocking the navigation back home.

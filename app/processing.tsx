@@ -10,6 +10,7 @@ import { showToast } from '../src/components/ui/GlobalToast';
 import { processPrescription } from '../src/ai/pipeline';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
 import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
+import { archivePrescriptionImages } from '../src/utils/archiveImages';
 import { resolveApiKey } from '../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../src/constants/config';
 import { useTranslation } from '../src/i18n';
@@ -98,6 +99,9 @@ export default function ProcessingScreen() {
         pathname: '/review',
         params: {
           imageUri: uris[0],
+          // Every page comes along so the review screen can show all of a
+          // multi-page scan, not just the first one.
+          imageUris: JSON.stringify(uris),
           prescriptionData: JSON.stringify(result.data),
           validationData: JSON.stringify(result.validation),
         },
@@ -119,7 +123,14 @@ export default function ProcessingScreen() {
           verification_status: 'verified' as const,
         })),
       };
-      const outcome = await savePrescription(verified, buildDefaultSchedules(verified), uris[0]);
+      // Archive the source pages durably (working scan files get cleaned
+      // up) so the saved prescription keeps readable originals.
+      const archived = await archivePrescriptionImages(uris);
+      const outcome = await savePrescription(
+        verified,
+        buildDefaultSchedules(verified),
+        archived[0] ?? uris[0]
+      );
       const bodyParts: string[] = [];
       if (outcome.updated > 0) {
         bodyParts.push(t.toasts.approvedUpdatedBody.replace('{updated}', String(outcome.updated)));

@@ -36,11 +36,33 @@ export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const { t } = useI18n();
   const router = useRouter();
-  const { imageUri, prescriptionData, validationData } = useLocalSearchParams<{
+  const { imageUri, imageUris, prescriptionData, validationData } = useLocalSearchParams<{
     imageUri: string;
+    imageUris: string;
     prescriptionData: string;
     validationData: string;
   }>();
+
+  // Multi-page sessions arrive as a JSON array of URIs; single scans keep
+  // using the legacy imageUri param. Review shows every page, not just the
+  // first one, so each part of a long prescription stays checkable.
+  const pageUris = useMemo<string[]>(() => {
+    if (imageUris) {
+      try {
+        const parsed = JSON.parse(imageUris);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((u) => typeof u === 'string' && u.length > 0)
+        ) {
+          return parsed as string[];
+        }
+      } catch {
+        // Fall through to the single-image param
+      }
+    }
+    return imageUri ? [imageUri] : [];
+  }, [imageUri, imageUris]);
 
   const initialData = useMemo(() => {
     try {
@@ -160,6 +182,7 @@ export default function ReviewScreen() {
         params: {
           prescriptionData: JSON.stringify(verifiedData),
           imageUri: imageUri ?? '',
+          imageUris: JSON.stringify(pageUris),
         },
       });
     } catch (err) {
@@ -202,16 +225,33 @@ export default function ReviewScreen() {
             </Text>
           </View>
 
-          {/* Image Preview */}
-          {imageUri && (
+          {/* Image Preview — all pages of a multi-page scan, not just the first */}
+          {pageUris.length > 1 ? (
+            <View style={[styles.imageSection, { paddingHorizontal: spacing.base }]}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pagesStrip}>
+                {pageUris.map((uri, idx) => (
+                  <View key={uri} style={styles.pageThumbWrap}>
+                    <Image
+                      source={{ uri }}
+                      style={[styles.pageThumbnail, { borderRadius: borderRadius.sm, borderColor: colors.border.default }]}
+                      resizeMode="cover"
+                    />
+                    <Text style={[typography.body.xs, { color: colors.text.secondary, textAlign: 'center', marginTop: 4 }]}>
+                      {idx + 1}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ) : pageUris.length === 1 ? (
             <View style={[styles.imageSection, { paddingHorizontal: spacing.base }]}>
               <Image
-                source={{ uri: imageUri }}
+                source={{ uri: pageUris[0] }}
                 style={[styles.prescriptionImage, { borderRadius: borderRadius.md }]}
                 resizeMode="cover"
               />
             </View>
-          )}
+          ) : null}
 
           {/* Duplicate prescription banner */}
           {dupes?.isFullDuplicate && (
@@ -438,6 +478,19 @@ export default function ReviewScreen() {
                   placeholder="e.g. 500mg"
                   containerStyle={{ marginTop: spacing.sm }}
                 />
+
+                {/* Verbatim source line: lets the user compare every field
+                    against what was actually written on the prescription */}
+                {medicine.original_text ? (
+                  <View style={[styles.originalTextBlock, { backgroundColor: colors.background.subtle, borderColor: colors.border.default, marginTop: spacing.sm }]}>
+                    <Text style={[typography.label.sm, { color: colors.text.secondary }]}>
+                      {t.review.asWritten}
+                    </Text>
+                    <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: 2 }]}>
+                      {medicine.original_text}
+                    </Text>
+                  </View>
+                ) : null}
               </Card>
             ))}
           </View>
@@ -485,6 +538,24 @@ const styles = StyleSheet.create({
   prescriptionImage: {
     width: '100%',
     height: 200,
+  },
+  pagesStrip: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pageThumbWrap: {
+    alignItems: 'center',
+  },
+  pageThumbnail: {
+    width: 96,
+    height: 128,
+    borderWidth: 1,
+  },
+  originalTextBlock: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   warningsSection: {
     marginTop: 16,

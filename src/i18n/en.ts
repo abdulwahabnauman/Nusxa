@@ -234,6 +234,7 @@ export const en = {
     lowConfidence: 'Low confidence. Please verify',
     duplicateNames: '{names} appears more than once on this prescription. Please confirm they are not the same medicine.',
     incomplete: 'Missing details',
+    asWritten: 'As written on the prescription',
   },
   // Schedule
   schedule: {

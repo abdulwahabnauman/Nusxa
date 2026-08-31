@@ -228,6 +228,7 @@ export const ur: TranslationKeys = {
     lowConfidence: 'کم اعتماد۔ براہ کرم تصدیق کریں',
     duplicateNames: '{names} اس نسخے پر ایک سے زیادہ بار آیا ہے۔ براہ کرم تصدیق کریں کہ یہ ایک ہی دوا تو نہیں۔',
     incomplete: 'تفصیلات نامکمل',
+    asWritten: 'نسخے پر جیسا لکھا گیا',
   },
   schedule: {
     title: 'اپنے شیڈول کی تصدیق کریں',

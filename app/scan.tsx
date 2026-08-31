@@ -30,10 +30,17 @@ import { measureSharpness, isBlurry } from '../src/utils/sharpness';
 import { MAX_PRESCRIPTION_PAGES } from '../src/constants/config';
 
 // Focus-box (scan frame) geometry — must stay in sync with styles.scanFrame
-// and styles.overlayMiddle. The frame is centered in the camera view, which
-// lets captures be cropped to exactly this box without any measurement.
+// and styles.overlayMiddle. The frame is a visual guide only: captures are
+// sent to OCR at full resolution (no auto-crop), so an A4 portrait page
+// never loses content outside the brackets. Users who want tighter framing
+// use the drag-edge crop on the preview screen.
 const SCAN_FRAME_WIDTH = 280;
 const SCAN_FRAME_HEIGHT = 320;
+
+// Vision models degrade sharply below ~1500px on handwriting, so small
+// crops are upscaled toward ~2000px on the long edge before sending.
+const MIN_LONG_EDGE = 1500;
+const TARGET_LONG_EDGE = 2000;
 
 // Rectangular crop box: minimum selectable size and the drag-handle footprint.
 const MIN_CROP_SIZE = 48;
@@ -101,8 +108,8 @@ export default function ScanScreen() {
       setBlurry(isBlurry(result));
     }
   };
-  // Live camera view size — maps the centered focus box onto the captured
-  // photo's pixel dimensions so everything outside the box is discarded.
+  // Live camera view size (kept for overlay math; captures are no longer
+  // cropped to the guide frame).
   const cameraContainerLayout = useRef<{ width: number; height: number } | null>(null);
 
   // ---- In-app crop state -------------------------------------------------
@@ -270,7 +277,7 @@ export default function ScanScreen() {
     if (!cameraRef.current) return;
     try {
       const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
+        quality: 1.0,
         base64: false,
         skipProcessing: false,
         exif: true,
@@ -278,47 +285,15 @@ export default function ScanScreen() {
       if (photo?.uri) {
         selectionHaptic();
         setLowLight(looksDim(photo.exif as Record<string, unknown> | undefined));
-        // Camera shots are cropped to the focus box: everything outside the
-        // guide frame is discarded. Any failure keeps the full photo so a
-        // capture is never lost.
-        let uri = photo.uri;
-        const container = cameraContainerLayout.current;
-        if (
-          container &&
-          container.width > SCAN_FRAME_WIDTH &&
-          container.height > SCAN_FRAME_HEIGHT
-        ) {
-          try {
-            const dims = await getImageDims(photo.uri);
-            if (dims) {
-              const frameX = (container.width - SCAN_FRAME_WIDTH) / 2;
-              const frameY = (container.height - SCAN_FRAME_HEIGHT) / 2;
-              let originX = Math.round((frameX / container.width) * dims.width);
-              let originY = Math.round((frameY / container.height) * dims.height);
-              let width = Math.round((SCAN_FRAME_WIDTH / container.width) * dims.width);
-              let height = Math.round((SCAN_FRAME_HEIGHT / container.height) * dims.height);
-              originX = Math.min(Math.max(originX, 0), dims.width - 1);
-              originY = Math.min(Math.max(originY, 0), dims.height - 1);
-              width = Math.min(Math.max(width, 32), dims.width - originX);
-              height = Math.min(Math.max(height, 32), dims.height - originY);
-              const cropped = await ImageManipulator.manipulateAsync(
-                photo.uri,
-                [{ crop: { originX, originY, width, height } }],
-                { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 },
-              );
-              uri = cropped.uri;
-            }
-          } catch (cropError) {
-            console.warn('Focus-box crop failed, keeping the full photo:', cropError);
-          }
-        }
-        const persistentUri = await persistImage(uri);
-        const finalUri = persistentUri ?? uri;
+        // Full-resolution capture: nothing is cropped away here (the guide
+        // frame is visual only), so an A4 page always reaches OCR complete.
+        // The drag-edge crop on the preview screen handles precise framing.
+        const persistentUri = (await persistImage(photo.uri)) ?? photo.uri;
         setImageDims(null);
-        setCapturedImage(finalUri);
-        capturedRef.current = finalUri;
+        setCapturedImage(persistentUri);
+        capturedRef.current = persistentUri;
         setCameraActive(false);
-        void checkSharpness(finalUri);
+        void checkSharpness(persistentUri);
       }
     } catch (error) {
       showToast(t.toasts.captureFailed, 'error');
@@ -345,10 +320,27 @@ export default function ScanScreen() {
     try {
       // A no-op manipulation returns the image's true pixel dimensions and
       // bakes EXIF orientation into the saved output.
-      const info = await ImageManipulator.manipulateAsync(uri, [], {
+      let info = await ImageManipulator.manipulateAsync(uri, [], {
         format: ImageManipulator.SaveFormat.JPEG,
-        compress: 0.9,
+        compress: 0.95,
       });
+
+      // Auto-rotate sideways scans: a portrait A4 page photographed with the
+      // phone turned lands landscape after EXIF baking. The upright
+      // direction cannot be inferred, but a 90° clockwise rotation corrects
+      // the common case and OCR of rotated text is far worse than of the
+      // wrong-but-upright orientation.
+      if (info.width > info.height) {
+        try {
+          info = await ImageManipulator.manipulateAsync(info.uri, [{ rotate: 90 }], {
+            format: ImageManipulator.SaveFormat.JPEG,
+            compress: 0.95,
+          });
+        } catch (rotateError) {
+          console.warn('Auto-rotate failed, continuing unrotated:', rotateError);
+        }
+      }
+
       const { width, height } = info;
       const target = 3 / 4;
       const current = width / height;
@@ -373,7 +365,7 @@ export default function ScanScreen() {
               backgroundColor: '#FFFFFF',
             },
           }],
-          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 }
+          { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 }
         );
         return padded.uri;
       }
@@ -394,7 +386,7 @@ export default function ScanScreen() {
           // No OS crop UI (allowsEditing) — cropping happens in-app where the
           // controls match the theme and the apply button is unmistakable.
           allowsEditing: false,
-          quality: 0.8,
+          quality: 1.0,
         })
       );
       if (!result.canceled && result.assets[0]?.uri) {
@@ -493,16 +485,29 @@ export default function ScanScreen() {
       width = Math.min(Math.max(width, 32), imageDims.width - originX);
       height = Math.min(Math.max(height, 32), imageDims.height - originY);
 
+      // Vision models degrade sharply below ~1500px on handwriting: upscale
+      // small crops toward ~2000px on the long edge in the same pass.
+      const actions: ImageManipulator.Action[] = [{ crop: { originX, originY, width, height } }];
+      let finalWidth = width;
+      let finalHeight = height;
+      const longEdge = Math.max(width, height);
+      if (longEdge < MIN_LONG_EDGE) {
+        const scale = TARGET_LONG_EDGE / longEdge;
+        finalWidth = Math.round(width * scale);
+        finalHeight = Math.round(height * scale);
+        actions.push({ resize: { width: finalWidth, height: finalHeight } });
+      }
+
       const result = await ImageManipulator.manipulateAsync(
         capturedImage,
-        [{ crop: { originX, originY, width, height } }],
-        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.9 },
+        actions,
+        { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 },
       );
       const persistentUri = await persistImage(result.uri);
       const finalUri = persistentUri ?? result.uri;
       setCapturedImage(finalUri);
       capturedRef.current = finalUri;
-      setImageDims({ width, height });
+      setImageDims({ width: finalWidth, height: finalHeight });
       setCropRect(null);
       setCropStage(false);
       void checkSharpness(finalUri);
@@ -1067,8 +1072,8 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     paddingBottom: 24,
   },
-  // Same footprint as the live scan frame: captures are cropped to that box,
-  // so the preview shows exactly what was framed in the camera.
+  // Guide-frame footprint: captures are no longer auto-cropped, but the
+  // preview keeps the same familiar box; the full photo renders inside it.
   previewImage: {
     width: SCAN_FRAME_WIDTH,
     height: SCAN_FRAME_HEIGHT,
