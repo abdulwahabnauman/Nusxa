@@ -4,7 +4,7 @@
  *
  * Endpoints:
  *   POST /chat   { system, messages: [{ role, content }], temperature?, json? }
- *   POST /vision { system, text, image (base64 jpeg) }
+ *   POST /vision { system, text, images: [base64 jpeg, ...] | image: base64 jpeg }
  *   GET  /       health check
  *
  * Required secrets (set with `wrangler secret put <NAME>`):
@@ -120,14 +120,14 @@ async function handleChat(request, env) {
   );
 }
 
-async function callGeminiOnce(env, body) {
+async function callGeminiOnce(env, system, text, images) {
   const geminiBody = {
-    systemInstruction: { parts: [{ text: body.system }] },
+    systemInstruction: { parts: [{ text: system }] },
     contents: [{
       role: 'user',
       parts: [
-        { text: body.text },
-        { inlineData: { mimeType: 'image/jpeg', data: body.image } },
+        { text },
+        ...images.map((data) => ({ inlineData: { mimeType: 'image/jpeg', data } })),
       ],
     }],
     generationConfig: {
@@ -162,21 +162,32 @@ async function callGeminiOnce(env, body) {
   return text;
 }
 
-/** Prescription OCR via Gemini Vision, with retry on rate-limit/server errors */
+/** Prescription OCR via Gemini Vision, with retry on rate-limit/server errors.
+ * Accepts a multi-page prescription as `images` (up to 3) or a single
+ * `image` from older app versions. */
 async function handleVision(request, env) {
   if (!env.GEMINI_API_KEY) {
     return jsonReply({ error: 'Vision provider not configured' }, 502);
   }
 
   const body = await readJson(request);
-  if (!body || typeof body.system !== 'string' || typeof body.text !== 'string' || typeof body.image !== 'string') {
+  if (!body || typeof body.system !== 'string' || typeof body.text !== 'string') {
+    return jsonReply({ error: 'Invalid request body' }, 400);
+  }
+
+  const images = Array.isArray(body.images) && body.images.length > 0
+    ? body.images.filter((img) => typeof img === 'string' && img.length > 0).slice(0, 3)
+    : typeof body.image === 'string' && body.image.length > 0
+      ? [body.image]
+      : [];
+  if (images.length === 0) {
     return jsonReply({ error: 'Invalid request body' }, 400);
   }
 
   let lastError = null;
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const content = await callGeminiOnce(env, body);
+      const content = await callGeminiOnce(env, body.system, body.text, images);
       return jsonReply({ content });
     } catch (error) {
       lastError = error;

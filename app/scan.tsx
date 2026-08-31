@@ -32,6 +32,7 @@ import { selectionHaptic } from '../src/utils/haptics';
 import { useI18n } from '../src/i18n';
 import { ensurePermission } from '../src/utils/permissions';
 import { measureSharpness, isBlurry } from '../src/utils/sharpness';
+import { MAX_PRESCRIPTION_PAGES } from '../src/constants/config';
 
 const AnimatedImage = createAnimatedComponent(Image);
 
@@ -113,6 +114,9 @@ export default function ScanScreen() {
   const [cropping, setCropping] = useState(false);
   const [imageDims, setImageDims] = useState<{ width: number; height: number } | null>(null);
   const [viewport, setViewport] = useState<{ width: number; height: number } | null>(null);
+  // Multi-page prescriptions: confirmed pages parked here while the current
+  // capture lives in capturedImage. All of them go to OCR as one document.
+  const [pages, setPages] = useState<string[]>([]);
 
   const scale = useSharedValue(1);
   const tx = useSharedValue(0);
@@ -202,15 +206,17 @@ export default function ScanScreen() {
   /** Copy a temp image to the document directory so it survives screen changes */
   const persistImage = async (sourceUri: string): Promise<string | null> => {
     try {
-      // Clean up old scan images first (keep only the most recent 3)
+      // Clean up old scan images first, keeping enough headroom for a full
+      // multi-page session plus the capture currently in progress
       const dir = FileSystem.documentDirectory;
       if (dir) {
         const files = await FileSystem.readDirectoryAsync(dir);
         const oldScans = files
           .filter((f) => f.startsWith('nusxa_scan_') && f.endsWith('.jpg'))
           .sort();
-        // Delete all but the 3 most recent
-        for (const old of oldScans.slice(0, Math.max(0, oldScans.length - 3))) {
+        // Delete everything beyond the retention window
+        const keep = MAX_PRESCRIPTION_PAGES + 2;
+        for (const old of oldScans.slice(0, Math.max(0, oldScans.length - keep))) {
           try {
             await FileSystem.deleteAsync(dir + old, { idempotent: true });
           } catch {
@@ -402,9 +408,28 @@ export default function ScanScreen() {
   };
 
   const handleProcess = () => {
-    if (capturedImage) {
-      router.push({ pathname: '/processing', params: { imageUri: capturedImage } });
-    }
+    const allUris = capturedImage ? [...pages, capturedImage] : pages;
+    if (allUris.length === 0) return;
+    router.push({
+      pathname: '/processing',
+      params: {
+        imageUri: allUris[0],
+        imageUris: JSON.stringify(allUris),
+      },
+    });
+  };
+
+  /** Park the current capture as a confirmed page, then capture the next one */
+  const handleAddPage = () => {
+    if (!capturedImage || pages.length + 1 >= MAX_PRESCRIPTION_PAGES) return;
+    selectionHaptic();
+    setPages((prev) => [...prev, capturedImage]);
+    handleRetake();
+  };
+
+  const handleRemovePage = (index: number) => {
+    selectionHaptic();
+    setPages((prev) => prev.filter((_, i) => i !== index));
   };
 
   /** Enter the in-app crop stage (lazy dimension read on first entry) */
@@ -502,8 +527,29 @@ export default function ScanScreen() {
     setTimeout(() => setFocusPoint(null), 800);
   };
 
-  // Permission not yet requested
-  if (!permission && !capturedImage) {
+  /** Small thumbnails of confirmed pages, each with a remove button */
+  const renderPageThumbs = () =>
+    pages.map((uri, idx) => (
+      <View key={uri} style={styles.pageThumbWrap}>
+        <Image source={{ uri }} style={[styles.pageThumb, { borderColor: colors.border.default }]} />
+        <TouchableOpacity
+          style={styles.pageRemoveBtn}
+          onPress={() => handleRemovePage(idx)}
+          accessibilityLabel={t.scanner.removePage}
+        >
+          <MaterialCommunityIcons name="close-circle" size={22} color={colors.error} />
+        </TouchableOpacity>
+        <Text style={[typography.body.xs, { color: colors.text.secondary, textAlign: 'center', marginTop: 4 }]}>
+          {idx + 1}
+        </Text>
+      </View>
+    ));
+
+  // Entry screen: shown before any capture, after closing the camera, and
+  // whenever confirmed pages exist (even if the camera is denied, since the
+  // gallery path still works).
+  const cameraDenied = !!permission && !permission.granted;
+  if (!capturedImage && !cameraActive && (!cameraDenied || pages.length > 0)) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={styles.centered}>
@@ -514,6 +560,24 @@ export default function ScanScreen() {
           <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center', paddingHorizontal: 32 }]}>
             {t.scanner.scanSubtitle}
           </Text>
+          {/* Confirmed pages so far: visible, removable, and processable
+              right here without capturing another page */}
+          {pages.length > 0 && (
+            <View style={{ width: '100%', marginTop: spacing.lg }}>
+              <Text style={[typography.body.sm, { color: colors.text.secondary, textAlign: 'center', marginBottom: spacing.sm }]}>
+                {t.scanner.pagesAdded
+                  .replace('{count}', String(pages.length))
+                  .replace('{max}', String(MAX_PRESCRIPTION_PAGES))}
+              </Text>
+              <View style={styles.pagesStrip}>{renderPageThumbs()}</View>
+              <Button
+                title={t.scanner.processPages.replace('{count}', String(pages.length))}
+                onPress={handleProcess}
+                icon={<MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />}
+                style={{ ...styles.fullWidthBtn, marginTop: spacing.sm }}
+              />
+            </View>
+          )}
           <View style={[styles.buttonGroup, { marginTop: spacing.xl }]}>
             <Button
               title={t.scanner.openCamera}
@@ -615,6 +679,10 @@ export default function ScanScreen() {
             resizeMode="contain"
           />
           <View style={[styles.previewActions, { paddingHorizontal: spacing.base }]}>
+            {/* Confirmed pages strip — shows this is a multi-page session */}
+            {pages.length > 0 && (
+              <View style={styles.pagesStrip}>{renderPageThumbs()}</View>
+            )}
             {/* Prominent crop entry — themed and impossible to miss */}
             <Button
               title={t.scanner.adjustCrop}
@@ -624,6 +692,16 @@ export default function ScanScreen() {
               icon={<MaterialCommunityIcons name="crop" size={22} color={colors.accent.primary} />}
               style={{ ...styles.fullWidthBtn, ...styles.cropEntryBtn, borderColor: colors.accent.primary, borderWidth: 2 }}
             />
+            {/* Multi-page: park this capture and add the next page */}
+            {pages.length + 1 < MAX_PRESCRIPTION_PAGES && (
+              <Button
+                title={t.scanner.addPage}
+                onPress={handleAddPage}
+                variant="secondary"
+                icon={<MaterialCommunityIcons name="plus-box-outline" size={22} color={colors.accent.primary} />}
+                style={styles.fullWidthBtn}
+              />
+            )}
             {/* flexWrap keeps elderly-mode buttons from overflowing the row */}
             <View style={styles.previewRow}>
               <Button
@@ -634,7 +712,11 @@ export default function ScanScreen() {
                 style={styles.previewHalfBtn}
               />
               <Button
-                title={t.scanner.process}
+                title={
+                  pages.length > 0
+                    ? t.scanner.processPages.replace('{count}', String(pages.length + 1))
+                    : t.scanner.process
+                }
                 onPress={handleProcess}
                 disabled={blurry}
                 icon={<MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />}
@@ -978,6 +1060,30 @@ const styles = StyleSheet.create({
   cropSecondaryActions: {
     flexDirection: 'row',
     gap: 12,
+  },
+  pagesStrip: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  pageThumbWrap: {
+    position: 'relative',
+    alignItems: 'center',
+  },
+  pageThumb: {
+    width: 56,
+    height: 72,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  pageRemoveBtn: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 11,
   },
   focusOverlay: {
     position: 'absolute',

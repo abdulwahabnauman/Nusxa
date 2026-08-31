@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -18,7 +18,26 @@ export default function ProcessingScreen() {
   const { colors, typography, spacing } = useTheme();
   const t = useTranslation();
   const router = useRouter();
-  const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
+  const { imageUri, imageUris } = useLocalSearchParams<{ imageUri: string; imageUris: string }>();
+  // Multi-page sessions arrive as a JSON array of URIs; single scans keep
+  // using the legacy imageUri param.
+  const uris = useMemo<string[]>(() => {
+    if (imageUris) {
+      try {
+        const parsed = JSON.parse(imageUris);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((u) => typeof u === 'string' && u.length > 0)
+        ) {
+          return parsed as string[];
+        }
+      } catch {
+        // Fall through to the single-image param
+      }
+    }
+    return imageUri ? [imageUri] : [];
+  }, [imageUri, imageUris]);
   const [stage, setStage] = useState<PipelineStage>('preparing');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -28,12 +47,13 @@ export default function ProcessingScreen() {
   } | null>(null);
 
   useEffect(() => {
-    if (!imageUri) {
+    if (uris.length === 0) {
       setError('No image provided.');
       return;
     }
     runPipeline();
-  }, [imageUri]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uris.join('|')]);
 
   async function runPipeline() {
     try {
@@ -47,7 +67,7 @@ export default function ProcessingScreen() {
       }
       
       // Process with callback to update stages
-      const res = await processPrescription(imageUri!, apiKey, (newStage) => {
+      const res = await processPrescription(uris, apiKey, (newStage) => {
         setStage(newStage);
       });
       
@@ -73,11 +93,11 @@ export default function ProcessingScreen() {
   };
 
   const handleContinue = () => {
-    if (result && imageUri) {
+    if (result && uris.length > 0) {
       router.replace({
         pathname: '/review',
         params: {
-          imageUri,
+          imageUri: uris[0],
           prescriptionData: JSON.stringify(result.data),
           validationData: JSON.stringify(result.validation),
         },
@@ -99,7 +119,7 @@ export default function ProcessingScreen() {
           verification_status: 'verified' as const,
         })),
       };
-      const outcome = await savePrescription(verified, buildDefaultSchedules(verified), imageUri);
+      const outcome = await savePrescription(verified, buildDefaultSchedules(verified), uris[0]);
       const bodyParts: string[] = [];
       if (outcome.updated > 0) {
         bodyParts.push(t.toasts.approvedUpdatedBody.replace('{updated}', String(outcome.updated)));

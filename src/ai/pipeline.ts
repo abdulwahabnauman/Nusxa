@@ -112,28 +112,37 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
   };
 }
 
-/** Full prescription processing pipeline */
+/** Full prescription processing pipeline. Accepts one or more images: a
+ * multi-page prescription is read as a single document by the vision model. */
 export async function processPrescription(
-  imageUri: string,
+  imageUris: string[],
   apiKey: string,
   onStageChange?: StageCallback
 ): Promise<{ data: PrescriptionJSON; validation: ValidationResult }> {
   try {
-    // Stage 1: Preparing image
+    if (imageUris.length === 0) {
+      throw new Error('No images provided for processing.');
+    }
+
+    // Stage 1: Preparing images
     onStageChange?.('preparing');
-    const imageBase64 = await imageToBase64(imageUri);
+    const imagesBase64 = await Promise.all(imageUris.map((uri) => imageToBase64(uri)));
 
     // Stage 2: Reading prescription (OCR)
     onStageChange?.('reading');
+    const userText =
+      imageUris.length > 1
+        ? `This prescription spans ${imageUris.length} images, provided in order (page 1 to page ${imageUris.length}). Read them as one continuous document and extract all prescription information. Return structured JSON.`
+        : 'Please extract all prescription information from this image. Return structured JSON.';
     const ocrResult = await visionCompletion(
       OCR_SYSTEM_PROMPT,
-      'Please extract all prescription information from this image. Return structured JSON.',
-      imageBase64,
+      userText,
+      imagesBase64,
       apiKey
     );
 
     const prescriptionData = parseOCRResponse(ocrResult);
-    prescriptionData.prescription.source_image_id = imageUri;
+    prescriptionData.prescription.source_image_id = imageUris[0] ?? null;
 
     // Stage 3: Validating
     onStageChange?.('validating');

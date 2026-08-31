@@ -365,11 +365,12 @@ export async function chatCompletion(
   );
 }
 
-/** Send an image + text prompt to Gemini (Vision) */
+/** Send one or more images + a text prompt to Gemini (Vision). Multiple
+ * images let a multi-page prescription be read as a single document. */
 export async function visionCompletion(
   systemPrompt: string,
   userText: string,
-  imageBase64: string,
+  imagesBase64: string[],
   apiKey: string
 ): Promise<string> {
   if (
@@ -382,7 +383,9 @@ export async function visionCompletion(
     return callProxy('/vision', {
       system: systemPrompt,
       text: userText,
-      image: imageBase64,
+      // `image` keeps older workers working; `images` carries every page
+      image: imagesBase64[0],
+      images: imagesBase64,
     });
   }
 
@@ -393,12 +396,12 @@ export async function visionCompletion(
         role: 'user',
         parts: [
           { text: userText },
-          {
+          ...imagesBase64.map((b64) => ({
             inlineData: {
               mimeType: 'image/jpeg',
-              data: imageBase64,
+              data: b64,
             },
-          },
+          })),
         ],
       },
     ],
