@@ -104,8 +104,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logo: {
-    width: 176,
-    height: 175,
+    width: 150,
+    height: 149,
   },
   wordmark: {
     fontFamily: LATIN_FONTS.bold,
