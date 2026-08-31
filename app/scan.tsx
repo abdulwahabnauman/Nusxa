@@ -19,6 +19,7 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { runOnJS } from 'react-native-reanimated';
 import { useTheme } from '../src/theme/provider';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
@@ -127,40 +128,52 @@ export default function ScanScreen() {
   // One pan gesture per handle; the id encodes which edges move, so a single
   // updater covers all eight. The rect at drag start is the source of truth —
   // translations are applied against it, never accumulated per event.
+  // Gesture callbacks run as UI-thread worklets, so every React state access
+  // lives in these JS-thread helpers, reached via runOnJS.
+  const beginHandleDrag = () => {
+    cropDragStart.current = cropRect;
+  };
+
+  const moveHandleDrag = (id: HandleId, translationX: number, translationY: number) => {
+    const start = cropDragStart.current;
+    if (!start || !imageRect) return;
+    let { x, y, w, h } = start;
+    const maxX = imageRect.x + imageRect.w;
+    const maxY = imageRect.y + imageRect.h;
+    if (id.includes('l')) {
+      const nx = Math.min(
+        Math.max(imageRect.x, start.x + translationX),
+        start.x + start.w - MIN_CROP_SIZE,
+      );
+      w = start.w - (nx - start.x);
+      x = nx;
+    }
+    if (id.includes('r')) {
+      w = Math.min(Math.max(MIN_CROP_SIZE, start.w + translationX), maxX - start.x);
+    }
+    if (id.includes('t')) {
+      const ny = Math.min(
+        Math.max(imageRect.y, start.y + translationY),
+        start.y + start.h - MIN_CROP_SIZE,
+      );
+      h = start.h - (ny - start.y);
+      y = ny;
+    }
+    if (id.includes('b')) {
+      h = Math.min(Math.max(MIN_CROP_SIZE, start.h + translationY), maxY - start.y);
+    }
+    setCropRect({ x, y, w, h });
+  };
+
   const makeHandleGesture = (id: HandleId) =>
     Gesture.Pan()
       .onStart(() => {
-        cropDragStart.current = cropRect;
+        'worklet';
+        runOnJS(beginHandleDrag)();
       })
       .onUpdate((e) => {
-        const start = cropDragStart.current;
-        if (!start || !imageRect) return;
-        let { x, y, w, h } = start;
-        const maxX = imageRect.x + imageRect.w;
-        const maxY = imageRect.y + imageRect.h;
-        if (id.includes('l')) {
-          const nx = Math.min(
-            Math.max(imageRect.x, start.x + e.translationX),
-            start.x + start.w - MIN_CROP_SIZE,
-          );
-          w = start.w - (nx - start.x);
-          x = nx;
-        }
-        if (id.includes('r')) {
-          w = Math.min(Math.max(MIN_CROP_SIZE, start.w + e.translationX), maxX - start.x);
-        }
-        if (id.includes('t')) {
-          const ny = Math.min(
-            Math.max(imageRect.y, start.y + e.translationY),
-            start.y + start.h - MIN_CROP_SIZE,
-          );
-          h = start.h - (ny - start.y);
-          y = ny;
-        }
-        if (id.includes('b')) {
-          h = Math.min(Math.max(MIN_CROP_SIZE, start.h + e.translationY), maxY - start.y);
-        }
-        setCropRect({ x, y, w, h });
+        'worklet';
+        runOnJS(moveHandleDrag)(id, e.translationX, e.translationY);
       });
 
   // Show the focus/light guidance for a few seconds when the camera opens
