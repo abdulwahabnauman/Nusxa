@@ -1,0 +1,1 @@
+timestamp,sample,is_negative,expected,extracted,matched,name_accuracy,dosage_accuracy,frequency_accuracy,duration_accuracy,false_rate,missing_rate,hallucination

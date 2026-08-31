@@ -1,0 +1,5 @@
+{
+  "negative": true,
+  "medicines": [],
+  "_comment": "Example NEGATIVE sample: pair this file with a photo that contains NO prescription (blank paper, newspaper, etc.). The pipeline must return zero medicines. For real prescriptions, remove 'negative' and hand-label every medicine you can read: name, dosage, frequency, duration."
+}
