@@ -443,6 +443,27 @@ const migration_v18: Migration = {
   },
 };
 
+/**
+ * Version 19: Repair pass for `name_ur`.
+ * The final version-normalization step in runMigrations can record version
+ * 18 before this ALTER ever shipped to a device (bundle swaps during dev),
+ * leaving the stored version at 18 with the column still missing — after
+ * which v18 is skipped forever. Verify the real schema and add the column
+ * whenever it is absent, regardless of the stored version.
+ */
+const migration_v19: Migration = {
+  version: 19,
+  up: async (db) => {
+    const columns = await db.getAllAsync<{ name: string }>(
+      'PRAGMA table_info(profile);'
+    );
+    if (!columns.some((c) => c.name === 'name_ur')) {
+      await db.execAsync('ALTER TABLE profile ADD COLUMN name_ur TEXT;');
+    }
+    await db.runAsync('UPDATE schema_version SET version = 19;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -462,6 +483,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v16,
   migration_v17,
   migration_v18,
+  migration_v19,
 ];
 
 /** Run pending migrations */

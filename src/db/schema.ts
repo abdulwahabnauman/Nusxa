@@ -5,7 +5,7 @@
  * updates the stored `schema_version` row to its own version, so after all
  * migrations run the stored value always equals this constant.
  */
-export const CURRENT_SCHEMA_VERSION = 18;
+export const CURRENT_SCHEMA_VERSION = 19;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (
