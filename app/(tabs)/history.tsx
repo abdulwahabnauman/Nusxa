@@ -7,6 +7,7 @@ import {
   RefreshControl,
   TextInput,
   TouchableOpacity,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -308,25 +309,33 @@ export default function HistoryScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <FlatList
-        ref={listRef}
-        data={prescriptions}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={[styles.scrollContent, { paddingHorizontal: spacing.base }]}
-        ListHeaderComponent={listHeader}
-        ListEmptyComponent={listEmpty}
-        initialNumToRender={8}
-        windowSize={7}
-        removeClippedSubviews
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.accent.primary}
-          />
-        }
-      />
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          ref={listRef}
+          data={prescriptions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: spacing.base }]}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          initialNumToRender={8}
+          windowSize={7}
+          removeClippedSubviews
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent.primary}
+            />
+          }
+        />
+      </KeyboardAvoidingView>
       {undoToastElement}
     </SafeAreaView>
   );
@@ -336,6 +345,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  inner: { flex: 1 },
   scrollContent: {
     paddingBottom: 24,
   },

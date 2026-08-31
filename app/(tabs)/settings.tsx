@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -456,514 +456,525 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>{t.settings.title}</Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          ref={scrollRef}
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h2, { color: colors.text.primary }]}>{t.settings.title}</Text>
+          </View>
 
-        {/* Profile */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.profile}</Text>
-          <Card>
-            {editingName ? (
-              <View style={{ gap: 16 }}>
-                <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
-                <TextInput
-                  value={nameInput}
-                  onChangeText={setNameInput}
-                  placeholder={t.onboarding.yourName}
-                  placeholderTextColor={colors.text.disabled}
-                  autoFocus
-                  style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16 }]}
-                />
-                <View style={{ flexDirection: 'row', gap: 12 }}>
-                  <TouchableOpacity 
-                    style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, flex: 1, paddingVertical: 14, alignItems: 'center' }]}
-                    onPress={async () => {
-                      if (!nameInput.trim()) return;
-                      setSavingName(true);
-                      try {
-                        await updateProfile({ name: nameInput.trim() });
-                        setProfile({ ...profile!, name: nameInput.trim() });
-                        setNameInput(nameInput.trim());
-                        setEditingName(false);
-                        nameMorph.trigger();
-                      } catch (err) {
-                        console.error('Failed to save name:', err);
-                        const errorMessage = err instanceof Error ? err.message : String(err);
-                        if (errorMessage.includes('Database not initialized')) {
-                          setTimeout(async () => {
-                            try {
-                              await updateProfile({ name: nameInput.trim() });
-                              setEditingName(false);
-                              nameMorph.trigger();
-                            } catch {
-                              showToast(t.toasts.databaseNotReady, 'error');
-                            }
-                          }, 1000);
-                        } else {
-                          showToast(t.toasts.saveNameFailed, 'error');
-                        }
-                      } finally { setSavingName(false); }
-                    }}
-                    disabled={savingName}
-                  >
-                    <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 14, alignItems: 'center' }]}
-                    onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(false); }}
-                  >
-                    <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.common.cancel}</Text>
-                  </TouchableOpacity>
+          {/* Profile */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.profile}</Text>
+            <Card>
+              {editingName ? (
+                <View style={{ gap: 16 }}>
+                  <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
+                  <TextInput
+                    value={nameInput}
+                    onChangeText={setNameInput}
+                    placeholder={t.onboarding.yourName}
+                    placeholderTextColor={colors.text.disabled}
+                    autoFocus
+                    style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 16 }]}
+                  />
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity
+                      style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, flex: 1, paddingVertical: 14, alignItems: 'center' }]}
+                      onPress={async () => {
+                        if (!nameInput.trim()) return;
+                        setSavingName(true);
+                        try {
+                          await updateProfile({ name: nameInput.trim() });
+                          setProfile({ ...profile!, name: nameInput.trim() });
+                          setNameInput(nameInput.trim());
+                          setEditingName(false);
+                          nameMorph.trigger();
+                        } catch (err) {
+                          console.error('Failed to save name:', err);
+                          const errorMessage = err instanceof Error ? err.message : String(err);
+                          if (errorMessage.includes('Database not initialized')) {
+                            setTimeout(async () => {
+                              try {
+                                await updateProfile({ name: nameInput.trim() });
+                                setEditingName(false);
+                                nameMorph.trigger();
+                              } catch {
+                                showToast(t.toasts.databaseNotReady, 'error');
+                              }
+                            }, 1000);
+                          } else {
+                            showToast(t.toasts.saveNameFailed, 'error');
+                          }
+                        } finally { setSavingName(false); }
+                      }}
+                      disabled={savingName}
+                    >
+                      <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 14, alignItems: 'center' }]}
+                      onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(false); }}
+                    >
+                      <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.common.cancel}</Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              </View>
-            ) : (
-              <>
-                <TouchableOpacity style={styles.row} onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(true); }}>
-                  <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={[typography.body.base, { color: colors.text.primary }]}>
-                      {profile?.name || t.common.loading}
-                    </Text>
-                    {nameMorph.active && (
-                      <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
-                    )}
-                    <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Date of birth — optional; leave empty to keep it unset */}
-                <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-                {editingDob ? (
-                  <View style={{ gap: 12 }}>
-                    <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.onboarding.dobLabel}</Text>
-                    <TextInput
-                      value={dobInput}
-                      onChangeText={setDobInput}
-                      placeholder={t.onboarding.dobPlaceholder}
-                      placeholderTextColor={colors.text.disabled}
-                      keyboardType="numbers-and-punctuation"
-                      autoFocus
-                      style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }]}
-                    />
-                    <View style={{ flexDirection: 'row', gap: 12 }}>
-                      <TouchableOpacity
-                        style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
-                        onPress={async () => {
-                          const trimmed = dobInput.trim();
-                          if (trimmed && !isValidDate(trimmed)) {
-                            showToast(t.onboarding.dobInvalid, 'warning');
-                            return;
-                          }
-                          try {
-                            await updateProfile({ date_of_birth: trimmed || null });
-                            if (profile) setProfile({ ...profile, date_of_birth: trimmed || null });
-                            setEditingDob(false);
-                          } catch {
-                            showToast(t.toasts.saveFailed, 'error');
-                          }
-                        }}
-                      >
-                        <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
-                        onPress={() => setEditingDob(false)}
-                      >
-                        <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.common.cancel}</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                ) : (
-                  <TouchableOpacity style={styles.row} onPress={() => { setDobInput(profile?.date_of_birth ?? ''); setEditingDob(true); }}>
-                    <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.onboarding.dobLabel}</Text>
+              ) : (
+                <>
+                  <TouchableOpacity style={styles.row} onPress={() => { setNameInput(profile?.name ?? ''); setEditingName(true); }}>
+                    <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.settings.name}</Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[typography.body.base, { color: profile?.date_of_birth ? colors.text.primary : colors.text.disabled }]}>
-                        {profile?.date_of_birth || t.common.notSet}
+                      <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                        {profile?.name || t.common.loading}
                       </Text>
+                      {nameMorph.active && (
+                        <MaterialCommunityIcons name="check-circle" size={20} color={colors.success} accessibilityLabel={t.common.saved} />
+                      )}
                       <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
                     </View>
                   </TouchableOpacity>
-                )}
 
-                {/* Blood group — optional; tapping the selected chip clears it */}
-                {!editingDob && (
-                  <>
-                    <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-                    <TouchableOpacity style={styles.row} onPress={() => setEditingBlood((v) => !v)}>
-                      <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.emergency.bloodGroup}</Text>
+                  {/* Date of birth — optional; leave empty to keep it unset */}
+                  <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+                  {editingDob ? (
+                    <View style={{ gap: 12 }}>
+                      <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.onboarding.dobLabel}</Text>
+                      <TextInput
+                        value={dobInput}
+                        onChangeText={setDobInput}
+                        placeholder={t.onboarding.dobPlaceholder}
+                        placeholderTextColor={colors.text.disabled}
+                        keyboardType="numbers-and-punctuation"
+                        autoFocus
+                        style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12 }]}
+                      />
+                      <View style={{ flexDirection: 'row', gap: 12 }}>
+                        <TouchableOpacity
+                          style={[styles.saveKeyBtn, { backgroundColor: colors.accent.primary, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
+                          onPress={async () => {
+                            const trimmed = dobInput.trim();
+                            if (trimmed && !isValidDate(trimmed)) {
+                              showToast(t.onboarding.dobInvalid, 'warning');
+                              return;
+                            }
+                            try {
+                              await updateProfile({ date_of_birth: trimmed || null });
+                              if (profile) setProfile({ ...profile, date_of_birth: trimmed || null });
+                              setEditingDob(false);
+                            } catch {
+                              showToast(t.toasts.saveFailed, 'error');
+                            }
+                          }}
+                        >
+                          <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
+                          onPress={() => setEditingDob(false)}
+                        >
+                          <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.common.cancel}</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : (
+                    <TouchableOpacity style={styles.row} onPress={() => { setDobInput(profile?.date_of_birth ?? ''); setEditingDob(true); }}>
+                      <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.onboarding.dobLabel}</Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[typography.body.base, { color: profile?.blood_group ? colors.text.primary : colors.text.disabled }]}>
-                          {profile?.blood_group || t.common.notSet}
+                        <Text style={[typography.body.base, { color: profile?.date_of_birth ? colors.text.primary : colors.text.disabled }]}>
+                          {profile?.date_of_birth || t.common.notSet}
                         </Text>
                         <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
                       </View>
                     </TouchableOpacity>
-                    {editingBlood && (
-                      <View style={[styles.themeOptions, { flexWrap: 'wrap', marginTop: spacing.sm }]}>
-                        {BLOOD_GROUPS.map((group) => {
-                          const selected = profile?.blood_group === group;
-                          return (
-                            <TouchableOpacity
-                              key={group}
-                              style={[styles.themeChip, { backgroundColor: selected ? colors.accent.primary : colors.background.subtle, borderColor: selected ? colors.accent.primary : colors.border.default }]}
-                              onPress={async () => {
-                                const next = selected ? null : group;
-                                try {
-                                  await updateProfile({ blood_group: next });
-                                  if (profile) setProfile({ ...profile, blood_group: next });
-                                } catch {
-                                  showToast(t.toasts.saveFailed, 'error');
-                                }
-                              }}
-                              accessibilityLabel={`Set blood group to ${group}`}
-                              accessibilityState={{ selected }}
-                            >
-                              <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>{group}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </View>
-                    )}
-                  </>
-                )}
-              </>
-            )}
-          </Card>
-        </View>
+                  )}
 
-        {/* Appearance */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.appearance}</Text>
-          <Card>
-            <View style={styles.row}>
-              <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.theme}</Text>
-              <View style={styles.themeOptions}>
-                {(['system', 'light', 'dark'] as const).map((opt) => (
-                  <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => { if (themePref !== opt) { selectionHaptic(); setPreference(opt); } }} accessibilityLabel={`Set theme to ${opt}`} accessibilityState={{ selected: themePref === opt }}>
-                    <Text style={[typography.label.sm, { color: themePref === opt ? '#FFFFFF' : colors.text.secondary }]}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.elderlyMode}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.elderlyModeDesc}</Text>
-              </View>
-              <Switch value={elderlyMode} onValueChange={(v) => { selectionHaptic(); setElderlyMode(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle elderly mode" />
-            </View>
-            <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.highContrast}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.highContrastDesc}</Text>
-              </View>
-              <Switch value={highContrast} onValueChange={(v) => { selectionHaptic(); setHighContrast(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle high contrast mode" />
-            </View>
-            <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reducedMotion}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reducedMotionDesc}</Text>
-              </View>
-              <Switch value={reducedMotion} onValueChange={(v) => { selectionHaptic(); setReducedMotion(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle reduced motion" />
-            </View>
-          </Card>
-        </View>
+                  {/* Blood group — optional; tapping the selected chip clears it */}
+                  {!editingDob && (
+                    <>
+                      <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+                      <TouchableOpacity style={styles.row} onPress={() => setEditingBlood((v) => !v)}>
+                        <Text style={[typography.body.base, { color: colors.text.secondary }]}>{t.emergency.bloodGroup}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Text style={[typography.body.base, { color: profile?.blood_group ? colors.text.primary : colors.text.disabled }]}>
+                            {profile?.blood_group || t.common.notSet}
+                          </Text>
+                          <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent.primary} />
+                        </View>
+                      </TouchableOpacity>
+                      {editingBlood && (
+                        <View style={[styles.themeOptions, { flexWrap: 'wrap', marginTop: spacing.sm }]}>
+                          {BLOOD_GROUPS.map((group) => {
+                            const selected = profile?.blood_group === group;
+                            return (
+                              <TouchableOpacity
+                                key={group}
+                                style={[styles.themeChip, { backgroundColor: selected ? colors.accent.primary : colors.background.subtle, borderColor: selected ? colors.accent.primary : colors.border.default }]}
+                                onPress={async () => {
+                                  const next = selected ? null : group;
+                                  try {
+                                    await updateProfile({ blood_group: next });
+                                    if (profile) setProfile({ ...profile, blood_group: next });
+                                  } catch {
+                                    showToast(t.toasts.saveFailed, 'error');
+                                  }
+                                }}
+                                accessibilityLabel={`Set blood group to ${group}`}
+                                accessibilityState={{ selected }}
+                              >
+                                <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>{group}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </>
+                  )}
+                </>
+              )}
+            </Card>
+          </View>
 
-        {/* Language */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.language}</Text>
-          <Card>
-            <View style={styles.row}>
-              <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.language}</Text>
-              <View style={styles.themeOptions}>
-                {(['en', 'ur'] as const).map((lang) => (
-                  <TouchableOpacity key={lang} style={[styles.themeChip, { backgroundColor: language === lang ? colors.accent.primary : colors.background.subtle, borderColor: language === lang ? colors.accent.primary : colors.border.default }]} onPress={async () => {
-                    if (language !== lang) {
-                      selectionHaptic();
-                      setLanguage(lang);
-                      try { await updateProfile({ language: lang }); }
-                      catch { console.log('Database not ready'); }
-                      const willBeRTL = lang === 'ur';
-                      // Persist for cold starts; the live flip is instant via
-                      // the root view's `direction` style — no restart needed.
-                      I18nManager.allowRTL(true);
-                      I18nManager.forceRTL(willBeRTL);
-                    }
-                  }} accessibilityLabel={`Set language to ${lang === 'en' ? 'English' : 'اردو'}`} accessibilityState={{ selected: language === lang }}>
-                    <Text style={[typography.label.sm, { color: language === lang ? '#FFFFFF' : colors.text.secondary }]}>{lang === 'en' ? t.settings.english : t.settings.urdu}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-          </Card>
-        </View>
-
-        {/* Notifications */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.notifications}</Text>
-          <Card>
-            <View style={styles.row}>
-              <View>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.medicineReminders}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.medicineRemindersDesc}</Text>
-              </View>
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={async (v) => {
-                  selectionHaptic();
-                  if (!v) {
-                    setNotificationsEnabled(false);
-                    return;
-                  }
-                  // Turning reminders on needs OS notification permission.
-                  // The shared gate re-prompts on every attempt while the OS
-                  // still allows re-asking; only once permanently denied does
-                  // it fall back to the settings toast (no silent no-op).
-                  try {
-                    const result = await ensureNotificationPermission();
-                    setNotificationsEnabled(result.granted);
-                    if (result.granted) {
-                      // Arm reminders right away instead of waiting for the next sync
-                      void syncDoseNotifications();
-                    } else if (isPermanentlyDenied(result)) {
-                      showToastWithAction(
-                        t.settings.notifPermBlocked,
-                        { label: t.scanner.openSettings, onPress: openAppSettings },
-                        'warning'
-                      );
-                    } else {
-                      showToast(t.settings.notifPermAskAgain, 'warning');
-                    }
-                  } catch {
-                    // Permission plumbing failed — keep the previous non-blocking
-                    // behavior and just apply the toggle.
-                    setNotificationsEnabled(true);
-                  }
-                }}
-                trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                accessibilityLabel="Toggle medicine reminders"
-              />
-            </View>
-            <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View style={{ flex: 1, marginEnd: spacing.sm }}>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.snoozeDuration}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.snoozeDurationDesc}</Text>
-              </View>
-              <View style={styles.themeOptions}>
-                {[5, 10, 15, 30].map((min) => (
-                  <TouchableOpacity
-                    key={min}
-                    style={[styles.themeChip, { backgroundColor: snoozeMinutes === min ? colors.accent.primary : colors.background.subtle, borderColor: snoozeMinutes === min ? colors.accent.primary : colors.border.default }]}
-                    onPress={() => { if (snoozeMinutes !== min) { selectionHaptic(); setSnoozeMinutes(min); } }}
-                    accessibilityLabel={`Set snooze to ${min} minutes`}
-                    accessibilityState={{ selected: snoozeMinutes === min }}
-                  >
-                    <Text style={[typography.label.sm, { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary }]}>{nf(min)}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-            <View style={[styles.row, { marginTop: spacing.md }]}>
-              <View style={{ flex: 1, marginEnd: spacing.sm }}>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reminderEscalation}</Text>
-                <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reminderEscalationDesc}</Text>
-              </View>
-              <Switch
-                value={reminderEscalation}
-                onValueChange={(value) => {
-                  selectionHaptic();
-                  setReminderEscalation(value);
-                  // Arm/disarm the post-window re-rings right away
-                  void syncDoseNotifications();
-                }}
-                trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                accessibilityLabel="Toggle reminder escalation"
-              />
-            </View>
-          </Card>
-        </View>
-
-        {/* Security */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.security}</Text>
-          <Card>
-            <View style={styles.row}>
-              <View style={{ flex: 1, marginEnd: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <View style={{ flexShrink: 1 }}>
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.appLock}</Text>
-                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.appLockDesc}</Text>
+          {/* Appearance */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.appearance}</Text>
+            <Card>
+              <View style={styles.row}>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.theme}</Text>
+                <View style={styles.themeOptions}>
+                  {(['system', 'light', 'dark'] as const).map((opt) => (
+                    <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => { if (themePref !== opt) { selectionHaptic(); setPreference(opt); } }} accessibilityLabel={`Set theme to ${opt}`} accessibilityState={{ selected: themePref === opt }}>
+                      <Text style={[typography.label.sm, { color: themePref === opt ? '#FFFFFF' : colors.text.secondary }]}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                {lockMorph.active && (
-                  <MaterialCommunityIcons name="check-circle" size={18} color={colors.success} accessibilityLabel={t.settings.appLockEnabled} />
-                )}
               </View>
-              <Switch value={appLockEnabled} onValueChange={handleLockToggle} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle app lock" />
-            </View>
-            {appLockEnabled && biometricSupport.available && (
               <View style={[styles.row, { marginTop: spacing.md }]}>
-                <View style={{ flex: 1, marginEnd: spacing.sm }}>
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.useBiometric}</Text>
-                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.useBiometricDesc}</Text>
+                <View>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.elderlyMode}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.elderlyModeDesc}</Text>
+                </View>
+                <Switch value={elderlyMode} onValueChange={(v) => { selectionHaptic(); setElderlyMode(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle elderly mode" />
+              </View>
+              <View style={[styles.row, { marginTop: spacing.md }]}>
+                <View>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.highContrast}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.highContrastDesc}</Text>
+                </View>
+                <Switch value={highContrast} onValueChange={(v) => { selectionHaptic(); setHighContrast(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle high contrast mode" />
+              </View>
+              <View style={[styles.row, { marginTop: spacing.md }]}>
+                <View>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reducedMotion}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reducedMotionDesc}</Text>
+                </View>
+                <Switch value={reducedMotion} onValueChange={(v) => { selectionHaptic(); setReducedMotion(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle reduced motion" />
+              </View>
+            </Card>
+          </View>
+
+          {/* Language */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.language}</Text>
+            <Card>
+              <View style={styles.row}>
+                <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.language}</Text>
+                <View style={styles.themeOptions}>
+                  {(['en', 'ur'] as const).map((lang) => (
+                    <TouchableOpacity key={lang} style={[styles.themeChip, { backgroundColor: language === lang ? colors.accent.primary : colors.background.subtle, borderColor: language === lang ? colors.accent.primary : colors.border.default }]} onPress={async () => {
+                      if (language !== lang) {
+                        selectionHaptic();
+                        setLanguage(lang);
+                        try { await updateProfile({ language: lang }); }
+                        catch { console.log('Database not ready'); }
+                        const willBeRTL = lang === 'ur';
+                        // Persist for cold starts; the live flip is instant via
+                        // the root view's `direction` style — no restart needed.
+                        I18nManager.allowRTL(true);
+                        I18nManager.forceRTL(willBeRTL);
+                      }
+                    }} accessibilityLabel={`Set language to ${lang === 'en' ? 'English' : 'اردو'}`} accessibilityState={{ selected: language === lang }}>
+                      <Text style={[typography.label.sm, { color: language === lang ? '#FFFFFF' : colors.text.secondary }]}>{lang === 'en' ? t.settings.english : t.settings.urdu}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </Card>
+          </View>
+
+          {/* Notifications */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.notifications}</Text>
+            <Card>
+              <View style={styles.row}>
+                <View>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.medicineReminders}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.medicineRemindersDesc}</Text>
                 </View>
                 <Switch
-                  value={biometricPref}
-                  onValueChange={async (value) => {
-                    if (value) {
-                      const ok =
-                        (await authenticateWithBiometrics('Confirm biometric unlock')).ok ||
-                        biometricDevBypass();
-                      if (!ok) {
-                        showToast(t.toasts.biometricFallback, 'error');
-                        return;
-                      }
+                  value={notificationsEnabled}
+                  onValueChange={async (v) => {
+                    selectionHaptic();
+                    if (!v) {
+                      setNotificationsEnabled(false);
+                      return;
                     }
-                    setBiometricPref(value);
+                    // Turning reminders on needs OS notification permission.
+                    // The shared gate re-prompts on every attempt while the OS
+                    // still allows re-asking; only once permanently denied does
+                    // it fall back to the settings toast (no silent no-op).
                     try {
-                      await setBiometricPreferred(value);
+                      const result = await ensureNotificationPermission();
+                      setNotificationsEnabled(result.granted);
+                      if (result.granted) {
+                        // Arm reminders right away instead of waiting for the next sync
+                        void syncDoseNotifications();
+                      } else if (isPermanentlyDenied(result)) {
+                        showToastWithAction(
+                          t.settings.notifPermBlocked,
+                          { label: t.scanner.openSettings, onPress: openAppSettings },
+                          'warning'
+                        );
+                      } else {
+                        showToast(t.settings.notifPermAskAgain, 'warning');
+                      }
                     } catch {
-                      // Storage hiccup — toggle still reflects in this session
+                      // Permission plumbing failed — keep the previous non-blocking
+                      // behavior and just apply the toggle.
+                      setNotificationsEnabled(true);
                     }
                   }}
                   trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                  accessibilityLabel="Toggle biometric unlock"
+                  accessibilityLabel="Toggle medicine reminders"
                 />
               </View>
-            )}
-          </Card>
-        </View>
-
-        {/* AI Service */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiService}</Text>
-          {isAiProxyConfigured() ? (
-            <>
-            <Card>
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MaterialCommunityIcons name="check-decagram" size={24} color={colors.success} />
-                <View style={{ flex: 1, marginStart: spacing.sm }}>
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.aiPreconfigured}</Text>
-                  <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>{t.settings.aiPreconfiguredDesc}</Text>
+              <View style={[styles.row, { marginTop: spacing.md }]}>
+                <View style={{ flex: 1, marginEnd: spacing.sm }}>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.snoozeDuration}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.snoozeDurationDesc}</Text>
+                </View>
+                <View style={styles.themeOptions}>
+                  {[5, 10, 15, 30].map((min) => (
+                    <TouchableOpacity
+                      key={min}
+                      style={[styles.themeChip, { backgroundColor: snoozeMinutes === min ? colors.accent.primary : colors.background.subtle, borderColor: snoozeMinutes === min ? colors.accent.primary : colors.border.default }]}
+                      onPress={() => { if (snoozeMinutes !== min) { selectionHaptic(); setSnoozeMinutes(min); } }}
+                      accessibilityLabel={`Set snooze to ${min} minutes`}
+                      accessibilityState={{ selected: snoozeMinutes === min }}
+                    >
+                      <Text style={[typography.label.sm, { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary }]}>{nf(min)}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
               </View>
               <View style={[styles.row, { marginTop: spacing.md }]}>
                 <View style={{ flex: 1, marginEnd: spacing.sm }}>
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.ownKeys}</Text>
-                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.ownKeysDesc}</Text>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reminderEscalation}</Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reminderEscalationDesc}</Text>
                 </View>
                 <Switch
-                  value={useOwnKeys}
+                  value={reminderEscalation}
                   onValueChange={(value) => {
                     selectionHaptic();
-                    setUseOwnKeys(value);
+                    setReminderEscalation(value);
+                    // Arm/disarm the post-window re-rings right away
+                    void syncDoseNotifications();
                   }}
                   trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                  accessibilityLabel="Toggle use my own keys"
+                  accessibilityLabel="Toggle reminder escalation"
                 />
               </View>
             </Card>
-            {useOwnKeys && (
-              <View style={{ marginTop: spacing.sm }}>{aiKeyFields}</View>
-            )}
-            </>
-          ) : (
-            aiKeyFields
-          )}
-        </View>
+          </View>
 
-        {/* Data */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.data}</Text>
-          <Card>
-            <TouchableOpacity 
-              style={styles.row}
-              onPress={async () => {
-                try {
-                  const data = await exportAsJSON();
-                  // Write a real .json file so the share sheet hands over a
-                  // properly named document instead of a blob of text.
-                  const fileName = `Nusxa_Backup_${new Date().toISOString().slice(0, 10)}.json`;
-                  const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
-                  await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2), {
-                    encoding: FileSystem.EncodingType.UTF8,
-                  });
-                  await withLockExemption(() =>
-                    Sharing.shareAsync(fileUri, {
-                      mimeType: 'application/json',
-                      dialogTitle: 'Export Nusxa data',
-                    })
-                  );
-                } catch (err) {
-                  console.error('[backup] plain export failed:', err);
-                  const detail = err instanceof Error && err.message ? err.message : '';
-                  showToast(t.toasts.exportFailed.replace('{error}', detail).trim(), 'error', 6000);
-                }
-              }}
-              accessibilityLabel="Export data as JSON"
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MaterialCommunityIcons name="download-outline" size={20} color={colors.text.primary} />
-                <Text style={[typography.body.base, { color: colors.text.primary, marginStart: 8 }]}>{t.settings.exportData}</Text>
-              </View>
-              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
-            </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-            <TouchableOpacity
-              style={styles.row}
-              onPress={() => {
-                setEncPassword('');
-                setEncConfirm('');
-                setEncError(null);
-                setEncModal('export');
-              }}
-              accessibilityLabel="Create encrypted backup"
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MaterialCommunityIcons name="lock-outline" size={20} color={colors.text.primary} />
-                <View style={{ marginStart: 8, flexShrink: 1 }}>
-                  <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.encryptedBackup}</Text>
-                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.encryptedBackupDesc}</Text>
+          {/* Security */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.security}</Text>
+            <Card>
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginEnd: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <View style={{ flexShrink: 1 }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.appLock}</Text>
+                    <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.appLockDesc}</Text>
+                  </View>
+                  {lockMorph.active && (
+                    <MaterialCommunityIcons name="check-circle" size={18} color={colors.success} accessibilityLabel={t.settings.appLockEnabled} />
+                  )}
                 </View>
+                <Switch value={appLockEnabled} onValueChange={handleLockToggle} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle app lock" />
               </View>
-              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
-            </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-            <TouchableOpacity
-              style={styles.row}
-              onPress={handleImportData}
-              disabled={importing}
-              accessibilityLabel="Import data from JSON"
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MaterialCommunityIcons name="upload-outline" size={20} color={colors.text.primary} />
-                <Text style={[typography.body.base, { color: colors.text.primary, marginStart: 8 }]}>
-                  {importing ? t.common.loading : t.settings.importData}
-                </Text>
-              </View>
-              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
-            </TouchableOpacity>
-            <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-            <TouchableOpacity style={styles.row} onPress={handleClearData} accessibilityLabel="Delete all data">
-              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                <MaterialCommunityIcons name="delete-outline" size={20} color={colors.error} />
-                <Text style={[typography.body.base, { color: colors.error, marginStart: 8 }]}>{t.settings.deleteAllData}</Text>
-              </View>
-              <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
-            </TouchableOpacity>
-          </Card>
-        </View>
+              {appLockEnabled && biometricSupport.available && (
+                <View style={[styles.row, { marginTop: spacing.md }]}>
+                  <View style={{ flex: 1, marginEnd: spacing.sm }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.useBiometric}</Text>
+                    <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.useBiometricDesc}</Text>
+                  </View>
+                  <Switch
+                    value={biometricPref}
+                    onValueChange={async (value) => {
+                      if (value) {
+                        const ok =
+                          (await authenticateWithBiometrics('Confirm biometric unlock')).ok ||
+                          biometricDevBypass();
+                        if (!ok) {
+                          showToast(t.toasts.biometricFallback, 'error');
+                          return;
+                        }
+                      }
+                      setBiometricPref(value);
+                      try {
+                        await setBiometricPreferred(value);
+                      } catch {
+                        // Storage hiccup — toggle still reflects in this session
+                      }
+                    }}
+                    trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                    accessibilityLabel="Toggle biometric unlock"
+                  />
+                </View>
+              )}
+            </Card>
+          </View>
 
-        {/* About */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Card>
-            <View style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-              <Text style={[typography.body.sm, { color: colors.text.secondary }]}>{t.settings.about}</Text>
-              <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 4 }]}>{t.settings.aboutDesc}</Text>
-            </View>
-          </Card>
-        </View>
-      </ScrollView>
+          {/* AI Service */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiService}</Text>
+            {isAiProxyConfigured() ? (
+              <>
+              <Card>
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="check-decagram" size={24} color={colors.success} />
+                  <View style={{ flex: 1, marginStart: spacing.sm }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.aiPreconfigured}</Text>
+                    <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>{t.settings.aiPreconfiguredDesc}</Text>
+                  </View>
+                </View>
+                <View style={[styles.row, { marginTop: spacing.md }]}>
+                  <View style={{ flex: 1, marginEnd: spacing.sm }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.ownKeys}</Text>
+                    <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.ownKeysDesc}</Text>
+                  </View>
+                  <Switch
+                    value={useOwnKeys}
+                    onValueChange={(value) => {
+                      selectionHaptic();
+                      setUseOwnKeys(value);
+                    }}
+                    trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                    accessibilityLabel="Toggle use my own keys"
+                  />
+                </View>
+              </Card>
+              {useOwnKeys && (
+                <View style={{ marginTop: spacing.sm }}>{aiKeyFields}</View>
+              )}
+              </>
+            ) : (
+              aiKeyFields
+            )}
+          </View>
+
+          {/* Data */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.data}</Text>
+            <Card>
+              <TouchableOpacity
+                style={styles.row}
+                onPress={async () => {
+                  try {
+                    const data = await exportAsJSON();
+                    // Write a real .json file so the share sheet hands over a
+                    // properly named document instead of a blob of text.
+                    const fileName = `Nusxa_Backup_${new Date().toISOString().slice(0, 10)}.json`;
+                    const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+                    await FileSystem.writeAsStringAsync(fileUri, JSON.stringify(data, null, 2), {
+                      encoding: FileSystem.EncodingType.UTF8,
+                    });
+                    await withLockExemption(() =>
+                      Sharing.shareAsync(fileUri, {
+                        mimeType: 'application/json',
+                        dialogTitle: 'Export Nusxa data',
+                      })
+                    );
+                  } catch (err) {
+                    console.error('[backup] plain export failed:', err);
+                    const detail = err instanceof Error && err.message ? err.message : '';
+                    showToast(t.toasts.exportFailed.replace('{error}', detail).trim(), 'error', 6000);
+                  }
+                }}
+                accessibilityLabel="Export data as JSON"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="download-outline" size={20} color={colors.text.primary} />
+                  <Text style={[typography.body.base, { color: colors.text.primary, marginStart: 8 }]}>{t.settings.exportData}</Text>
+                </View>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+              <TouchableOpacity
+                style={styles.row}
+                onPress={() => {
+                  setEncPassword('');
+                  setEncConfirm('');
+                  setEncError(null);
+                  setEncModal('export');
+                }}
+                accessibilityLabel="Create encrypted backup"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="lock-outline" size={20} color={colors.text.primary} />
+                  <View style={{ marginStart: 8, flexShrink: 1 }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.encryptedBackup}</Text>
+                    <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.encryptedBackupDesc}</Text>
+                  </View>
+                </View>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+              <TouchableOpacity
+                style={styles.row}
+                onPress={handleImportData}
+                disabled={importing}
+                accessibilityLabel="Import data from JSON"
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="upload-outline" size={20} color={colors.text.primary} />
+                  <Text style={[typography.body.base, { color: colors.text.primary, marginStart: 8 }]}>
+                    {importing ? t.common.loading : t.settings.importData}
+                  </Text>
+                </View>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
+              </TouchableOpacity>
+              <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
+              <TouchableOpacity style={styles.row} onPress={handleClearData} accessibilityLabel="Delete all data">
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <MaterialCommunityIcons name="delete-outline" size={20} color={colors.error} />
+                  <Text style={[typography.body.base, { color: colors.error, marginStart: 8 }]}>{t.settings.deleteAllData}</Text>
+                </View>
+                <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
+              </TouchableOpacity>
+            </Card>
+          </View>
+
+          {/* About */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Card>
+              <View style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
+                <Text style={[typography.body.sm, { color: colors.text.secondary }]}>{t.settings.about}</Text>
+                <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 4 }]}>{t.settings.aboutDesc}</Text>
+              </View>
+            </Card>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* App lock PIN setup / verification */}
       <Modal
@@ -1049,6 +1060,7 @@ export default function SettingsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  inner: { flex: 1 },
   scrollContent: { paddingBottom: 48 },
   header: { marginTop: 16, marginBottom: 24 },
   section: { marginBottom: 24 },
