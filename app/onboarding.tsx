@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { PillIcon } from '../src/components/ui/PillIcon';
 import * as Notifications from 'expo-notifications';
+import { useCameraPermissions } from 'expo-camera';
 import { useTheme } from '../src/theme/provider';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useThemeStore } from '../src/stores/theme-store';
@@ -39,6 +40,9 @@ export default function OnboardingScreen() {
   const [dob, setDob] = useState('');
   const [bloodGroup, setBloodGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Same expo-camera permission API the scan screen uses — requested here so
+  // the camera note above matches what actually happens on this step.
+  const [, requestCameraPermission] = useCameraPermissions();
   const { t } = useI18n();
 
   const handleWelcome = () => {
@@ -67,15 +71,19 @@ export default function OnboardingScreen() {
   const handlePermissions = async () => {
     setLoading(true);
     try {
-      // Request notification permission first. A failure here (denied,
-      // unavailable on some devices) must never block profile creation —
-      // reminders can be enabled later from Settings.
+      // Request notification AND camera permission together on this step
+      // (sequentially, so the OS dialogs never overlap). Either failure —
+      // denied, or unavailable on some devices — must never block profile
+      // creation: reminders can be enabled and the camera re-requested later
+      // (the scan screen re-prompts every time while the OS allows it).
       try {
-        const permResult = await Notifications.requestPermissionsAsync();
+        const notifResult = await Notifications.requestPermissionsAsync();
+        console.log('Notification permission granted:', notifResult.granted);
 
-        console.log('Notification permission granted:', permResult.granted);
+        const cameraResult = await requestCameraPermission();
+        console.log('Camera permission granted:', cameraResult.granted);
       } catch (permError) {
-        console.warn('Notification permission request failed, continuing:', permError);
+        console.warn('Permission request failed, continuing:', permError);
       }
 
       // Create or update the profile (upsert — a row may already exist on

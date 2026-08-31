@@ -34,6 +34,7 @@ import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRec
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, getMedicinesByIds, updateInventory } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
+import { ensureNotificationPermission } from '../../src/utils/permissions';
 import { useSettingsStore } from '../../src/stores/settings-store';
 import { useInvalidateData } from '../../src/hooks/queries';
 import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
@@ -89,7 +90,9 @@ export default function HomeScreen() {
     if (permBusy) return;
     setPermBusy(true);
     try {
-      const result = await Notifications.requestPermissionsAsync();
+      // Shared retry gate — re-prompts every attempt while the OS still
+      // allows asking; a permanently denied result just leaves the setting off.
+      const result = await ensureNotificationPermission();
       useSettingsStore.getState().setNotificationsEnabled(result.granted);
       await SecureStore.setItemAsync(PERM_PROMPT_KEY, '1').catch(() => {});
     } catch { /* never block the home screen on permission errors */ }

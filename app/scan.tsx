@@ -30,6 +30,7 @@ import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { selectionHaptic } from '../src/utils/haptics';
 import { useI18n } from '../src/i18n';
+import { ensurePermission } from '../src/utils/permissions';
 
 const AnimatedImage = createAnimatedComponent(Image);
 
@@ -167,10 +168,16 @@ export default function ScanScreen() {
   }, [cameraActive]);
 
   const handleRequestCamera = async () => {
-    const result = await requestPermission();
+    // Shared retry gate: while the OS still allows asking (canAskAgain),
+    // every tap on this button re-shows the prompt — no "asked once"
+    // bookkeeping. Only once canAskAgain turns false does the Open Settings
+    // fallback below render (existing permanently-denied check).
+    const result = await ensurePermission(permission, requestPermission);
     if (result.granted) {
       setCameraActive(true);
     } else {
+      // Denied — still re-askable: the next attempt prompts again. Once
+      // permanently denied, the Open Settings button renders instead.
       showToast(t.scanner.cameraNeededTitle, 'warning');
     }
   };

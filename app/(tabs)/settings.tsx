@@ -13,7 +13,8 @@ import { Card } from '../../src/components/ui/Card';
 import { Button } from '../../src/components/ui/Button';
 import { Modal } from '../../src/components/ui/Modal';
 import { PinKeypad } from '../../src/components/ui/PinKeypad';
-import { showToast } from '../../src/components/ui/GlobalToast';
+import { showToast, showToastWithAction } from '../../src/components/ui/GlobalToast';
+import { ensureNotificationPermission, isPermanentlyDenied, openAppSettings } from '../../src/utils/permissions';
 import {
   PIN_LENGTH,
   disableAppLock,
@@ -708,7 +709,42 @@ export default function SettingsScreen() {
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.medicineReminders}</Text>
                 <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.medicineRemindersDesc}</Text>
               </View>
-              <Switch value={notificationsEnabled} onValueChange={(v) => { selectionHaptic(); setNotificationsEnabled(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle medicine reminders" />
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={async (v) => {
+                  selectionHaptic();
+                  if (!v) {
+                    setNotificationsEnabled(false);
+                    return;
+                  }
+                  // Turning reminders on needs OS notification permission.
+                  // The shared gate re-prompts on every attempt while the OS
+                  // still allows re-asking; only once permanently denied does
+                  // it fall back to the settings toast (no silent no-op).
+                  try {
+                    const result = await ensureNotificationPermission();
+                    setNotificationsEnabled(result.granted);
+                    if (result.granted) {
+                      // Arm reminders right away instead of waiting for the next sync
+                      void syncDoseNotifications();
+                    } else if (isPermanentlyDenied(result)) {
+                      showToastWithAction(
+                        t.settings.notifPermBlocked,
+                        { label: t.scanner.openSettings, onPress: openAppSettings },
+                        'warning'
+                      );
+                    } else {
+                      showToast(t.settings.notifPermAskAgain, 'warning');
+                    }
+                  } catch {
+                    // Permission plumbing failed — keep the previous non-blocking
+                    // behavior and just apply the toggle.
+                    setNotificationsEnabled(true);
+                  }
+                }}
+                trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                accessibilityLabel="Toggle medicine reminders"
+              />
             </View>
             <View style={[styles.row, { marginTop: spacing.md }]}>
               <View style={{ flex: 1, marginRight: spacing.sm }}>
