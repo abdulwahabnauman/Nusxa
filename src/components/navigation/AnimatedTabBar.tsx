@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import Animated, {
   FadeIn,
   useSharedValue,
@@ -80,6 +80,9 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
   const insets = useSafeAreaInsets();
   // Urdu Nastaliq script needs extra line height to avoid clipping
   const isRTL = useSettingsStore((s) => s.language) === 'ur';
+  // Android's gesture/nav bar can sit tighter against content than the
+  // inset reports — a little extra clearance keeps the bar off it.
+  const bottomInset = insets.bottom + (Platform.OS === 'android' ? 8 : 0);
 
   return (
     <View
@@ -89,8 +92,8 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
         {
           backgroundColor: colors.background.surface,
           borderTopColor: colors.border.default,
-          height: 64 + insets.bottom,
-          paddingBottom: insets.bottom,
+          height: 64 + bottomInset,
+          paddingBottom: bottomInset,
         },
       ]}
     >
