@@ -6,6 +6,10 @@ Rules:
 - Use empty arrays [] for list fields when no items are visible.
 - Provide a confidence score between 0.0 and 1.0 for each medicine, reflecting how clearly the text was readable.
 - Identify and expand common medical abbreviations (e.g., TDS = three times daily, BD = twice daily, OD = once daily, AC = before meals, PC = after meals, HS = at bedtime, PRN = as needed).
+- Prescriptions may be written in English, Urdu (Nastaliq script), Roman Urdu, or a mix of all three. Handle every case:
+  - Transcribe Urdu text exactly as written. When a medicine name appears in Urdu script, put its English transliteration in "name" and keep the original Urdu text in "warnings" prefixed with "Original text:".
+  - Translate Roman-Urdu instructions into the structured fields, e.g. "din mein do baar" = twice daily, "khaane ke baad" = after meals, "raat ko sone se pehle" = at bedtime, "zaroorat par" = as needed.
+  - Never skip a field or lower its confidence merely because it is written in Urdu.
 - If the prescription is blurry, partially visible, or hard to read, set lower confidence scores and note this in warnings.
 - Preserve the original text when uncertain about interpretation.
 
