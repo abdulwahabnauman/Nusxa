@@ -77,7 +77,7 @@ export function AnimatedSplash({ onAnimationDone }: AnimatedSplashProps) {
     <Animated.View style={[styles.container, screenStyle]}>
       <Animated.View style={logoStyle}>
         <Image
-          source={require('../../../assets/icon.png')}
+          source={require('../../../assets/splash-logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
@@ -98,8 +98,8 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logo: {
-    width: 210,
-    height: 210,
+    width: 176,
+    height: 175,
   },
   wordmark: {
     fontFamily: LATIN_FONTS.bold,
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     color: '#FFFFFF',
     textAlign: 'center',
-    marginTop: 4,
+    marginTop: 20,
     paddingHorizontal: 24,
   },
 });
