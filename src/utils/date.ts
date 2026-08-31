@@ -29,11 +29,18 @@ export function formatTime12h(time24: string, language: 'en' | 'ur' = 'en'): str
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   const clock = `${hour12}:${String(m).padStart(2, '0')}`;
   if (language === 'ur') {
-    // Fully-RTL token (Eastern digits + Urdu period mark) so time ranges
+    // Fully-RTL token (Eastern digits + Urdu day-part word) so time ranges
     // don't get shuffled by bidi inside RTL sentences.
-    return `${toEasternNumerals(clock)} ${h >= 12 ? 'ش' : 'ص'}`;
+    return `${toEasternNumerals(clock)} ${urduDayPart(h)}`;
   }
   return `${clock} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+/** Urdu day-part word from the 24h clock: morning / afternoon / evening */
+function urduDayPart(hour24: number): string {
+  if (hour24 < 12) return 'صبح';
+  if (hour24 < 17) return 'دوپہر';
+  return 'شام';
 }
 
 /** Add minutes to an HH:mm time, wrapping past midnight */
