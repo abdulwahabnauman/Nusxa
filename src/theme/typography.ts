@@ -58,7 +58,19 @@ export type FontFamilyKey = keyof typeof LATIN_FONTS;
 
 type WeightKey = keyof typeof weights;
 
-export function getTypography(elderly: boolean, fontFamily?: string) {
+/**
+ * When iOS "Bold Text" is on, every Latin slot shifts one Inter face up the
+ * ladder (regular→medium→semibold→bold). Urdu stays untouched: Nastaliq
+ * ships as a single weight, so there is nothing heavier to load.
+ */
+const BOLD_SHIFT: Record<WeightKey, FontFamilyKey> = {
+  regular: 'medium',
+  medium: 'semibold',
+  semibold: 'bold',
+  bold: 'bold',
+};
+
+export function getTypography(elderly: boolean, fontFamily?: string, boldText = false) {
   const sizes = elderly ? elderlyFontSize : baseFontSize;
   const urdu = !!fontFamily;
 
@@ -72,7 +84,15 @@ export function getTypography(elderly: boolean, fontFamily?: string) {
         italic: fontFamily!,
         boldItalic: fontFamily!,
       }
-    : { ...LATIN_FONTS };
+    : boldText
+      ? {
+          ...LATIN_FONTS,
+          regular: LATIN_FONTS[BOLD_SHIFT.regular],
+          medium: LATIN_FONTS[BOLD_SHIFT.medium],
+          semibold: LATIN_FONTS[BOLD_SHIFT.semibold],
+          bold: LATIN_FONTS[BOLD_SHIFT.bold],
+        }
+      : { ...LATIN_FONTS };
 
   // Nastaliq glyphs render visually large, so sizes shrink a little, and
   // their deep descenders need generous line boxes. iOS clips tall glyphs

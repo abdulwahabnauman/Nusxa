@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useMemo, useEffect } from 'react';
-import { useColorScheme } from 'react-native';
+import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
+import { AccessibilityInfo, Platform, useColorScheme } from 'react-native';
 import { lightTokens, darkTokens, ThemeTokens, ThemeMode, elderlyTokens, elderlyTokens as elderlyColorsTokens } from './tokens';
 import { getTypography, Typography } from './typography';
 import { spacing, borderRadius, elderlySpacing, elderlyBorderRadius } from './spacing';
@@ -28,6 +28,27 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const highContrast = useThemeStore((s) => s.highContrast);
   const language = useSettingsStore((s) => s.language);
 
+  // Respect the iOS "Bold Text" accessibility setting: Latin faces shift one
+  // weight up while it is on. Android has no equivalent setting, so this
+  // stays false there and nothing changes.
+  const [systemBoldText, setSystemBoldText] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    let mounted = true;
+    AccessibilityInfo.isBoldTextEnabled()
+      .then((enabled) => {
+        if (mounted) setSystemBoldText(enabled);
+      })
+      .catch(() => {});
+    const sub = AccessibilityInfo.addEventListener('boldTextChanged', (enabled) => {
+      setSystemBoldText(enabled);
+    });
+    return () => {
+      mounted = false;
+      sub.remove();
+    };
+  }, []);
+
   const resolvedMode: ThemeMode = useMemo(() => {
     if (preference === 'system') {
       return systemScheme === 'dark' ? 'dark' : 'light';
@@ -47,14 +68,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     return {
       colors: useEnhancedColors ? elderlyColors : baseColors,
-      typography: getTypography(elderlyMode, fontFamily),
+      typography: getTypography(elderlyMode, fontFamily, systemBoldText),
       spacing: elderlyMode ? elderlySpacing : spacing,
       borderRadius: elderlyMode ? elderlyBorderRadius : borderRadius,
       mode: resolvedMode,
       isDark: resolvedMode === 'dark',
       isElderly: elderlyMode,
     };
-  }, [resolvedMode, elderlyMode, highContrast, language]);
+  }, [resolvedMode, elderlyMode, highContrast, language, systemBoldText]);
 
   return (
     <ThemeContext.Provider value={value}>
