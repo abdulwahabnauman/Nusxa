@@ -48,7 +48,11 @@ export function Card({
         style,
       ]}
       accessibilityLabel={accessibilityLabel}
-      role={role}
+      // Only apply the role when the card is actually labeled: on iOS an
+      // unlabeled role-tagged View becomes an accessibility container that
+      // swallows taps on descendant touchables (Medicines/History rows were
+      // untappable). Android is unaffected by the role mapping.
+      {...(accessibilityLabel ? { role } : {})}
       pointerEvents="box-none" // Allows children to be interactive
     >
       {children}
