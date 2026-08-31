@@ -144,11 +144,22 @@ export default function ChatScreen() {
     return context;
   }, [medicines, medicineName]);
 
+  // Count visible words. Splitting on /(\s+)/ keeps each whitespace run
+  // (including newlines) as its own token, so truncateContent below can
+  // rebuild the prefix without collapsing line breaks into spaces —
+  // MarkdownText needs those newlines to recognize "- " bullet lines.
+  const wordCount = (text: string): number => text.split(/(\s+)/).filter((t) => /\S/.test(t)).length;
+
+  // First `count` words of `text` with the original separators (spaces AND
+  // newlines) preserved, so bullets/lists reveal correctly mid-animation.
+  const truncateContent = (text: string, count: number): string =>
+    text.split(/(\s+)/).slice(0, count * 2 - 1).join('');
+
   // Reveal the newest assistant answer a few words at a time
   useEffect(() => {
     if (!reveal || reducedMotion) return;
     const target = messages.find((m) => m.id === reveal.id);
-    if (!target || reveal.count >= target.content.split(/\s+/).length) {
+    if (!target || reveal.count >= wordCount(target.content)) {
       setReveal(null);
       return;
     }
@@ -160,7 +171,7 @@ export default function ChatScreen() {
 
   const displayedContent = (msg: ChatMessage): string => {
     if (reveal && reveal.id === msg.id && !reducedMotion) {
-      return msg.content.split(/\s+/).slice(0, reveal.count).join(' ');
+      return truncateContent(msg.content, reveal.count);
     }
     return msg.content;
   };
