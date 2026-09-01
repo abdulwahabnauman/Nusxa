@@ -30,7 +30,7 @@ import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
 import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getDayPart, getTodayAtMs } from '../../src/utils/date';
 import { formatDigits } from '../../src/utils/numerals';
-import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
+import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markEndOfDayMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, getMedicinesByIds, updateInventory, getActiveMedicines } from '../../src/db/repositories/medicine';
@@ -146,8 +146,8 @@ export default function HomeScreen() {
     try {
       const today = getTodayISO();
       const [rangeStart, rangeEnd] = getTodayRange();
-      // Close out expired slots first so the list below already shows them as missed
-      await markOverdueDosesMissed();
+      // Close out past days first so history already shows them as missed
+      await markEndOfDayMissed();
       // All independent loads run in parallel (no sequential awaits)
       const [schedules, todayRecords, stats, daily, activeMedicines] = await Promise.all([
         getActiveSchedules(),

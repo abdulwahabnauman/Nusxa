@@ -7,7 +7,7 @@ import { getTodayDoseRecords, createDoseRecord } from '../db/repositories/dose';
 import { getAllPrescriptions } from '../db/repositories/prescription';
 import { estimateDaysUntilRefillFromFrequency } from './inventory';
 import { getKV, setKV } from '../db/repositories/kv';
-import { getTodayISO } from './date';
+import { getTodayISO, getDaysAgoISO } from './date';
 
 /* Android channel used for all medicine reminders */
 export const DOSE_CHANNEL_ID = 'medication-reminders';
@@ -341,45 +341,47 @@ export async function scheduleEscalationReminder(params: {
   });
 }
 
+/** How many past days are backfilled with missed records when the app reopens */
+export const MISSED_CATCHUP_DAYS = 7;
+
 /**
- * Mark today's doses as missed once their reminder window has fully passed
- * without a taken/skipped decision. Runs lazily on home-screen load — the OS
- * fires reminders offline, but only the app can record the outcome, so this
- * backfill keeps the timeline and adherence honest.
+ * Mark past days' doses as missed once the day has ended without a
+ * taken/skipped decision. Runs lazily on home-screen load — the OS fires
+ * reminders offline, but only the app can record the outcome, so this
+ * backfill keeps the timeline and adherence honest. It walks the previous
+ * {@link MISSED_CATCHUP_DAYS} days (covering time the app stayed closed)
+ * and never touches today: today's doses stay actionable until midnight.
  */
-export async function markOverdueDosesMissed(): Promise<void> {
+export async function markEndOfDayMissed(): Promise<void> {
   try {
     const schedules = await getActiveSchedules();
     if (schedules.length === 0) return;
 
-    const today = getTodayISO();
-    const records = await getTodayDoseRecords(today);
-    const handled = new Set(records.map((r) => r.schedule_id));
-    const now = Date.now();
+    for (let dayOffset = 1; dayOffset <= MISSED_CATCHUP_DAYS; dayOffset++) {
+      const dateStr = getDaysAgoISO(dayOffset);
+      const records = await getTodayDoseRecords(dateStr);
+      const handled = new Set(records.map((r) => r.schedule_id));
 
-    for (const schedule of schedules) {
-      if (handled.has(schedule.id)) continue;
-      if (schedule.end_date !== null && schedule.end_date < today) continue;
+      for (const schedule of schedules) {
+        if (handled.has(schedule.id)) continue;
+        // Only days the schedule was actually in effect
+        if (schedule.start_date > dateStr) continue;
+        if (schedule.end_date !== null && schedule.end_date < dateStr) continue;
 
-      const windowEnd = dateForTime(schedule.time, schedule.window_minutes);
-      if (windowEnd.getTime() > now) continue;
-
-      try {
-        await createDoseRecord({
-          id: `missed-${schedule.id}-${today}`,
-          schedule_id: schedule.id,
-          medicine_id: schedule.medicine_id,
-          scheduled_time: `${today}T${schedule.time}:00`,
-          actual_time: null,
-          status: 'missed',
-          notes: null,
-        });
-      } catch {
-        // Record may already exist from a concurrent load — safe to skip
+        try {
+          await createDoseRecord({
+            id: `missed-${schedule.id}-${dateStr}`,
+            schedule_id: schedule.id,
+            medicine_id: schedule.medicine_id,
+            scheduled_time: `${dateStr}T${schedule.time}:00`,
+            actual_time: null,
+            status: 'missed',
+            notes: null,
+          });
+        } catch {
+          // Record may already exist from a concurrent load — safe to skip
+        }
       }
-      // A snoozed re-ring or escalation for a slot that already closed is pointless
-      cancelNotification(snoozeNotificationId(schedule.id)).catch(() => {});
-      cancelNotification(escalationNotificationId(schedule.id)).catch(() => {});
     }
   } catch (error) {
     console.warn('[Notifications] Missed marking skipped:', error);
