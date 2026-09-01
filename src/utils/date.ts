@@ -50,6 +50,14 @@ export function getDayPart(hour: number): 'morning' | 'afternoon' | 'night' {
   return 'night';
 }
 
+/** Local epoch-ms for an "HH:MM" time on today */
+export function getTodayAtMs(time24: string): number {
+  const [h, m] = time24.split(':').map((v) => parseInt(v, 10));
+  const d = new Date();
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.getTime();
+}
+
 /** Add minutes to an HH:mm time, wrapping past midnight */
 export function addMinutesToTime(time24: string, minutes: number): string {
   const [h, m] = time24.split(':').map(Number);
