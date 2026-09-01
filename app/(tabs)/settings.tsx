@@ -40,6 +40,7 @@ import { formatDigits } from '../../src/utils/numerals';
 import { selectionHaptic } from '../../src/utils/haptics';
 import { useSuccessMorph } from '../../src/hooks/useSuccessMorph';
 import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
+import Animated, { FadeInUp } from 'react-native-reanimated';
 import { useI18n } from '../../src/i18n';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -873,15 +874,21 @@ export default function SettingsScreen() {
             <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>{t.settings.aiService}</Text>
             {isAiProxyConfigured() ? (
               <>
-              <Card>
-                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                  <MaterialCommunityIcons name="check-decagram" size={24} color={colors.success} />
-                  <View style={{ flex: 1, marginStart: spacing.sm }}>
+              <Card padding="none" style={{ overflow: 'hidden' }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', padding: spacing.base, backgroundColor: colors.success + '1A' }}>
+                  <View style={[styles.iconChip, { backgroundColor: colors.success + '26' }]}>
+                    <MaterialCommunityIcons name="check-decagram" size={22} color={colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
                     <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.aiPreconfigured}</Text>
                     <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>{t.settings.aiPreconfiguredDesc}</Text>
                   </View>
                 </View>
-                <View style={[styles.row, { marginTop: spacing.md }]}>
+                <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border.default }} />
+                <View style={[styles.row, { padding: spacing.base }]}>
+                  <View style={[styles.iconChip, { backgroundColor: useOwnKeys ? colors.accent.primary : colors.accent.subtle }]}>
+                    <MaterialCommunityIcons name="key-outline" size={20} color={useOwnKeys ? colors.background.surface : colors.accent.primary} />
+                  </View>
                   <View style={{ flex: 1, marginEnd: spacing.sm }}>
                     <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.ownKeys}</Text>
                     <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.ownKeysDesc}</Text>
@@ -898,7 +905,9 @@ export default function SettingsScreen() {
                 </View>
               </Card>
               {useOwnKeys && (
-                <View style={{ marginTop: spacing.sm }}>{aiKeyFields}</View>
+                <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(220)} style={{ marginTop: spacing.sm }}>
+                  {aiKeyFields}
+                </Animated.View>
               )}
               </>
             ) : (
@@ -1093,4 +1102,5 @@ const styles = StyleSheet.create({
   themeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
   saveKeyBtn: { paddingHorizontal: 16, paddingVertical: 10 },
+  iconChip: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginEnd: 10 },
 });
