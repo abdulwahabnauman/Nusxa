@@ -28,7 +28,7 @@ import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
-import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h } from '../../src/utils/date';
+import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getTodayAtMs } from '../../src/utils/date';
 import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
@@ -329,9 +329,12 @@ export default function HomeScreen() {
   }, [loadData, todayItems, showUndoToast]);
 
   // "Take all" quick action: pending doses sharing the same reminder time,
-  // only offered when at least two doses overlap at that time.
+  // only offered when at least two doses overlap at that time — and only
+  // once that time has arrived (before-time locking applies here too).
   const takeAllGroup = useMemo(() => {
-    const pending = todayItems.filter((item) => item.status === 'pending');
+    const pending = todayItems.filter(
+      (item) => item.status === 'pending' && getTodayAtMs(item.time) <= nowMs
+    );
     const byTime = new Map<string, TodayScheduleItem[]>();
     for (const item of pending) {
       const list = byTime.get(item.time) ?? [];
@@ -342,7 +345,7 @@ export default function HomeScreen() {
       .filter(([, list]) => list.length >= 2)
       .sort(([a], [b]) => a.localeCompare(b));
     return groups[0]?.[1] ?? null;
-  }, [todayItems]);
+  }, [todayItems, nowMs]);
 
   const handleTakeAll = useCallback(async () => {
     const group = takeAllGroup;
