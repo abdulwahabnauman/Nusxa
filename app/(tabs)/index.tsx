@@ -583,6 +583,12 @@ export default function HomeScreen() {
                   nowMs={nowMs}
                 />
               </Card>
+            ) : hasActiveMedicines ? (
+              <EmptyState
+                icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
+                title={t.home.nothingForToday}
+                description={t.home.nothingForTodayDesc}
+              />
             ) : (
               <EmptyState
                 icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
