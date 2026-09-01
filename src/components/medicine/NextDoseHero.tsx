@@ -244,48 +244,52 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
         </View>
       </View>
 
-      <View style={[styles.actions, { marginTop: spacing.md }]}>
-        <TouchableOpacity
-          style={[styles.takeButton, { backgroundColor: colors.accent.primary }]}
-          onPress={() => onTaken(next.scheduleId, next.medicineId)}
-          activeOpacity={0.85}
-          accessibilityLabel={`Mark ${next.medicineName} as taken`}
-        >
-          <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
-          <Text style={[typ.label.base, { color: '#FFFFFF', marginStart: 6 }]}>
-            {t.home.take}
-          </Text>
-        </TouchableOpacity>
-
-        {!isSnoozed && (
+      {/* Before the scheduled time there is nothing to act on — the ring
+          and countdown carry the information until the dose is due */}
+      {overdue && (
+        <View style={[styles.actions, { marginTop: spacing.md }]}>
           <TouchableOpacity
-            style={[styles.snoozeButton, { borderColor: colors.border.default }]}
-            onPress={() => applySnooze(snoozeMinutes)}
-            onLongPress={() => setShowSnoozeOptions((v) => !v)}
+            style={[styles.takeButton, { backgroundColor: colors.accent.primary }]}
+            onPress={() => onTaken(next.scheduleId, next.medicineId)}
             activeOpacity={0.85}
-            accessibilityLabel={`Snooze reminder for ${snoozeMinutes} minutes. Long-press to choose a duration.`}
+            accessibilityLabel={`Mark ${next.medicineName} as taken`}
           >
-            <MaterialCommunityIcons
-              name="clock-outline"
-              size={18}
-              color={colors.text.secondary}
-            />
-            <Text
-              style={[
-                typ.label.base,
-                {
-                  color: colors.text.secondary,
-                  marginStart: 6,
-                },
-              ]}
-            >
-              {`${t.home.snooze} ${nf(snoozeMinutes)}${t.home.minutesShort}`}
+            <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
+            <Text style={[typ.label.base, { color: '#FFFFFF', marginStart: 6 }]}>
+              {t.home.take}
             </Text>
           </TouchableOpacity>
-        )}
-      </View>
 
-      {showSnoozeOptions && !isSnoozed && (
+          {!isSnoozed && (
+            <TouchableOpacity
+              style={[styles.snoozeButton, { borderColor: colors.border.default }]}
+              onPress={() => applySnooze(snoozeMinutes)}
+              onLongPress={() => setShowSnoozeOptions((v) => !v)}
+              activeOpacity={0.85}
+              accessibilityLabel={`Snooze reminder for ${snoozeMinutes} minutes. Long-press to choose a duration.`}
+            >
+              <MaterialCommunityIcons
+                name="clock-outline"
+                size={18}
+                color={colors.text.secondary}
+              />
+              <Text
+                style={[
+                  typ.label.base,
+                  {
+                    color: colors.text.secondary,
+                    marginStart: 6,
+                  },
+                ]}
+              >
+                {`${t.home.snooze} ${nf(snoozeMinutes)}${t.home.minutesShort}`}
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
+
+      {overdue && showSnoozeOptions && !isSnoozed && (
         <View style={[styles.snoozeOptions, { marginTop: spacing.sm }]}>
           {SNOOZE_OPTIONS.map((min) => (
             <TouchableOpacity
