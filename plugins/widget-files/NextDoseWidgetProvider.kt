@@ -116,21 +116,29 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
         val scheduleId = intent.getStringExtra(EXTRA_SCHEDULE_ID)
         val medicineId = intent.getStringExtra(EXTRA_MEDICINE_ID)
         val scheduledTime = intent.getStringExtra(EXTRA_SCHEDULED_TIME)
-        if (scheduleId != null && medicineId != null && scheduledTime != null) {
+        val taken = if (scheduleId != null && medicineId != null && scheduledTime != null) {
           markTaken(context, scheduleId, medicineId, scheduledTime)
+        } else {
+          false
         }
-        // Crossfade to the success pane on every placed instance, then
-        // flip back to the (now advanced) next dose shortly after.
-        // goAsync() keeps this broadcast alive for the delayed re-render.
-        val pending = goAsync()
-        showSuccessPane(context)
-        Handler(Looper.getMainLooper()).postDelayed({
-          try {
-            refreshAll(context)
-          } finally {
-            pending.finish()
-          }
-        }, SUCCESS_PANE_DELAY_MS)
+        if (taken) {
+          // Crossfade to the success pane on every placed instance, then
+          // flip back to the (now advanced) next dose shortly after.
+          // goAsync() keeps this broadcast alive for the delayed re-render.
+          val pending = goAsync()
+          showSuccessPane(context)
+          Handler(Looper.getMainLooper()).postDelayed({
+            try {
+              refreshAll(context)
+            } finally {
+              pending.finish()
+            }
+          }, SUCCESS_PANE_DELAY_MS)
+        } else {
+          // Rejected (e.g. a stale tap on a dose whose time never arrived)
+          // — just re-render the current state without celebrating.
+          refreshAll(context)
+        }
         return
       }
       ACTION_SCHEDULED_REFRESH -> {
