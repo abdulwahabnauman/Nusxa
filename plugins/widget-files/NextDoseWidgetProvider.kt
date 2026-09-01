@@ -416,6 +416,24 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
   private fun hourOf(time24: String): Int =
     time24.substringBefore(':').toIntOrNull() ?: 0
 
+  /** Same digits the app uses (src/utils/numerals.ts): U+06F0..U+06F9 */
+  private fun toEasternNumerals(value: String): String =
+    value.map { c -> if (c in '0'..'9') ('۰' + (c - '0')) else c }.joinToString("")
+
+  /** Localized "{n} to take in {part}" for the upcoming-dose hint card */
+  private fun upcomingHintDetail(context: Context, state: TodayState): String {
+    val upcoming = state.upcoming ?: return ""
+    val ur = state.language == "ur"
+    val partRes = when (getDayPart(hourOf(upcoming.time))) {
+      0 -> if (ur) R.string.widget_part_morning_ur else R.string.widget_part_morning_en
+      1 -> if (ur) R.string.widget_part_afternoon_ur else R.string.widget_part_afternoon_en
+      else -> if (ur) R.string.widget_part_night_ur else R.string.widget_part_night_en
+    }
+    val count = state.upcomingCount.toString().let { if (ur) toEasternNumerals(it) else it }
+    val formatRes = if (ur) R.string.widget_upcoming_format_ur else R.string.widget_upcoming_format_en
+    return String.format(Locale.US, context.getString(formatRes), count, context.getString(partRes))
+  }
+
   private fun formatTime12h(time24: String): String {
     return try {
       val parsed = SimpleDateFormat("HH:mm", Locale.US).parse(time24) ?: return time24
