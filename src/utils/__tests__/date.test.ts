@@ -1,4 +1,4 @@
-import { getDayPart } from '../date';
+import { getDayPart, getTodayAtMs } from '../date';
 
 describe('getDayPart', () => {
   it('treats late night and pre-dawn hours as night', () => {
@@ -19,5 +19,19 @@ describe('getDayPart', () => {
   it('treats 17 through 23 as night', () => {
     expect(getDayPart(17)).toBe('night');
     expect(getDayPart(23)).toBe('night');
+  });
+});
+
+describe('getTodayAtMs', () => {
+  it('returns today at the given HH:MM', () => {
+    const expected = new Date();
+    expected.setHours(8, 30, 0, 0);
+    expect(getTodayAtMs('08:30')).toBe(expected.getTime());
+  });
+
+  it('tolerates malformed input by falling back to midnight', () => {
+    const midnight = new Date();
+    midnight.setHours(0, 0, 0, 0);
+    expect(getTodayAtMs('garbage')).toBe(midnight.getTime());
   });
 });
