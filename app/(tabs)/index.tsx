@@ -28,11 +28,12 @@ import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
-import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h } from '../../src/utils/date';
-import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
+import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getDayPart, getTodayAtMs } from '../../src/utils/date';
+import { formatDigits } from '../../src/utils/numerals';
+import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markEndOfDayMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
-import { getMedicine, getMedicinesByIds, updateInventory } from '../../src/db/repositories/medicine';
+import { getMedicine, getMedicinesByIds, updateInventory, getActiveMedicines } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
 import { ensureNotificationPermission } from '../../src/utils/permissions';
 import { useSettingsStore } from '../../src/stores/settings-store';
@@ -56,6 +57,15 @@ export default function HomeScreen() {
   // First load in flight — skeletons instead of a misleading empty state (UX21)
   const [loading, setLoading] = useState(true);
   const [celebration, setCelebration] = useState<{ title: string; subtitle: string } | null>(null);
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  // Shared ticking clock: drives before-time locking and the upcoming-dose hint
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  // Medicines exist but nothing is scheduled today → different empty state
+  const [hasActiveMedicines, setHasActiveMedicines] = useState(false);
   const { showUndoToast, undoToastElement } = useUndoToast();
   // Dose actions change inventory — keep the react-query medicine cache fresh
   const invalidateData = useInvalidateData();
@@ -136,16 +146,18 @@ export default function HomeScreen() {
     try {
       const today = getTodayISO();
       const [rangeStart, rangeEnd] = getTodayRange();
-      // Close out expired slots first so the list below already shows them as missed
-      await markOverdueDosesMissed();
+      // Close out past days first so history already shows them as missed
+      await markEndOfDayMissed();
       // All independent loads run in parallel (no sequential awaits)
-      const [schedules, todayRecords, stats, daily] = await Promise.all([
+      const [schedules, todayRecords, stats, daily, activeMedicines] = await Promise.all([
         getActiveSchedules(),
         getTodayDoseRecords(today),
         getAdherenceStats(rangeStart, rangeEnd),
         // Two years of per-day rollups in ONE query — enough for any streak
         getDailyAdherence(getDaysAgoISO(730)),
+        getActiveMedicines(),
       ]);
+      setHasActiveMedicines(activeMedicines.length > 0);
       // One batch query for every medicine referenced by today's schedules
       const medicines = await getMedicinesByIds(schedules.map((s) => s.medicine_id));
       const medicineById = new Map(medicines.map((m) => [m.id, m]));
@@ -320,9 +332,12 @@ export default function HomeScreen() {
   }, [loadData, todayItems, showUndoToast]);
 
   // "Take all" quick action: pending doses sharing the same reminder time,
-  // only offered when at least two doses overlap at that time.
+  // only offered when at least two doses overlap at that time — and only
+  // once that time has arrived (before-time locking applies here too).
   const takeAllGroup = useMemo(() => {
-    const pending = todayItems.filter((item) => item.status === 'pending');
+    const pending = todayItems.filter(
+      (item) => item.status === 'pending' && getTodayAtMs(item.time) <= nowMs
+    );
     const byTime = new Map<string, TodayScheduleItem[]>();
     for (const item of pending) {
       const list = byTime.get(item.time) ?? [];
@@ -333,7 +348,28 @@ export default function HomeScreen() {
       .filter(([, list]) => list.length >= 2)
       .sort(([a], [b]) => a.localeCompare(b));
     return groups[0]?.[1] ?? null;
-  }, [todayItems]);
+  }, [todayItems, nowMs]);
+
+  // When nothing is due right now but doses are coming later, point at the
+  // next batch: "{n} to take in {part}" for the day-part of the earliest
+  // upcoming pending dose.
+  const upcomingHint = useMemo(() => {
+    const pending = todayItems
+      .filter((item) => item.status === 'pending')
+      .sort((a, b) => a.time.localeCompare(b.time));
+    if (pending.length === 0 || pending.some((item) => getTodayAtMs(item.time) <= nowMs)) {
+      return null;
+    }
+    const first = pending[0]!;
+    const partOf = (time: string) => getDayPart(parseInt(time.split(':')[0] ?? '0', 10));
+    const part = partOf(first.time);
+    const count = pending.filter((item) => partOf(item.time) === part).length;
+    const partLabel =
+      part === 'morning' ? t.dose.morning : part === 'afternoon' ? t.dose.afternoon : t.dose.night;
+    return t.home.upcomingInPart
+      .replace('{n}', formatDigits(count, easternNumerals))
+      .replace('{part}', partLabel);
+  }, [todayItems, nowMs, t, easternNumerals]);
 
   const handleTakeAll = useCallback(async () => {
     const group = takeAllGroup;
@@ -502,6 +538,23 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Nothing due right now — point at the next batch of doses */}
+        {hasSchedule && upcomingHint && (
+          <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.sm }}>
+            <View
+              style={[
+                styles.upcomingHint,
+                { backgroundColor: colors.background.subtle, borderColor: colors.border.default },
+              ]}
+            >
+              <MaterialCommunityIcons name="clock-outline" size={18} color={colors.text.secondary} />
+              <Text style={[typography.body.sm, { color: colors.text.secondary, marginStart: 8, flex: 1 }]}>
+                {upcomingHint}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Progress Overview */}
         {hasSchedule && (
           <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
@@ -527,8 +580,15 @@ export default function HomeScreen() {
                   items={todayItems}
                   onTaken={handleTaken}
                   onSkip={handleSkip}
+                  nowMs={nowMs}
                 />
               </Card>
+            ) : hasActiveMedicines ? (
+              <EmptyState
+                icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
+                title={t.home.nothingForToday}
+                description={t.home.nothingForTodayDesc}
+              />
             ) : (
               <EmptyState
                 icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
@@ -641,6 +701,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 12,
     borderRadius: 12,
+  },
+  upcomingHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
   },
   section: {
     marginTop: 24,

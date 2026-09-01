@@ -15,4 +15,18 @@
   <!-- %1$d = doses left -->
   <string name="widget_success_left_format">%1$d left today</string>
   <string name="widget_success_all_done">All done for today</string>
+  <!-- Upcoming-dose hint state. Picked at runtime from profile.language
+       (the widget follows the in-app language, not the device locale),
+       hence the explicit _en/_ur suffixes instead of resource locales. -->
+  <string name="widget_coming_up_en">Coming Up</string>
+  <string name="widget_coming_up_ur">آنے والی خوراک</string>
+  <!-- %1$s = dose count (Eastern numerals in Urdu), %2$s = day part -->
+  <string name="widget_upcoming_format_en">%1$s to take in %2$s</string>
+  <string name="widget_upcoming_format_ur">%2$s میں %1$s دوائیں لینا ہیں</string>
+  <string name="widget_part_morning_en">Morning</string>
+  <string name="widget_part_morning_ur">صبح</string>
+  <string name="widget_part_afternoon_en">Afternoon</string>
+  <string name="widget_part_afternoon_ur">دوپہر</string>
+  <string name="widget_part_night_en">Night</string>
+  <string name="widget_part_night_ur">رات</string>
 </resources>

@@ -14,7 +14,7 @@ import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
-import { getTimeRangeParts } from '../../utils/date';
+import { getTimeRangeParts, getTodayAtMs } from '../../utils/date';
 import { formatDigits } from '../../utils/numerals';
 import type { DoseStatus } from '../../types/models';
 
@@ -25,6 +25,8 @@ interface DoseItemProps {
   dosage: string | null;
   mealInstruction: string | null;
   status: DoseStatus;
+  /** Current time in epoch-ms; pending doses before their time stay locked */
+  nowMs: number;
   onTaken?: () => void;
   onSkip?: () => void;
 }
@@ -43,6 +45,7 @@ export function DoseItem({
   dosage,
   mealInstruction,
   status,
+  nowMs,
   onTaken,
   onSkip,
 }: DoseItemProps) {
@@ -86,8 +89,11 @@ export function DoseItem({
     opacity: fillScale.value,
   }));
 
-  // Swipe right = taken (pending doses, and missed ones that can still be corrected)
-  const actionable = status === 'pending' || status === 'missed';
+  // Swipe right = taken (pending doses once their time has arrived, and
+  // missed ones that can still be corrected)
+  const actionable =
+    (status === 'pending' || status === 'missed') &&
+    (status !== 'pending' || nowMs >= getTodayAtMs(time));
   const swipeX = useSharedValue(0);
   const swipeEnabled = actionable && !!onTaken;
   const swipeGesture = Gesture.Pan()

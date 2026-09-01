@@ -31,6 +31,13 @@ import kotlin.random.Random
  * including the per-day "one record per slot" rule and the inventory
  * decrement the app performs when a dose is taken.
  *
+ * States (the widget follows the same before-time rule as the app):
+ *  - A dose whose time has arrived: full card + Taken button.
+ *  - Nothing due yet but doses coming later: a "Coming Up" hint such as
+ *    "2 to take in Afternoon" (localized via profile.language, with
+ *    Eastern numerals in Urdu) and no action button.
+ *  - Everything handled today / nothing scheduled today.
+ *
  * Animations (RemoteViews only allow a narrow set, hence these choices):
  *  - Tapping Taken crossfades the dose card to a brief "Dose taken" pane
  *    via a ViewFlipper, then flips back to the next dose ~1.5s later.
@@ -109,21 +116,29 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
         val scheduleId = intent.getStringExtra(EXTRA_SCHEDULE_ID)
         val medicineId = intent.getStringExtra(EXTRA_MEDICINE_ID)
         val scheduledTime = intent.getStringExtra(EXTRA_SCHEDULED_TIME)
-        if (scheduleId != null && medicineId != null && scheduledTime != null) {
+        val taken = if (scheduleId != null && medicineId != null && scheduledTime != null) {
           markTaken(context, scheduleId, medicineId, scheduledTime)
+        } else {
+          false
         }
-        // Crossfade to the success pane on every placed instance, then
-        // flip back to the (now advanced) next dose shortly after.
-        // goAsync() keeps this broadcast alive for the delayed re-render.
-        val pending = goAsync()
-        showSuccessPane(context)
-        Handler(Looper.getMainLooper()).postDelayed({
-          try {
-            refreshAll(context)
-          } finally {
-            pending.finish()
-          }
-        }, SUCCESS_PANE_DELAY_MS)
+        if (taken) {
+          // Crossfade to the success pane on every placed instance, then
+          // flip back to the (now advanced) next dose shortly after.
+          // goAsync() keeps this broadcast alive for the delayed re-render.
+          val pending = goAsync()
+          showSuccessPane(context)
+          Handler(Looper.getMainLooper()).postDelayed({
+            try {
+              refreshAll(context)
+            } finally {
+              pending.finish()
+            }
+          }, SUCCESS_PANE_DELAY_MS)
+        } else {
+          // Rejected (e.g. a stale tap on a dose whose time never arrived)
+          // — just re-render the current state without celebrating.
+          refreshAll(context)
+        }
         return
       }
       ACTION_SCHEDULED_REFRESH -> {
@@ -223,19 +238,31 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     val state = readTodayState(context, today)
 
-    val next = state.next
-    if (next != null) {
-      views.setTextViewText(R.id.widget_medicine, next.name)
+    val due = state.due
+    if (due != null) {
+      views.setTextViewText(R.id.widget_medicine, due.name)
       views.setTextViewText(
         R.id.widget_detail,
-        buildDetail(next.dosage, formatTime12h(next.time))
+        buildDetail(due.dosage, formatTime12h(due.time))
       )
-      applyCountdown(context, views, next.time, today)
+      applyCountdown(context, views, due.time, today)
       views.setViewVisibility(R.id.widget_taken_button, View.VISIBLE)
       views.setOnClickPendingIntent(
         R.id.widget_taken_button,
-        markTakenIntent(context, widgetId, next, today)
+        markTakenIntent(context, widgetId, due, today)
       )
+    } else if (state.upcoming != null) {
+      // Nothing is due right now — hint at the next batch instead of
+      // offering an action the app itself would refuse before its time.
+      views.setTextViewText(
+        R.id.widget_medicine,
+        pick(state.language, context.getString(R.string.widget_coming_up_en), context.getString(R.string.widget_coming_up_ur))
+      )
+      views.setTextViewText(R.id.widget_detail, upcomingHintDetail(context, state))
+      views.setViewVisibility(R.id.widget_countdown_text, View.GONE)
+      views.setChronometer(R.id.widget_countdown_timer, SystemClock.elapsedRealtime(), null, false)
+      views.setViewVisibility(R.id.widget_countdown_timer, View.GONE)
+      views.setViewVisibility(R.id.widget_taken_button, View.GONE)
     } else if (state.totalScheduled > 0) {
       views.setTextViewText(R.id.widget_medicine, context.getString(R.string.widget_all_done))
       views.setTextViewText(R.id.widget_detail, "")
@@ -387,6 +414,38 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
     return if (trimmed.isEmpty()) time12h else "$trimmed  •  $time12h"
   }
 
+  /** Pick a string by the app language stored in the profile table. */
+  private fun pick(language: String, en: String, ur: String): String =
+    if (language == "ur") ur else en
+
+  /** Day-part bucket mirroring getDayPart() in src/utils/date.ts */
+  private fun getDayPart(hour: Int): Int = when {
+    hour in 5..11 -> 0 // morning
+    hour in 12..16 -> 1 // afternoon
+    else -> 2 // night
+  }
+
+  private fun hourOf(time24: String): Int =
+    time24.substringBefore(':').toIntOrNull() ?: 0
+
+  /** Same digits the app uses (src/utils/numerals.ts): U+06F0..U+06F9 */
+  private fun toEasternNumerals(value: String): String =
+    value.map { c -> if (c in '0'..'9') ('۰' + (c - '0')) else c }.joinToString("")
+
+  /** Localized "{n} to take in {part}" for the upcoming-dose hint card */
+  private fun upcomingHintDetail(context: Context, state: TodayState): String {
+    val upcoming = state.upcoming ?: return ""
+    val ur = state.language == "ur"
+    val partRes = when (getDayPart(hourOf(upcoming.time))) {
+      0 -> if (ur) R.string.widget_part_morning_ur else R.string.widget_part_morning_en
+      1 -> if (ur) R.string.widget_part_afternoon_ur else R.string.widget_part_afternoon_en
+      else -> if (ur) R.string.widget_part_night_ur else R.string.widget_part_night_en
+    }
+    val count = state.upcomingCount.toString().let { if (ur) toEasternNumerals(it) else it }
+    val formatRes = if (ur) R.string.widget_upcoming_format_ur else R.string.widget_upcoming_format_en
+    return String.format(Locale.US, context.getString(formatRes), count, context.getString(partRes))
+  }
+
   private fun formatTime12h(time24: String): String {
     return try {
       val parsed = SimpleDateFormat("HH:mm", Locale.US).parse(time24) ?: return time24
@@ -462,9 +521,12 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
   )
 
   private data class TodayState(
-    val next: NextDose?,
+    val due: NextDose?,
+    val upcoming: NextDose?,
+    val upcomingCount: Int,
     val totalScheduled: Int,
-    val takenToday: Int
+    val takenToday: Int,
+    val language: String
   )
 
   private fun openDb(context: Context): SQLiteDatabase? {
@@ -490,7 +552,7 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
   }
 
   private fun readTodayState(context: Context, today: String): TodayState {
-    val db = openDb(context) ?: return TodayState(null, 0, 0)
+    val db = openDb(context) ?: return TodayState(null, null, 0, 0, 0, "en")
     return try {
       // Active slots for today, mirroring getActiveSchedules(): active
       // schedule + active prescription + not soft-deleted, within the
@@ -515,21 +577,36 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
         ORDER BY s.time ASC
       """.trimIndent()
 
-      var next: NextDose? = null
-      var pending = 0
+      val pendingList = mutableListOf<NextDose>()
       db.rawQuery(todaySql, arrayOf(today, today, today)).use { cursor ->
         while (cursor.moveToNext()) {
-          pending++
-          if (next == null) {
-            next = NextDose(
+          pendingList.add(
+            NextDose(
               scheduleId = cursor.getString(0),
               medicineId = cursor.getString(1),
               time = cursor.getString(2) ?: "",
               name = cursor.getString(3) ?: "Medicine",
               dosage = cursor.getString(4)
             )
-          }
+          )
         }
+      }
+
+      // Due = time already reached; upcoming = still in the future. Only a
+      // due slot gets the Taken button — the widget enforces the same
+      // before-time rule as the app.
+      val nowMs = System.currentTimeMillis()
+      val due = pendingList.firstOrNull {
+        parseScheduled("$today ${it.time}")?.let { d -> d.time <= nowMs } ?: false
+      }
+      val upcoming = pendingList.firstOrNull {
+        parseScheduled("$today ${it.time}")?.let { d -> d.time > nowMs } ?: false
+      }
+      val upcomingCount = if (upcoming != null) {
+        val part = getDayPart(hourOf(upcoming.time))
+        pendingList.count { getDayPart(hourOf(it.time)) == part }
+      } else {
+        0
       }
 
       val totalSql = """
@@ -556,9 +633,19 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
         if (cursor.moveToFirst()) taken = cursor.getInt(0)
       }
 
-      TodayState(next, total, taken)
+      // In-app language (the widget follows the app, not the device locale)
+      var language = "en"
+      try {
+        db.rawQuery("SELECT language FROM profile WHERE id = 1 LIMIT 1", null).use { cursor ->
+          if (cursor.moveToFirst()) language = cursor.getString(0) ?: "en"
+        }
+      } catch (e: Exception) {
+        // Profile row missing (pre-onboarding) — English defaults are fine
+      }
+
+      TodayState(due, upcoming, upcomingCount, total, taken, language)
     } catch (e: Exception) {
-      TodayState(null, 0, 0)
+      TodayState(null, null, 0, 0, 0, "en")
     } finally {
       try { db.close() } catch (e: Exception) { /* already closed */ }
     }
@@ -568,15 +655,20 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
    * Mirrors upsertDoseStatus(): one record per schedule per day — update
    * the existing row when present, insert otherwise. Also decrements
    * inventory exactly like the Home screen does when a dose is taken.
+   * Returns false (no write) when the scheduled time has not arrived yet,
+   * so a stale button can never mark a future dose as taken.
    */
   private fun markTaken(
     context: Context,
     scheduleId: String,
     medicineId: String,
     scheduledTime: String
-  ) {
-    val db = openDb(context) ?: return
-    try {
+  ): Boolean {
+    val scheduled = parseScheduled(scheduledTime.replace('T', ' '))
+    if (scheduled == null || scheduled.time > System.currentTimeMillis()) return false
+
+    val db = openDb(context) ?: return false
+    return try {
       val day = scheduledTime.take(10)
       val now = isoNow()
       val existingId = db.rawQuery(
@@ -608,9 +700,11 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
            WHERE id = ? AND remaining_quantity IS NOT NULL AND remaining_quantity > 0""",
         arrayOf<Any>(now, medicineId)
       )
+      true
     } catch (e: Exception) {
       // Never crash the widget host over a write failure; the next
       // refresh will show the unchanged state.
+      false
     } finally {
       try { db.close() } catch (e: Exception) { /* already closed */ }
     }
