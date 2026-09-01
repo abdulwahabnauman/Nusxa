@@ -56,6 +56,15 @@ export default function HomeScreen() {
   // First load in flight — skeletons instead of a misleading empty state (UX21)
   const [loading, setLoading] = useState(true);
   const [celebration, setCelebration] = useState<{ title: string; subtitle: string } | null>(null);
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  // Shared ticking clock: drives before-time locking and the upcoming-dose hint
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(timer);
+  }, []);
+  // Medicines exist but nothing is scheduled today → different empty state
+  const [hasActiveMedicines, setHasActiveMedicines] = useState(false);
   const { showUndoToast, undoToastElement } = useUndoToast();
   // Dose actions change inventory — keep the react-query medicine cache fresh
   const invalidateData = useInvalidateData();
