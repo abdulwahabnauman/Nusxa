@@ -33,7 +33,7 @@ import { formatDigits } from '../../src/utils/numerals';
 import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
-import { getMedicine, getMedicinesByIds, updateInventory } from '../../src/db/repositories/medicine';
+import { getMedicine, getMedicinesByIds, updateInventory, getActiveMedicines } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
 import { ensureNotificationPermission } from '../../src/utils/permissions';
 import { useSettingsStore } from '../../src/stores/settings-store';
@@ -149,13 +149,15 @@ export default function HomeScreen() {
       // Close out expired slots first so the list below already shows them as missed
       await markOverdueDosesMissed();
       // All independent loads run in parallel (no sequential awaits)
-      const [schedules, todayRecords, stats, daily] = await Promise.all([
+      const [schedules, todayRecords, stats, daily, activeMedicines] = await Promise.all([
         getActiveSchedules(),
         getTodayDoseRecords(today),
         getAdherenceStats(rangeStart, rangeEnd),
         // Two years of per-day rollups in ONE query — enough for any streak
         getDailyAdherence(getDaysAgoISO(730)),
+        getActiveMedicines(),
       ]);
+      setHasActiveMedicines(activeMedicines.length > 0);
       // One batch query for every medicine referenced by today's schedules
       const medicines = await getMedicinesByIds(schedules.map((s) => s.medicine_id));
       const medicineById = new Map(medicines.map((m) => [m.id, m]));
