@@ -491,9 +491,12 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
   )
 
   private data class TodayState(
-    val next: NextDose?,
+    val due: NextDose?,
+    val upcoming: NextDose?,
+    val upcomingCount: Int,
     val totalScheduled: Int,
-    val takenToday: Int
+    val takenToday: Int,
+    val language: String
   )
 
   private fun openDb(context: Context): SQLiteDatabase? {
@@ -519,7 +522,7 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
   }
 
   private fun readTodayState(context: Context, today: String): TodayState {
-    val db = openDb(context) ?: return TodayState(null, 0, 0)
+    val db = openDb(context) ?: return TodayState(null, null, 0, 0, 0, "en")
     return try {
       // Active slots for today, mirroring getActiveSchedules(): active
       // schedule + active prescription + not soft-deleted, within the
@@ -544,21 +547,36 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
         ORDER BY s.time ASC
       """.trimIndent()
 
-      var next: NextDose? = null
-      var pending = 0
+      val pendingList = mutableListOf<NextDose>()
       db.rawQuery(todaySql, arrayOf(today, today, today)).use { cursor ->
         while (cursor.moveToNext()) {
-          pending++
-          if (next == null) {
-            next = NextDose(
+          pendingList.add(
+            NextDose(
               scheduleId = cursor.getString(0),
               medicineId = cursor.getString(1),
               time = cursor.getString(2) ?: "",
               name = cursor.getString(3) ?: "Medicine",
               dosage = cursor.getString(4)
             )
-          }
+          )
         }
+      }
+
+      // Due = time already reached; upcoming = still in the future. Only a
+      // due slot gets the Taken button — the widget enforces the same
+      // before-time rule as the app.
+      val nowMs = System.currentTimeMillis()
+      val due = pendingList.firstOrNull {
+        parseScheduled("$today ${it.time}")?.let { d -> d.time <= nowMs } ?: false
+      }
+      val upcoming = pendingList.firstOrNull {
+        parseScheduled("$today ${it.time}")?.let { d -> d.time > nowMs } ?: false
+      }
+      val upcomingCount = if (upcoming != null) {
+        val part = getDayPart(hourOf(upcoming.time))
+        pendingList.count { getDayPart(hourOf(it.time)) == part }
+      } else {
+        0
       }
 
       val totalSql = """
@@ -585,9 +603,19 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
         if (cursor.moveToFirst()) taken = cursor.getInt(0)
       }
 
-      TodayState(next, total, taken)
+      // In-app language (the widget follows the app, not the device locale)
+      var language = "en"
+      try {
+        db.rawQuery("SELECT language FROM profile WHERE id = 1 LIMIT 1", null).use { cursor ->
+          if (cursor.moveToFirst()) language = cursor.getString(0) ?: "en"
+        }
+      } catch (e: Exception) {
+        // Profile row missing (pre-onboarding) — English defaults are fine
+      }
+
+      TodayState(due, upcoming, upcomingCount, total, taken, language)
     } catch (e: Exception) {
-      TodayState(null, 0, 0)
+      TodayState(null, null, 0, 0, 0, "en")
     } finally {
       try { db.close() } catch (e: Exception) { /* already closed */ }
     }
