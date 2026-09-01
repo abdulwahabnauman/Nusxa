@@ -1,5 +1,6 @@
 package com.nusxa.app
 
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -9,6 +10,9 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
 import java.text.SimpleDateFormat
@@ -26,35 +30,78 @@ import kotlin.random.Random
  * `upsertDoseStatus()` so Home, History and Analytics stay in sync —
  * including the per-day "one record per slot" rule and the inventory
  * decrement the app performs when a dose is taken.
+ *
+ * Animations (RemoteViews only allow a narrow set, hence these choices):
+ *  - Tapping Taken crossfades the dose card to a brief "Dose taken" pane
+ *    via a ViewFlipper, then flips back to the next dose ~1.5s later.
+ *  - The Taken button uses a ripple drawable for press feedback.
+ *  - A live "Due in Xh Ym" line is refreshed by a 15-minute inexact alarm,
+ *    and switches to a ticking Chronometer once the dose is overdue.
+ *  - Today's progress renders as filled/empty dots that fill as doses are
+ *    taken (flipping back in after each Taken tap animates the change).
+ *
+ * A second, smaller widget (NextDoseCompactWidgetProvider) reuses this
+ * entire class with a trimmed layout so users can pick either size.
  */
-class NextDoseWidgetProvider : AppWidgetProvider() {
+open class NextDoseWidgetProvider : AppWidgetProvider() {
 
   companion object {
     const val ACTION_MARK_TAKEN = "com.nusxa.app.widget.MARK_TAKEN"
+    const val ACTION_SCHEDULED_REFRESH = "com.nusxa.app.widget.SCHEDULED_REFRESH"
     const val EXTRA_SCHEDULE_ID = "schedule_id"
     const val EXTRA_MEDICINE_ID = "medicine_id"
     const val EXTRA_SCHEDULED_TIME = "scheduled_time"
     private const val DB_NAME = "nusxa.db"
 
+    /** How long the success pane stays visible before flipping back */
+    private const val SUCCESS_PANE_DELAY_MS = 1500L
+
+    /** Keep "Due in ..." text fresh between app opens (battery-friendly) */
+    private const val REFRESH_INTERVAL_MS = 15 * 60 * 1000L
+
+    /** Beyond this many doses the dots degrade to a "3 of 12 taken" label */
+    private const val MAX_PROGRESS_DOTS = 8
+
+    private val PROVIDERS = arrayOf(
+      NextDoseWidgetProvider::class.java,
+      NextDoseCompactWidgetProvider::class.java,
+    )
+
     /**
-     * Refresh every placed instance of the widget. Called from
-     * MainActivity.onResume so the widget catches dose changes the user
+     * Refresh every placed instance of both widget sizes. Called from
+     * MainActivity.onResume so the widgets catch dose changes the user
      * made inside the app (which lives in another process/thread).
      */
     @JvmStatic
     fun refreshAll(context: Context) {
       try {
         val manager = AppWidgetManager.getInstance(context) ?: return
-        val ids = manager.getAppWidgetIds(
-          ComponentName(context, NextDoseWidgetProvider::class.java)
-        )
-        if (ids.isEmpty()) return
-        NextDoseWidgetProvider().onUpdate(context, manager, ids)
+        for (provider in PROVIDERS) {
+          val ids = manager.getAppWidgetIds(ComponentName(context, provider))
+          if (ids.isEmpty()) continue
+          provider.getDeclaredConstructor().newInstance()
+            .let { it as AppWidgetProvider }
+            .onUpdate(context, manager, ids)
+        }
       } catch (e: Exception) {
         // Widget host unavailable — nothing to refresh
       }
     }
+
+    /** True when neither widget size has any placed instances */
+    private fun hasNoInstances(context: Context): Boolean {
+      val manager = AppWidgetManager.getInstance(context) ?: return true
+      return PROVIDERS.all {
+        manager.getAppWidgetIds(ComponentName(context, it)).isEmpty()
+      }
+    }
   }
+
+  /** Layout this provider renders; the compact variant overrides it. */
+  protected open fun layoutRes(): Int = R.layout.widget_next_dose
+
+  /** Compact hides the title and progress rows to fit a ~2x1 cell. */
+  protected open fun isCompact(): Boolean = false
 
   override fun onReceive(context: Context, intent: Intent) {
     when (intent.action) {
@@ -65,16 +112,27 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
         if (scheduleId != null && medicineId != null && scheduledTime != null) {
           markTaken(context, scheduleId, medicineId, scheduledTime)
         }
-        // Reflect the new state immediately, then fall through to re-render
-        val manager = AppWidgetManager.getInstance(context)
-        val ids = manager.getAppWidgetIds(
-          ComponentName(context, NextDoseWidgetProvider::class.java)
-        )
-        onUpdate(context, manager, ids)
+        // Crossfade to the success pane on every placed instance, then
+        // flip back to the (now advanced) next dose shortly after.
+        // goAsync() keeps this broadcast alive for the delayed re-render.
+        val pending = goAsync()
+        showSuccessPane(context)
+        Handler(Looper.getMainLooper()).postDelayed({
+          try {
+            refreshAll(context)
+          } finally {
+            pending.finish()
+          }
+        }, SUCCESS_PANE_DELAY_MS)
+        return
+      }
+      ACTION_SCHEDULED_REFRESH -> {
+        // 15-minute alarm: keep the "Due in ..." countdown accurate
+        refreshAll(context)
         return
       }
       Intent.ACTION_DATE_CHANGED, Intent.ACTION_TIME_CHANGED -> {
-        // Day rolled over (or clock changed) — recompute "today's" dose
+        // Day rolled over (or clock changed) — recompute "today's" doses
         refreshAll(context)
         return
       }
@@ -92,6 +150,57 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
     }
   }
 
+  override fun onEnabled(context: Context) {
+    // First instance of either size placed — start the refresh alarm
+    schedulePeriodicRefresh(context)
+  }
+
+  override fun onDisabled(context: Context) {
+    // Last instance of THIS size removed; only stop the alarm when no
+    // instance of either size remains
+    if (hasNoInstances(context)) {
+      cancelPeriodicRefresh(context)
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Periodic countdown refresh
+  // ------------------------------------------------------------------
+
+  private fun refreshAlarmIntent(context: Context): PendingIntent {
+    val intent = Intent(context, NextDoseWidgetProvider::class.java)
+      .setAction(ACTION_SCHEDULED_REFRESH)
+    return PendingIntent.getBroadcast(
+      context,
+      0,
+      intent,
+      PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+    )
+  }
+
+  private fun schedulePeriodicRefresh(context: Context) {
+    try {
+      val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      alarmManager.setInexactRepeating(
+        AlarmManager.ELAPSED_REALTIME,
+        SystemClock.elapsedRealtime() + REFRESH_INTERVAL_MS,
+        AlarmManager.INTERVAL_FIFTEEN_MINUTES,
+        refreshAlarmIntent(context)
+      )
+    } catch (e: Exception) {
+      // Countdown simply refreshes on app resume instead
+    }
+  }
+
+  private fun cancelPeriodicRefresh(context: Context) {
+    try {
+      val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+      alarmManager.cancel(refreshAlarmIntent(context))
+    } catch (e: Exception) {
+      // Nothing to cancel
+    }
+  }
+
   // ------------------------------------------------------------------
   // Rendering
   // ------------------------------------------------------------------
@@ -101,7 +210,12 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
     manager: AppWidgetManager,
     widgetId: Int
   ) {
-    val views = RemoteViews(context.packageName, R.layout.widget_next_dose)
+    val views = RemoteViews(context.packageName, layoutRes())
+
+    // Regular refreshes snap back to the dose card without animating —
+    // only the post-Taken flip uses in/out animations, so routine updates
+    // (app resume, date rollover) never flicker.
+    views.setInt(R.id.widget_flipper, "setDisplayedChild", 0)
 
     // Tapping the card itself opens the app (Home tab via nusxa:// scheme)
     views.setOnClickPendingIntent(R.id.widget_root, openAppIntent(context))
@@ -111,35 +225,162 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
 
     val next = state.next
     if (next != null) {
-      views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_label))
       views.setTextViewText(R.id.widget_medicine, next.name)
       views.setTextViewText(
         R.id.widget_detail,
         buildDetail(next.dosage, formatTime12h(next.time))
       )
+      applyCountdown(context, views, next.time, today)
       views.setViewVisibility(R.id.widget_taken_button, View.VISIBLE)
       views.setOnClickPendingIntent(
         R.id.widget_taken_button,
         markTakenIntent(context, widgetId, next, today)
       )
     } else if (state.totalScheduled > 0) {
-      views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_label))
       views.setTextViewText(R.id.widget_medicine, context.getString(R.string.widget_all_done))
       views.setTextViewText(R.id.widget_detail, "")
+      views.setViewVisibility(R.id.widget_countdown_text, View.GONE)
+      views.setChronometer(R.id.widget_countdown_timer, SystemClock.elapsedRealtime(), null, false)
+      views.setViewVisibility(R.id.widget_countdown_timer, View.GONE)
       views.setViewVisibility(R.id.widget_taken_button, View.GONE)
     } else {
-      views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_label))
       views.setTextViewText(R.id.widget_medicine, context.getString(R.string.widget_no_doses))
       views.setTextViewText(R.id.widget_detail, "")
+      views.setViewVisibility(R.id.widget_countdown_text, View.GONE)
+      views.setChronometer(R.id.widget_countdown_timer, SystemClock.elapsedRealtime(), null, false)
+      views.setViewVisibility(R.id.widget_countdown_timer, View.GONE)
       views.setViewVisibility(R.id.widget_taken_button, View.GONE)
     }
 
-    views.setTextColor(R.id.widget_title, Color.parseColor("#93A5D6"))
+    applyProgress(context, views, state)
+
+    if (!isCompact()) {
+      views.setTextViewText(R.id.widget_title, context.getString(R.string.widget_label))
+      views.setTextColor(R.id.widget_title, Color.parseColor("#93A5D6"))
+    }
     views.setTextColor(R.id.widget_medicine, Color.WHITE)
     views.setTextColor(R.id.widget_detail, Color.parseColor("#C9D4F2"))
 
     manager.updateAppWidget(widgetId, views)
   }
+
+  /**
+   * "Due in Xh Ym" while the dose is in the future; once it passes, a
+   * Chronometer takes over and ticks "Overdue MM:SS" every second with
+   * zero battery cost (the widget host drives the ticker).
+   */
+  private fun applyCountdown(
+    context: Context,
+    views: RemoteViews,
+    time24: String,
+    today: String
+  ) {
+    val scheduled = parseScheduled("$today $time24")
+    if (scheduled == null) {
+      views.setViewVisibility(R.id.widget_countdown_text, View.GONE)
+      views.setChronometer(R.id.widget_countdown_timer, SystemClock.elapsedRealtime(), null, false)
+      views.setViewVisibility(R.id.widget_countdown_timer, View.GONE)
+      return
+    }
+
+    val remainingMs = scheduled.time - System.currentTimeMillis()
+    if (remainingMs > 0) {
+      val label = context.getString(
+        R.string.widget_due_in_format,
+        formatDuration(remainingMs)
+      )
+      views.setTextViewText(R.id.widget_countdown_text, label)
+      views.setTextColor(R.id.widget_countdown_text, Color.parseColor("#93A5D6"))
+      views.setViewVisibility(R.id.widget_countdown_text, View.VISIBLE)
+      views.setChronometer(R.id.widget_countdown_timer, SystemClock.elapsedRealtime(), null, false)
+      views.setViewVisibility(R.id.widget_countdown_timer, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.widget_countdown_text, View.GONE)
+      // Chronometer base is in the elapsedRealtime() domain: rewind it by
+      // how long ago the dose was due so it displays elapsed overdue time
+      val base = SystemClock.elapsedRealtime() + remainingMs
+      val format = context.getText(R.string.widget_overdue_format).toString()
+      views.setChronometer(R.id.widget_countdown_timer, base, format, true)
+      views.setTextColor(R.id.widget_countdown_timer, Color.parseColor("#FBBF24"))
+      views.setViewVisibility(R.id.widget_countdown_timer, View.VISIBLE)
+    }
+  }
+
+  /**
+   * Today's progress as filled/empty dots (taken vs pending). RemoteViews
+   * re-applies actions onto the live hierarchy, so clear previous dots
+   * before adding to avoid duplicates across refreshes.
+   */
+  private fun applyProgress(context: Context, views: RemoteViews, state: TodayState) {
+    val total = state.totalScheduled
+    val taken = state.takenToday
+    views.removeAllViews(R.id.widget_progress)
+
+    if (isCompact() || total <= 0) {
+      views.setViewVisibility(R.id.widget_progress, View.GONE)
+      views.setViewVisibility(R.id.widget_progress_text, View.GONE)
+      return
+    }
+
+    if (total <= MAX_PROGRESS_DOTS) {
+      repeat(total) { index ->
+        val dot = RemoteViews(context.packageName, R.layout.widget_dot)
+        dot.setImageViewResource(
+          R.id.widget_dot_image,
+          if (index < taken) R.drawable.widget_dot_filled else R.drawable.widget_dot_empty
+        )
+        views.addView(R.id.widget_progress, dot)
+      }
+      views.setViewVisibility(R.id.widget_progress, View.VISIBLE)
+      views.setViewVisibility(R.id.widget_progress_text, View.GONE)
+    } else {
+      views.setViewVisibility(R.id.widget_progress, View.GONE)
+      views.setTextViewText(
+        R.id.widget_progress_text,
+        context.getString(R.string.widget_progress_format, taken, total)
+      )
+      views.setTextColor(R.id.widget_progress_text, Color.parseColor("#93A5D6"))
+      views.setViewVisibility(R.id.widget_progress_text, View.VISIBLE)
+    }
+  }
+
+  /**
+   * Crossfade every placed instance (both sizes) to the success pane.
+   * The ViewFlipper's in/out animations are declared in the layout XML,
+   * so changing the displayed child animates as the RemoteViews apply.
+   */
+  private fun showSuccessPane(context: Context) {
+    try {
+      val manager = AppWidgetManager.getInstance(context) ?: return
+      val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+      val state = readTodayState(context, today)
+      val leftToday = state.totalScheduled - state.takenToday
+      val subtitle = if (leftToday > 0) {
+        context.getString(R.string.widget_success_left_format, leftToday)
+      } else {
+        context.getString(R.string.widget_success_all_done)
+      }
+
+      for (provider in PROVIDERS) {
+        val ids = manager.getAppWidgetIds(ComponentName(context, provider))
+        if (ids.isEmpty()) continue
+        val instance = provider.getDeclaredConstructor().newInstance() as NextDoseWidgetProvider
+        for (widgetId in ids) {
+          val views = RemoteViews(context.packageName, instance.layoutRes())
+          views.setOnClickPendingIntent(R.id.widget_success_root, instance.openAppIntent(context))
+          views.setTextViewText(R.id.widget_success_detail, subtitle)
+          views.setInt(R.id.widget_flipper, "setDisplayedChild", 1)
+          manager.updateAppWidget(widgetId, views)
+        }
+      }
+    } catch (e: Exception) {
+      // If the morph fails the delayed refresh still renders the next dose
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Formatting helpers
+  // ------------------------------------------------------------------
 
   private fun buildDetail(dosage: String?, time12h: String): String {
     val trimmed = dosage?.trim().orEmpty()
@@ -154,6 +395,29 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
       time24
     }
   }
+
+  private fun parseScheduled(yyyyMmDdHhMm: String): Date? {
+    return try {
+      SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).parse(yyyyMmDdHhMm)
+    } catch (e: Exception) {
+      null
+    }
+  }
+
+  private fun formatDuration(ms: Long): String {
+    val totalMinutes = (ms + 59_999) / 60_000 // round up: 1 minute until due reads "1m"
+    val hours = totalMinutes / 60
+    val minutes = totalMinutes % 60
+    return when {
+      hours > 0 && minutes > 0 -> "${hours}h ${minutes}m"
+      hours > 0 -> "${hours}h"
+      else -> "${minutes}m"
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Intents
+  // ------------------------------------------------------------------
 
   private fun openAppIntent(context: Context): PendingIntent {
     val intent = Intent(Intent.ACTION_VIEW, Uri.parse("nusxa://"), context, MainActivity::class.java)
@@ -199,7 +463,8 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
 
   private data class TodayState(
     val next: NextDose?,
-    val totalScheduled: Int
+    val totalScheduled: Int,
+    val takenToday: Int
   )
 
   private fun openDb(context: Context): SQLiteDatabase? {
@@ -225,7 +490,7 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
   }
 
   private fun readTodayState(context: Context, today: String): TodayState {
-    val db = openDb(context) ?: return TodayState(null, 0)
+    val db = openDb(context) ?: return TodayState(null, 0, 0)
     return try {
       // Active slots for today, mirroring getActiveSchedules(): active
       // schedule + active prescription + not soft-deleted, within the
@@ -281,9 +546,19 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
         if (cursor.moveToFirst()) total = cursor.getInt(0)
       }
 
-      TodayState(next, total)
+      // Doses already taken today (any schedule) — fills the progress dots
+      val takenSql = """
+        SELECT COUNT(*) FROM dose_records
+        WHERE substr(scheduled_time, 1, 10) = ? AND status = 'taken'
+      """.trimIndent()
+      var taken = 0
+      db.rawQuery(takenSql, arrayOf(today)).use { cursor ->
+        if (cursor.moveToFirst()) taken = cursor.getInt(0)
+      }
+
+      TodayState(next, total, taken)
     } catch (e: Exception) {
-      TodayState(null, 0)
+      TodayState(null, 0, 0)
     } finally {
       try { db.close() } catch (e: Exception) { /* already closed */ }
     }
@@ -351,4 +626,13 @@ class NextDoseWidgetProvider : AppWidgetProvider() {
     val chars = "0123456789abcdefghijklmnopqrstuvwxyz"
     return (1..7).map { chars[Random.nextInt(chars.length)] }.joinToString("")
   }
+}
+
+/**
+ * The smaller widget variant. Same provider logic, trimmed layout, so the
+ * user can place whichever size fits their home screen.
+ */
+class NextDoseCompactWidgetProvider : NextDoseWidgetProvider() {
+  override fun layoutRes(): Int = R.layout.widget_next_dose_compact
+  override fun isCompact(): Boolean = true
 }

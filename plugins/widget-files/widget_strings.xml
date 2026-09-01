@@ -1,7 +1,18 @@
 <resources>
   <string name="widget_label">Next dose</string>
   <string name="widget_description">Today\'s next dose with a one-tap Taken button</string>
+  <string name="widget_compact_description">Compact next dose widget with a one-tap Taken button</string>
   <string name="widget_taken_button">Taken</string>
   <string name="widget_all_done">All doses taken today ✓</string>
   <string name="widget_no_doses">No doses scheduled today</string>
+  <string name="widget_taken_success">Dose taken ✓</string>
+  <!-- %1$s = countdown, e.g. "Due in 2h 15m" -->
+  <string name="widget_due_in_format">Due in %1$s</string>
+  <!-- %s is replaced by the ticking Chronometer time -->
+  <string name="widget_overdue_format">Overdue %s</string>
+  <!-- %1$d = taken, %2$d = total -->
+  <string name="widget_progress_format">%1$d of %2$d taken</string>
+  <!-- %1$d = doses left -->
+  <string name="widget_success_left_format">%1$d left today</string>
+  <string name="widget_success_all_done">All done for today</string>
 </resources>

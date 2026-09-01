@@ -5,13 +5,18 @@
  * Canonical widget sources live in plugins/widget-files/ so a fresh
  * `expo prebuild --clean` regenerates everything:
  *   - NextDoseWidgetProvider.kt  → app/src/main/java/com/nusxa/app/
- *   - widget_next_dose.xml       → app/src/main/res/layout/
- *   - widget_next_dose_info.xml  → app/src/main/res/xml/
+ *     (also declares NextDoseCompactWidgetProvider for the small variant)
+ *   - widget_next_dose.xml, widget_next_dose_compact.xml, widget_dot.xml
+ *                                → app/src/main/res/layout/
+ *   - widget_fade_in.xml, widget_fade_out.xml → app/src/main/res/anim/
+ *   - widget_next_dose_info.xml, widget_next_dose_compact_info.xml
+ *                                → app/src/main/res/xml/
  *   - widget_strings.xml         → app/src/main/res/values/
- *   - widget_background.xml, widget_button.xml → app/src/main/res/drawable/
- * It also registers the AppWidgetProvider receiver in AndroidManifest.xml
- * and injects onResume/onStop refresh hooks into MainActivity so the widget
- * tracks doses taken inside the app.
+ *   - widget_background.xml, widget_button.xml, widget_dot_filled.xml,
+ *     widget_dot_empty.xml       → app/src/main/res/drawable/
+ * It registers both AppWidgetProvider receivers in AndroidManifest.xml
+ * (users can pick either size) and injects onResume/onStop refresh hooks
+ * into MainActivity so the widgets track doses taken inside the app.
  *
  * Registered in app.json → plugins. Runs during `expo prebuild`.
  */
@@ -55,6 +60,7 @@ module.exports = function withNextDoseWidget(config) {
 
       fs.mkdirSync(javaDir, { recursive: true });
       fs.mkdirSync(path.join(resRoot, 'layout'), { recursive: true });
+      fs.mkdirSync(path.join(resRoot, 'anim'), { recursive: true });
       fs.mkdirSync(path.join(resRoot, 'xml'), { recursive: true });
       fs.mkdirSync(path.join(resRoot, 'values'), { recursive: true });
       fs.mkdirSync(path.join(resRoot, 'drawable'), { recursive: true });
@@ -62,10 +68,17 @@ module.exports = function withNextDoseWidget(config) {
       const copies = [
         ['NextDoseWidgetProvider.kt', path.join(javaDir, 'NextDoseWidgetProvider.kt')],
         ['widget_next_dose.xml', path.join(resRoot, 'layout', 'widget_next_dose.xml')],
+        ['widget_next_dose_compact.xml', path.join(resRoot, 'layout', 'widget_next_dose_compact.xml')],
+        ['widget_dot.xml', path.join(resRoot, 'layout', 'widget_dot.xml')],
+        ['widget_fade_in.xml', path.join(resRoot, 'anim', 'widget_fade_in.xml')],
+        ['widget_fade_out.xml', path.join(resRoot, 'anim', 'widget_fade_out.xml')],
         ['widget_next_dose_info.xml', path.join(resRoot, 'xml', 'widget_next_dose_info.xml')],
+        ['widget_next_dose_compact_info.xml', path.join(resRoot, 'xml', 'widget_next_dose_compact_info.xml')],
         ['widget_strings.xml', path.join(resRoot, 'values', 'widget_strings.xml')],
         ['widget_background.xml', path.join(resRoot, 'drawable', 'widget_background.xml')],
         ['widget_button.xml', path.join(resRoot, 'drawable', 'widget_button.xml')],
+        ['widget_dot_filled.xml', path.join(resRoot, 'drawable', 'widget_dot_filled.xml')],
+        ['widget_dot_empty.xml', path.join(resRoot, 'drawable', 'widget_dot_empty.xml')],
       ];
       for (const [src, dest] of copies) {
         fs.copyFileSync(path.join(SOURCE_DIR, src), dest);
@@ -89,18 +102,21 @@ module.exports = function withNextDoseWidget(config) {
     },
   ]);
 
-  // Register the widget receiver on the application element
+  // Register both widget receivers (standard + compact) on the
+  // application element so users can place either size
   return withAndroidManifest(config, (cfg) => {
     const app = cfg.modResults.manifest.application?.[0];
     if (!app) return cfg;
     app.receiver = app.receiver ?? [];
-    const alreadyRegistered = app.receiver.some(
-      (entry) => entry.$['android:name'] === '.NextDoseWidgetProvider',
-    );
-    if (!alreadyRegistered) {
+
+    const registerWidget = (name, metadataResource) => {
+      const alreadyRegistered = app.receiver.some(
+        (entry) => entry.$['android:name'] === name,
+      );
+      if (alreadyRegistered) return;
       app.receiver.push({
         $: {
-          'android:name': '.NextDoseWidgetProvider',
+          'android:name': name,
           'android:exported': 'true',
         },
         'intent-filter': [
@@ -116,12 +132,15 @@ module.exports = function withNextDoseWidget(config) {
           {
             $: {
               'android:name': 'android.appwidget.provider',
-              'android:resource': '@xml/widget_next_dose_info',
+              'android:resource': metadataResource,
             },
           },
         ],
       });
-    }
+    };
+
+    registerWidget('.NextDoseWidgetProvider', '@xml/widget_next_dose_info');
+    registerWidget('.NextDoseCompactWidgetProvider', '@xml/widget_next_dose_compact_info');
     return cfg;
   });
 };
