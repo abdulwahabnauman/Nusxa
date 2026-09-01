@@ -68,6 +68,7 @@ export const en = {
     reminderBackAt: 'Reminder back at {t}',
     allDoneToday: 'All done for today',
     allDoneTodayDesc: 'Every scheduled dose is handled. See you tomorrow.',
+    upcomingInPart: '{n} to take in {part}',
     streakTitle: '{n} day streak!',
     weekSubtitle: 'One full week of showing up. Excellent!',
     biWeekSubtitle: 'Two weeks in a row. Real habit forming!',

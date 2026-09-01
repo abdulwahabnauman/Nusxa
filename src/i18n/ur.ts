@@ -67,6 +67,7 @@ export const ur: TranslationKeys = {
     reminderBackAt: '{t} پر یاد دہانی واپس',
     allDoneToday: 'آج سب مکمل',
     allDoneTodayDesc: 'تمام طے شدہ خوراکیں مکمل ہیں۔ کل ملیں گے۔',
+    upcomingInPart: '{part} میں {n} دوائیں لینا ہیں',
     streakTitle: '{n} دن کا سلسلہ!',
     weekSubtitle: 'پورا ہفتہ تسلسل کے ساتھ۔ شاندار!',
     biWeekSubtitle: 'دو ہفتے مسلسل۔ عادت بن رہی ہے!',
