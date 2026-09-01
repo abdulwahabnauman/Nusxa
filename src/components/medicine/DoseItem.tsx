@@ -89,8 +89,11 @@ export function DoseItem({
     opacity: fillScale.value,
   }));
 
-  // Swipe right = taken (pending doses, and missed ones that can still be corrected)
-  const actionable = status === 'pending' || status === 'missed';
+  // Swipe right = taken (pending doses once their time has arrived, and
+  // missed ones that can still be corrected)
+  const actionable =
+    (status === 'pending' || status === 'missed') &&
+    (status !== 'pending' || nowMs >= getTodayAtMs(time));
   const swipeX = useSharedValue(0);
   const swipeEnabled = actionable && !!onTaken;
   const swipeGesture = Gesture.Pan()
