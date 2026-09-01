@@ -68,6 +68,8 @@ export const ur: TranslationKeys = {
     allDoneToday: 'آج سب مکمل',
     allDoneTodayDesc: 'تمام طے شدہ خوراکیں مکمل ہیں۔ کل ملیں گے۔',
     upcomingInPart: '{part} میں {n} دوائیں لینا ہیں',
+    nothingForToday: 'آج کے لیے کچھ نہیں',
+    nothingForTodayDesc: 'آج کوئی دوا مقرر نہیں۔',
     streakTitle: '{n} دن کا سلسلہ!',
     weekSubtitle: 'پورا ہفتہ تسلسل کے ساتھ۔ شاندار!',
     biWeekSubtitle: 'دو ہفتے مسلسل۔ عادت بن رہی ہے!',

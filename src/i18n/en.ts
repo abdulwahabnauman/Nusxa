@@ -69,6 +69,8 @@ export const en = {
     allDoneToday: 'All done for today',
     allDoneTodayDesc: 'Every scheduled dose is handled. See you tomorrow.',
     upcomingInPart: '{n} to take in {part}',
+    nothingForToday: 'Nothing for today',
+    nothingForTodayDesc: 'You have no doses scheduled today.',
     streakTitle: '{n} day streak!',
     weekSubtitle: 'One full week of showing up. Excellent!',
     biWeekSubtitle: 'Two weeks in a row. Real habit forming!',
