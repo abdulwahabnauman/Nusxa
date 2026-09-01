@@ -31,6 +31,13 @@ import kotlin.random.Random
  * including the per-day "one record per slot" rule and the inventory
  * decrement the app performs when a dose is taken.
  *
+ * States (the widget follows the same before-time rule as the app):
+ *  - A dose whose time has arrived: full card + Taken button.
+ *  - Nothing due yet but doses coming later: a "Coming Up" hint such as
+ *    "2 to take in Afternoon" (localized via profile.language, with
+ *    Eastern numerals in Urdu) and no action button.
+ *  - Everything handled today / nothing scheduled today.
+ *
  * Animations (RemoteViews only allow a narrow set, hence these choices):
  *  - Tapping Taken crossfades the dose card to a brief "Dose taken" pane
  *    via a ViewFlipper, then flips back to the next dose ~1.5s later.
