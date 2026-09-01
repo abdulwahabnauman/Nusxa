@@ -315,9 +315,9 @@ export default function EmergencyCardScreen() {
                 onPress={handleSave}
                 loading={saving}
                 icon={savedMorph.active ? <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" /> : undefined}
-                style={savedMorph.active ? { backgroundColor: colors.success } : undefined}
+                style={{ flex: 1, ...(savedMorph.active ? { backgroundColor: colors.success } : {}) }}
               />
-              <Button title={t.common.cancel} onPress={handleCancel} variant="ghost" />
+              <Button title={t.common.cancel} onPress={handleCancel} variant="ghost" style={{ flex: 1 }} />
             </View>
           )}
         </ScrollView>
@@ -333,5 +333,5 @@ const styles = StyleSheet.create({
   header: { marginTop: 16 },
   cardSection: { marginTop: 24 },
   cardRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  actions: { marginTop: 24, gap: 12, alignItems: 'center' },
+  actions: { marginTop: 24, gap: 12, flexDirection: 'row' },
 });
