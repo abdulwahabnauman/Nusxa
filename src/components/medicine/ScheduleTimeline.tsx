@@ -4,6 +4,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { DoseItem } from './DoseItem';
+import { getDayPart } from '../../utils/date';
 import type { TodayScheduleItem } from '../../types/models';
 
 interface ScheduleTimelineProps {
@@ -14,32 +15,24 @@ interface ScheduleTimelineProps {
   groupByTimeOfDay?: boolean;
 }
 
-type DayPart = 'Morning' | 'Afternoon' | 'Night';
+type DayPart = 'morning' | 'afternoon' | 'night';
 
 const DAY_PART_ICONS: Record<DayPart, keyof typeof MaterialCommunityIcons.glyphMap> = {
-  Morning: 'weather-sunny',
-  Afternoon: 'white-balance-sunny',
-  Night: 'weather-night',
+  morning: 'weather-sunny',
+  afternoon: 'white-balance-sunny',
+  night: 'weather-night',
 };
 
-const DAY_PART_ORDER: DayPart[] = ['Morning', 'Afternoon', 'Night'];
-
-/** Classify an "HH:MM" time into a day part */
-function dayPartOf(time: string): DayPart {
-  const hour = parseInt(time.split(':')[0] ?? '0', 10);
-  if (hour >= 5 && hour < 12) return 'Morning';
-  if (hour >= 12 && hour < 17) return 'Afternoon';
-  return 'Night';
-}
+const DAY_PART_ORDER: DayPart[] = ['morning', 'afternoon', 'night'];
 
 export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = true }: ScheduleTimelineProps) {
   const { colors, typography, spacing } = useTheme();
   const { t } = useI18n();
 
   const DAY_PART_LABELS: Record<DayPart, string> = {
-    Morning: t.dose.morning,
-    Afternoon: t.dose.afternoon,
-    Night: t.dose.night,
+    morning: t.dose.morning,
+    afternoon: t.dose.afternoon,
+    night: t.dose.night,
   };
 
   if (items.length === 0) return null;
@@ -67,7 +60,7 @@ export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = tr
 
   const grouped = new Map<DayPart, TodayScheduleItem[]>();
   for (const item of sorted) {
-    const part = dayPartOf(item.time);
+    const part = getDayPart(parseInt(item.time.split(':')[0] ?? '0', 10));
     const bucket = grouped.get(part);
     if (bucket) bucket.push(item);
     else grouped.set(part, [item]);
