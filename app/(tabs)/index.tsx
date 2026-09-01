@@ -28,7 +28,8 @@ import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
-import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getTodayAtMs } from '../../src/utils/date';
+import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getDayPart, getTodayAtMs } from '../../src/utils/date';
+import { formatDigits } from '../../src/utils/numerals';
 import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markOverdueDosesMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
@@ -346,6 +347,27 @@ export default function HomeScreen() {
       .sort(([a], [b]) => a.localeCompare(b));
     return groups[0]?.[1] ?? null;
   }, [todayItems, nowMs]);
+
+  // When nothing is due right now but doses are coming later, point at the
+  // next batch: "{n} to take in {part}" for the day-part of the earliest
+  // upcoming pending dose.
+  const upcomingHint = useMemo(() => {
+    const pending = todayItems
+      .filter((item) => item.status === 'pending')
+      .sort((a, b) => a.time.localeCompare(b.time));
+    if (pending.length === 0 || pending.some((item) => getTodayAtMs(item.time) <= nowMs)) {
+      return null;
+    }
+    const first = pending[0]!;
+    const partOf = (time: string) => getDayPart(parseInt(time.split(':')[0] ?? '0', 10));
+    const part = partOf(first.time);
+    const count = pending.filter((item) => partOf(item.time) === part).length;
+    const partLabel =
+      part === 'morning' ? t.dose.morning : part === 'afternoon' ? t.dose.afternoon : t.dose.night;
+    return t.home.upcomingInPart
+      .replace('{n}', formatDigits(count, easternNumerals))
+      .replace('{part}', partLabel);
+  }, [todayItems, nowMs, t, easternNumerals]);
 
   const handleTakeAll = useCallback(async () => {
     const group = takeAllGroup;
