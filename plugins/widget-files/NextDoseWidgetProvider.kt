@@ -589,18 +589,20 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
    * Mirrors upsertDoseStatus(): one record per schedule per day — update
    * the existing row when present, insert otherwise. Also decrements
    * inventory exactly like the Home screen does when a dose is taken.
+   * Returns false (no write) when the scheduled time has not arrived yet,
+   * so a stale button can never mark a future dose as taken.
    */
   private fun markTaken(
     context: Context,
     scheduleId: String,
     medicineId: String,
     scheduledTime: String
-  ) {
+  ): Boolean {
     val scheduled = parseScheduled(scheduledTime.replace('T', ' '))
-    if (scheduled == null || scheduled.time > System.currentTimeMillis()) return
+    if (scheduled == null || scheduled.time > System.currentTimeMillis()) return false
 
-    val db = openDb(context) ?: return
-    try {
+    val db = openDb(context) ?: return false
+    return try {
       val day = scheduledTime.take(10)
       val now = isoNow()
       val existingId = db.rawQuery(
@@ -632,9 +634,11 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
            WHERE id = ? AND remaining_quantity IS NOT NULL AND remaining_quantity > 0""",
         arrayOf<Any>(now, medicineId)
       )
+      true
     } catch (e: Exception) {
       // Never crash the widget host over a write failure; the next
       // refresh will show the unchanged state.
+      false
     } finally {
       try { db.close() } catch (e: Exception) { /* already closed */ }
     }
