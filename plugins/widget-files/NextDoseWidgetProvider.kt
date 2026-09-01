@@ -596,6 +596,9 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
     medicineId: String,
     scheduledTime: String
   ) {
+    val scheduled = parseScheduled(scheduledTime.replace('T', ' '))
+    if (scheduled == null || scheduled.time > System.currentTimeMillis()) return
+
     val db = openDb(context) ?: return
     try {
       val day = scheduledTime.take(10)
