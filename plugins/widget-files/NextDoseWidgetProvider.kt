@@ -394,6 +394,20 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
     return if (trimmed.isEmpty()) time12h else "$trimmed  •  $time12h"
   }
 
+  /** Pick a string by the app language stored in the profile table. */
+  private fun pick(language: String, en: String, ur: String): String =
+    if (language == "ur") ur else en
+
+  /** Day-part bucket mirroring getDayPart() in src/utils/date.ts */
+  private fun getDayPart(hour: Int): Int = when {
+    hour in 5..11 -> 0 // morning
+    hour in 12..16 -> 1 // afternoon
+    else -> 2 // night
+  }
+
+  private fun hourOf(time24: String): Int =
+    time24.substringBefore(':').toIntOrNull() ?: 0
+
   private fun formatTime12h(time24: String): String {
     return try {
       val parsed = SimpleDateFormat("HH:mm", Locale.US).parse(time24) ?: return time24
