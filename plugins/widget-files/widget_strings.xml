@@ -23,4 +23,10 @@
   <!-- %1$s = dose count (Eastern numerals in Urdu), %2$s = day part -->
   <string name="widget_upcoming_format_en">%1$s to take in %2$s</string>
   <string name="widget_upcoming_format_ur">%2$s میں %1$s دوائیں لینا ہیں</string>
+  <string name="widget_part_morning_en">Morning</string>
+  <string name="widget_part_morning_ur">صبح</string>
+  <string name="widget_part_afternoon_en">Afternoon</string>
+  <string name="widget_part_afternoon_ur">دوپہر</string>
+  <string name="widget_part_night_en">Night</string>
+  <string name="widget_part_night_ur">رات</string>
 </resources>
