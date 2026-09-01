@@ -238,19 +238,31 @@ open class NextDoseWidgetProvider : AppWidgetProvider() {
     val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
     val state = readTodayState(context, today)
 
-    val next = state.next
-    if (next != null) {
-      views.setTextViewText(R.id.widget_medicine, next.name)
+    val due = state.due
+    if (due != null) {
+      views.setTextViewText(R.id.widget_medicine, due.name)
       views.setTextViewText(
         R.id.widget_detail,
-        buildDetail(next.dosage, formatTime12h(next.time))
+        buildDetail(due.dosage, formatTime12h(due.time))
       )
-      applyCountdown(context, views, next.time, today)
+      applyCountdown(context, views, due.time, today)
       views.setViewVisibility(R.id.widget_taken_button, View.VISIBLE)
       views.setOnClickPendingIntent(
         R.id.widget_taken_button,
-        markTakenIntent(context, widgetId, next, today)
+        markTakenIntent(context, widgetId, due, today)
       )
+    } else if (state.upcoming != null) {
+      // Nothing is due right now — hint at the next batch instead of
+      // offering an action the app itself would refuse before its time.
+      views.setTextViewText(
+        R.id.widget_medicine,
+        pick(state.language, context.getString(R.string.widget_coming_up_en), context.getString(R.string.widget_coming_up_ur))
+      )
+      views.setTextViewText(R.id.widget_detail, upcomingHintDetail(context, state))
+      views.setViewVisibility(R.id.widget_countdown_text, View.GONE)
+      views.setChronometer(R.id.widget_countdown_timer, SystemClock.elapsedRealtime(), null, false)
+      views.setViewVisibility(R.id.widget_countdown_timer, View.GONE)
+      views.setViewVisibility(R.id.widget_taken_button, View.GONE)
     } else if (state.totalScheduled > 0) {
       views.setTextViewText(R.id.widget_medicine, context.getString(R.string.widget_all_done))
       views.setTextViewText(R.id.widget_detail, "")
