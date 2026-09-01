@@ -536,6 +536,7 @@ export default function HomeScreen() {
                   items={todayItems}
                   onTaken={handleTaken}
                   onSkip={handleSkip}
+                  nowMs={nowMs}
                 />
               </Card>
             ) : (
