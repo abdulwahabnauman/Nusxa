@@ -4,12 +4,13 @@
  * default schedule builder. DB + notification layers are mocked.
  */
 import type { PrescriptionJSON, MedicineJSON } from '../../ai/types';
-import type { Medicine } from '../../types/models';
+import type { Medicine, Schedule } from '../../types/models';
 import {
   analyzePrescriptionDuplicates,
   buildDefaultSchedules,
   savePrescription,
   dedupeActiveMedicines,
+  cleanupDeadSchedules,
   type ScheduleDraft,
 } from '../savePrescription';
 
@@ -21,6 +22,7 @@ jest.mock('../../db/repositories/prescription', () => ({
 jest.mock('../../db/repositories/medicine', () => ({
   createMedicine: jest.fn(),
   getActiveMedicines: jest.fn(),
+  getAllMedicines: jest.fn(),
   updateMedicine: jest.fn(),
   hardDeleteMedicine: jest.fn(),
   getMedicinesByPrescription: jest.fn(),
@@ -29,6 +31,10 @@ jest.mock('../../db/repositories/schedule', () => ({
   createSchedule: jest.fn(),
   getSchedulesByMedicine: jest.fn(),
   updateSchedule: jest.fn(),
+  hardDeleteSchedule: jest.fn(),
+}));
+jest.mock('../../db/repositories/dose', () => ({
+  getDoseRecordsBySchedule: jest.fn(),
 }));
 jest.mock('../notifications', () => ({
   scheduleDoseNotification: jest.fn(),
@@ -43,6 +49,7 @@ import {
 import {
   createMedicine,
   getActiveMedicines,
+  getAllMedicines,
   updateMedicine,
   hardDeleteMedicine,
   getMedicinesByPrescription,
@@ -51,7 +58,9 @@ import {
   createSchedule,
   getSchedulesByMedicine,
   updateSchedule,
+  hardDeleteSchedule,
 } from '../../db/repositories/schedule';
+import { getDoseRecordsBySchedule } from '../../db/repositories/dose';
 import { scheduleDoseNotification, cancelNotification } from '../notifications';
 
 const mockMedicine = (overrides: Partial<Medicine> = {}): Medicine => ({
@@ -131,10 +140,17 @@ const draftFor = (index: number, times: string[] = ['08:00']): ScheduleDraft => 
 beforeEach(() => {
   jest.clearAllMocks();
   (getActiveMedicines as jest.Mock).mockResolvedValue([]);
+  (getAllMedicines as jest.Mock).mockResolvedValue([]);
   (getAllPrescriptions as jest.Mock).mockResolvedValue([]);
   (getSchedulesByMedicine as jest.Mock).mockResolvedValue([]);
+  (getDoseRecordsBySchedule as jest.Mock).mockResolvedValue([]);
   (getMedicinesByPrescription as jest.Mock).mockResolvedValue([]);
   (scheduleDoseNotification as jest.Mock).mockResolvedValue('notif-1');
+  // clearAllMocks keeps implementations, so re-arm the repository mocks
+  // that stateful tests override — stale ones must not leak across tests.
+  (createSchedule as jest.Mock).mockResolvedValue(undefined);
+  (updateSchedule as jest.Mock).mockResolvedValue(undefined);
+  (hardDeleteSchedule as jest.Mock).mockResolvedValue(undefined);
 });
 
 describe('analyzePrescriptionDuplicates', () => {
@@ -244,9 +260,9 @@ describe('savePrescription', () => {
     expect(createPrescription).not.toHaveBeenCalled();
     expect(updateMedicine).toHaveBeenCalledTimes(1);
     expect((updateMedicine as jest.Mock).mock.calls[0]![0]).toBe('existing-1');
-    // Old reminders deactivated + cancelled, fresh one armed
+    // Old reminder cancelled and its row replaced — no dose history to keep
     expect(cancelNotification).toHaveBeenCalledWith('old-notif');
-    expect(updateSchedule).toHaveBeenCalledWith('old-sched', { is_active: false });
+    expect(hardDeleteSchedule).toHaveBeenCalledWith('old-sched');
     expect(createSchedule).toHaveBeenCalledTimes(1);
   });
 
@@ -262,6 +278,151 @@ describe('savePrescription', () => {
     expect(result).toEqual({ added: 2, updated: 0 });
     expect(createPrescription).toHaveBeenCalledTimes(1);
     expect(createMedicine).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('savePrescription schedule replacement', () => {
+  // In-memory schedules table shared by the mocked repository functions so
+  // consecutive saves are observed against realistic row state.
+  interface ScheduleRow {
+    id: string;
+    medicine_id: string;
+    time: string;
+    window_minutes: number;
+    frequency: string;
+    meal_instruction: string | null;
+    is_active: boolean;
+    notification_id: string | null;
+    [key: string]: unknown;
+  }
+
+  const withScheduleStore = (): ScheduleRow[] => {
+    const rows: ScheduleRow[] = [];
+    (createSchedule as jest.Mock).mockImplementation(async (data: ScheduleRow) => {
+      rows.push({ ...data });
+      return { ...data };
+    });
+    (getSchedulesByMedicine as jest.Mock).mockImplementation(async (medicineId: string) =>
+      rows.filter((r) => r.medicine_id === medicineId).map((r) => ({ ...r }))
+    );
+    (updateSchedule as jest.Mock).mockImplementation(
+      async (id: string, patch: Record<string, unknown>) => {
+        const row = rows.find((r) => r.id === id);
+        if (row) Object.assign(row, patch);
+      }
+    );
+    (hardDeleteSchedule as jest.Mock).mockImplementation(async (id: string) => {
+      const index = rows.findIndex((r) => r.id === id);
+      if (index >= 0) rows.splice(index, 1);
+    });
+    (getActiveMedicines as jest.Mock).mockResolvedValue([mockMedicine({ id: 'existing-1' })]);
+    return rows;
+  };
+
+  it('re-saving the same prescription does not stack schedule generations', async () => {
+    const rows = withScheduleStore();
+
+    const prescription = makePrescriptionJSON([makeMedicineJSON()]);
+    await savePrescription(prescription, [draftFor(0, ['08:00', '20:00'])]);
+    expect(rows).toHaveLength(2);
+
+    await savePrescription(prescription, [draftFor(0, ['08:00', '20:00'])]);
+    expect(rows).toHaveLength(2);
+    expect(rows.every((r) => r.is_active === true)).toBe(true);
+    expect(cancelNotification).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an old schedule with dose records as an inactive history row', async () => {
+    const rows = withScheduleStore();
+
+    await savePrescription(makePrescriptionJSON([makeMedicineJSON()]), [draftFor(0, ['08:00', '20:00'])]);
+    const historyRow = rows.find((r) => r.time === '08:00')!;
+    // The 08:00 slot has doses on record; the 20:00 slot does not
+    (getDoseRecordsBySchedule as jest.Mock).mockImplementation(async (scheduleId: string) =>
+      scheduleId === historyRow.id ? [{ id: 'dose-1', schedule_id: scheduleId }] : []
+    );
+
+    await savePrescription(makePrescriptionJSON([makeMedicineJSON()]), [draftFor(0, ['09:00', '21:00'])]);
+
+    const surviving = rows.find((r) => r.id === historyRow.id);
+    expect(surviving).toBeDefined();
+    expect(surviving?.is_active).toBe(false);
+    // Record-less old row deleted, two fresh rows armed
+    expect(rows).toHaveLength(3);
+    expect(rows.filter((r) => r.is_active).length).toBe(2);
+    expect(hardDeleteSchedule).toHaveBeenCalledTimes(1);
+  });
+
+  it('reuses a kept row in place when the new draft keeps the same time', async () => {
+    const rows = withScheduleStore();
+
+    await savePrescription(makePrescriptionJSON([makeMedicineJSON()]), [draftFor(0, ['08:00', '20:00'])]);
+    const historyRow = rows.find((r) => r.time === '08:00')!;
+    (getDoseRecordsBySchedule as jest.Mock).mockImplementation(async (scheduleId: string) =>
+      scheduleId === historyRow.id ? [{ id: 'dose-1', schedule_id: scheduleId }] : []
+    );
+
+    await savePrescription(makePrescriptionJSON([makeMedicineJSON()]), [draftFor(0, ['08:00', '20:00'])]);
+
+    // Same row re-armed in place, not a new insert stacked on the old one
+    expect(rows.find((r) => r.id === historyRow.id)?.is_active).toBe(true);
+    expect(rows).toHaveLength(2);
+    expect(createSchedule).toHaveBeenCalledTimes(3); // 2 on first save + 1 on re-save
+    expect(updateSchedule).toHaveBeenCalledWith(historyRow.id, {
+      frequency: 'Three times daily',
+      meal_instruction: 'after',
+      window_minutes: 120,
+      is_active: true,
+      notification_id: 'notif-1',
+    });
+  });
+});
+
+describe('cleanupDeadSchedules', () => {
+  const mockSchedule = (overrides: Partial<Schedule> = {}): Schedule => ({
+    id: 'sched-1',
+    medicine_id: 'med-1',
+    time: '08:00',
+    window_minutes: 120,
+    timezone: 'Asia/Karachi',
+    frequency: 'Twice daily',
+    meal_instruction: 'after',
+    start_date: '2026-01-01',
+    end_date: null,
+    is_active: false,
+    notification_id: 'notif-1',
+    created_at: '2026-01-01T00:00:00.000Z',
+    ...overrides,
+  });
+
+  it('removes record-less inactive rows only and is idempotent', async () => {
+    const store = [
+      mockSchedule({ id: 'active', is_active: true }),
+      mockSchedule({ id: 'kept', is_active: false }),
+      mockSchedule({ id: 'dead', is_active: false, notification_id: 'dead-notif' }),
+    ];
+    (getAllMedicines as jest.Mock).mockResolvedValue([mockMedicine({ id: 'med-1' })]);
+    (getSchedulesByMedicine as jest.Mock).mockImplementation(async () =>
+      store.map((r) => ({ ...r }))
+    );
+    (hardDeleteSchedule as jest.Mock).mockImplementation(async (id: string) => {
+      const index = store.findIndex((r) => r.id === id);
+      if (index >= 0) store.splice(index, 1);
+    });
+    (getDoseRecordsBySchedule as jest.Mock).mockImplementation(async (scheduleId: string) =>
+      scheduleId === 'kept' ? [{ id: 'dose-1', schedule_id: scheduleId }] : []
+    );
+
+    const removed = await cleanupDeadSchedules();
+
+    expect(removed).toBe(1);
+    expect(cancelNotification).toHaveBeenCalledWith('dead-notif');
+    expect(store.map((r) => r.id)).toEqual(['active', 'kept']);
+    // Active rows are never even probed for dose records
+    expect(getDoseRecordsBySchedule).not.toHaveBeenCalledWith('active');
+
+    // A second pass finds nothing left to remove
+    expect(await cleanupDeadSchedules()).toBe(0);
   });
 });
 

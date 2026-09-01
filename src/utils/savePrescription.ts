@@ -6,11 +6,12 @@
 import { PrescriptionJSON } from '../ai/types';
 import { DEFAULT_SCHEDULE_TIMES } from '../constants/medical';
 import { createPrescription, getAllPrescriptions, hardDeletePrescription } from '../db/repositories/prescription';
-import { createMedicine, getActiveMedicines, updateMedicine, hardDeleteMedicine, getMedicinesByPrescription } from '../db/repositories/medicine';
-import { createSchedule, getSchedulesByMedicine, updateSchedule } from '../db/repositories/schedule';
+import { createMedicine, getActiveMedicines, getAllMedicines, updateMedicine, hardDeleteMedicine, getMedicinesByPrescription } from '../db/repositories/medicine';
+import { createSchedule, getSchedulesByMedicine, updateSchedule, hardDeleteSchedule } from '../db/repositories/schedule';
+import { getDoseRecordsBySchedule } from '../db/repositories/dose';
 import { scheduleDoseNotification, cancelNotification } from './notifications';
 import { getTodayISO } from './date';
-import type { Medicine } from '../types/models';
+import type { Medicine, Schedule } from '../types/models';
 
 export interface ScheduleDraft {
   medicineIndex: number;
@@ -210,6 +211,40 @@ export async function dedupeActiveMedicines(): Promise<number> {
   return removed;
 }
 
+/**
+ * One-time cleanup for schedule generations stacked by older builds: a
+ * re-scan used to deactivate the previous schedules and insert fresh ones,
+ * so N re-saves left N generations of dead rows. Hard-deletes every
+ * inactive schedule that has no dose records (dose history keeps its
+ * rows), cancelling the pending notification first. Idempotent — a no-op
+ * on a clean database.
+ */
+export async function cleanupDeadSchedules(): Promise<number> {
+  const medicines = await getAllMedicines();
+  let removed = 0;
+
+  for (const med of medicines) {
+    const schedules = await getSchedulesByMedicine(med.id);
+    for (const s of schedules) {
+      if (s.is_active) continue;
+      const records = await getDoseRecordsBySchedule(s.id);
+      if (records.length > 0) continue;
+
+      if (s.notification_id) {
+        try {
+          await cancelNotification(s.notification_id);
+        } catch {
+          // Notification already gone — nothing to cancel
+        }
+      }
+      await hardDeleteSchedule(s.id);
+      removed++;
+    }
+  }
+
+  return removed;
+}
+
 /** Derive sensible default reminder times from each medicine's frequency. */
 export function buildDefaultSchedules(
   prescription: PrescriptionJSON
@@ -234,14 +269,40 @@ export function buildDefaultSchedules(
   });
 }
 
-/** Create schedule rows + reminder notifications for one medicine. */
+/** Create schedule rows + reminder notifications for one medicine.
+ *  Draft times that match a kept historical row reuse that row (updated
+ *  in place) so a re-scan replaces generations instead of stacking rows. */
 async function armSchedules(
   medicineId: string,
   schedule: ScheduleDraft,
   timezone: string,
-  startDate: string
+  startDate: string,
+  reusable: Schedule[] = []
 ): Promise<void> {
+  const pool = [...reusable];
   for (const time of schedule.times) {
+    const reuseIndex = pool.findIndex((s) => s.time === time);
+    if (reuseIndex !== -1) {
+      const reuse = pool.splice(reuseIndex, 1)[0]!;
+      const notificationId = await scheduleDoseNotification({
+        id: reuse.id,
+        medicineId,
+        medicineName: schedule.medicineName,
+        dosage: schedule.dosage,
+        mealInstruction: schedule.mealInstruction,
+        time,
+      });
+
+      await updateSchedule(reuse.id, {
+        frequency: schedule.frequency,
+        meal_instruction: (schedule.mealInstruction as any) ?? null,
+        window_minutes: schedule.windowMinutes,
+        is_active: true,
+        notification_id: notificationId,
+      });
+      continue;
+    }
+
     const scheduleId = generateId();
     const notificationId = await scheduleDoseNotification({
       id: scheduleId,
@@ -312,15 +373,27 @@ export async function savePrescription(
         verification_status: 'verified',
       });
 
+      // Replace the old reminders with the freshly confirmed times instead
+      // of stacking new generations on top: cancel each old notification,
+      // then drop rows without dose history outright. Rows with records
+      // stay inactive (dose history keeps pointing at them), and a kept row
+      // whose time survives into the new draft is updated in place.
       const oldSchedules = await getSchedulesByMedicine(match.id);
+      const keptSchedules: Schedule[] = [];
       for (const old of oldSchedules) {
         if (old.notification_id) {
           await cancelNotification(old.notification_id);
         }
-        await updateSchedule(old.id, { is_active: false });
+        const records = await getDoseRecordsBySchedule(old.id);
+        if (records.length === 0) {
+          await hardDeleteSchedule(old.id);
+        } else {
+          await updateSchedule(old.id, { is_active: false });
+          keptSchedules.push(old);
+        }
       }
 
-      await armSchedules(match.id, schedule, timezone, today);
+      await armSchedules(match.id, schedule, timezone, today, keptSchedules);
       updated++;
       continue;
     }

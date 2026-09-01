@@ -71,7 +71,7 @@ export async function getSchedule(id: string): Promise<Schedule | null> {
 
 export async function updateSchedule(
   id: string,
-  data: Partial<Pick<Schedule, 'time' | 'window_minutes' | 'timezone' | 'is_active' | 'notification_id' | 'end_date'>>
+  data: Partial<Pick<Schedule, 'time' | 'window_minutes' | 'timezone' | 'frequency' | 'meal_instruction' | 'is_active' | 'notification_id' | 'end_date'>>
 ): Promise<void> {
   const db = getDatabase();
   const fields: string[] = [];
@@ -115,4 +115,15 @@ export async function activateSchedulesByMedicine(medicineId: string): Promise<v
 export async function deleteSchedulesByMedicine(medicineId: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM schedules WHERE medicine_id = ?;', [medicineId]);
+}
+
+/**
+ * Hard delete for cleanup passes (replaced schedules with no dose
+ * history). Callers must check for dose records first — dose_records
+ * cascade-deletes with its schedule, so a row with history must never
+ * go through here.
+ */
+export async function hardDeleteSchedule(id: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync('DELETE FROM schedules WHERE id = ?;', [id]);
 }

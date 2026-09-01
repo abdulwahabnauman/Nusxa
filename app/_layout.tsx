@@ -26,7 +26,7 @@ import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';
 import { useThemeStore, hydrateTheme } from '../src/stores/theme-store';
 import { configureNotifications, syncRefillNotifications, syncFollowUpNotifications } from '../src/utils/notifications';
-import { dedupeActiveMedicines } from '../src/utils/savePrescription';
+import { dedupeActiveMedicines, cleanupDeadSchedules } from '../src/utils/savePrescription';
 import { useNotificationResponseHandler } from '../src/hooks/useNotificationHandler';
 import { I18nProvider } from '../src/i18n';
 import { AnimatedSplash, SPLASH_BACKGROUND } from '../src/components/ui/AnimatedSplash';
@@ -196,6 +196,14 @@ function AppContent() {
           await dedupeActiveMedicines();
         } catch (dedupeError) {
           console.error('[Init] Duplicate cleanup failed:', dedupeError);
+        }
+
+        // Drop dead schedule generations stacked by re-scans from builds
+        // before schedule replacement existed (no-op once clean).
+        try {
+          await cleanupDeadSchedules();
+        } catch (deadScheduleError) {
+          console.error('[Init] Schedule cleanup failed:', deadScheduleError);
         }
         
         let existingProfile: Profile | null = null;

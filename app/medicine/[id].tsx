@@ -149,6 +149,11 @@ export default function MedicineDetailScreen() {
   // Pause = all schedules deactivated; resume reactivates them
   const isPaused = schedules.length > 0 && schedules.every((s) => !s.is_active);
 
+  // Live generation only: replaced (inactive) rows are historical noise, so
+  // hide them while the course is running. A paused medicine keeps showing
+  // every row greyed out — there the inactive rows ARE the pause state.
+  const visibleSchedules = isPaused ? schedules : schedules.filter((s) => s.is_active);
+
   const handleTogglePause = useCallback(async () => {
     if (!medicine) return;
     try {
@@ -344,13 +349,13 @@ export default function MedicineDetailScreen() {
         </Animated.View>
 
         {/* Schedule */}
-        {schedules.length > 0 && (
+        {visibleSchedules.length > 0 && (
           <Animated.View entering={enter(2)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
               {t.medicine.schedule}
             </Text>
             <Card>
-              {schedules.map((sch) => {
+              {visibleSchedules.map((sch) => {
                 const range = t.dose.timeRange
                   .replace('{start}', nf(formatTime12h(sch.time, language)))
                   .replace('{end}', nf(formatTime12h(addMinutesToTime(sch.time, sch.window_minutes ?? 120), language)));

@@ -112,6 +112,15 @@ export async function getActiveMedicines(): Promise<Medicine[]> {
   return rows.map(parseMedicine);
 }
 
+/** Every non-deleted medicine across all prescriptions (cleanup passes). */
+export async function getAllMedicines(): Promise<Medicine[]> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM medicines WHERE deleted_at IS NULL ORDER BY created_at ASC;'
+  );
+  return rows.map(parseMedicine);
+}
+
 export async function updateMedicine(
   id: string,
   data: Partial<Omit<Medicine, 'id' | 'prescription_id' | 'created_at'>>
