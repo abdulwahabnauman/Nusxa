@@ -43,6 +43,13 @@ function urduDayPart(hour24: number): string {
   return 'شام';
 }
 
+/** Bucket a 24h hour into the day parts used by the timeline and hints */
+export function getDayPart(hour: number): 'morning' | 'afternoon' | 'night' {
+  if (hour >= 5 && hour <= 11) return 'morning';
+  if (hour >= 12 && hour <= 16) return 'afternoon';
+  return 'night';
+}
+
 /** Add minutes to an HH:mm time, wrapping past midnight */
 export function addMinutesToTime(time24: string, minutes: number): string {
   const [h, m] = time24.split(':').map(Number);
