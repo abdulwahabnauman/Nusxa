@@ -13,6 +13,8 @@ interface ScheduleTimelineProps {
   onSkip?: (scheduleId: string, medicineId: string) => void;
   /** When true, doses are grouped under Morning / Afternoon / Night headers */
   groupByTimeOfDay?: boolean;
+  /** Current time in epoch-ms; pending doses before their time are locked */
+  nowMs: number;
 }
 
 type DayPart = 'morning' | 'afternoon' | 'night';
@@ -25,7 +27,7 @@ const DAY_PART_ICONS: Record<DayPart, keyof typeof MaterialCommunityIcons.glyphM
 
 const DAY_PART_ORDER: DayPart[] = ['morning', 'afternoon', 'night'];
 
-export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = true }: ScheduleTimelineProps) {
+export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = true, nowMs }: ScheduleTimelineProps) {
   const { colors, typography, spacing } = useTheme();
   const { t } = useI18n();
 
@@ -49,6 +51,7 @@ export function ScheduleTimeline({ items, onTaken, onSkip, groupByTimeOfDay = tr
       dosage={item.dosage}
       mealInstruction={item.mealInstruction}
       status={item.status}
+      nowMs={nowMs}
       onTaken={() => onTaken?.(item.scheduleId, item.medicineId)}
       onSkip={() => onSkip?.(item.scheduleId, item.medicineId)}
     />
