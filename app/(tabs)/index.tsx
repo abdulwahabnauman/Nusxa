@@ -536,6 +536,23 @@ export default function HomeScreen() {
           </View>
         )}
 
+        {/* Nothing due right now — point at the next batch of doses */}
+        {hasSchedule && upcomingHint && (
+          <View style={{ paddingHorizontal: spacing.base, marginTop: spacing.sm }}>
+            <View
+              style={[
+                styles.upcomingHint,
+                { backgroundColor: colors.background.subtle, borderColor: colors.border.default },
+              ]}
+            >
+              <MaterialCommunityIcons name="clock-outline" size={18} color={colors.text.secondary} />
+              <Text style={[typography.body.sm, { color: colors.text.secondary, marginStart: 8, flex: 1 }]}>
+                {upcomingHint}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Progress Overview */}
         {hasSchedule && (
           <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
