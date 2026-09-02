@@ -62,7 +62,8 @@ All items below exist in the current source tree; file references are given for 
 - Two-stage splash: icon-less black native boot window handing off to an animated logo/wordmark splash (`app.json`, `src/components/ui/AnimatedSplash.tsx`).
 
 ### 2.6 AI key management
-- Two modes: **proxy mode** (all AI calls routed through the optional Cloudflare Worker which holds provider keys server-side) or **bring-your-own-key** mode with keys stored in `expo-secure-store` (`src/constants/config.ts`, `worker/src/index.js`, Settings screen).
+- Two modes: **proxy mode** (all AI calls routed through the optional Cloudflare Worker which holds provider keys server-side) or **bring-your-own-key** mode with keys stored in `expo-secure-store` (`src/constants/config.ts`, `worker/src/index.js`, Settings screen). Because `useOwnKeys` defaults to off, a saved Gemini key is unused in proxy mode; Settings now states that explicitly rather than leaving it looking like a broken key.
+- AI failures are classified into provider-independent codes (`src/ai/retry-after.ts`, shared with the worker) and shown as localized, actionable copy — quota exhausted, service busy, timeout, offline, not configured — never as raw provider JSON. Retry honours the provider's own advertised delay and treats a daily quota cap as terminal instead of retrying into it.
 
 **Limitations per feature** are consolidated in §11.
 
@@ -75,7 +76,7 @@ All items below exist in the current source tree; file references are given for 
 - **Frontend / navigation:** Expo Router v6 file-based routes under `app/`; four tabs (`(tabs)/`: Home, Medicines, History, Settings) plus modal/card screens for scan → processing → review, chat, schedule, analytics, detail pages.
 - **State:** Zustand v5 stores (`auth`, `settings`, `theme`) for session/preferences; TanStack Query caches DB reads (`src/hooks/queries.ts`).
 - **Database:** `expo-sqlite` (`nusxa.db`), schema version 19 with sequential migrations, foreign-key cascades, repository layer (`src/db/database.ts`, `schema.ts`, `migrations.ts`, `repositories/`). Tables: `profile`, `prescriptions`, `medicines`, `schedules`, `dose_records`, `reminders_state`, `schema_version`, plus four `education_*` tables.
-- **AI layer:** `src/ai/` (client, OCR pipeline, prompts, post-processing, validation, routing) → Gemini (vision), Groq / OpenRouter (text), directly or via `worker/` proxy.
+- **AI layer:** `src/ai/` (client, OCR pipeline, prompts, post-processing, validation, routing, failure classification/retry in `retry-after.ts`) → Gemini (vision), Groq / OpenRouter (text), directly or via `worker/` proxy. `retry-after.ts` and `constants/ai-models.ts` are imported by the worker as well as the app, so the two runtimes cannot disagree about model names, timeouts or what counts as retryable.
 - **Native layer:** `android/` is Expo prebuild output (gitignored, regenerable); custom config plugins inject the widget and shortcut; `MainActivity` registers the native splash.
 - **Data flow (core):** scan → blur gate → OCR pipeline (processing screen) → review/edit → save (repositories) → notifications + widget sync → tabs render via react-query → dose logging writes `dose_records` → analytics.
 
@@ -185,17 +186,17 @@ Automated checks present in the repository and their **actual results, executed 
 
 | Check | Command | Result |
 | ----- | ------- | ------ |
-| Unit tests (Jest + jest-expo, 13 suites / 136 tests) | `npm test` | **PASS** — 13/13 suites, 136/136 tests, 20.5 s |
+| Unit tests (Jest + jest-expo, 14 suites / 172 tests) | `npm test` | **PASS** — 14/14 suites, 172/172 tests, 8.0 s |
 | Static type checking (strict TS) | `npx tsc --noEmit` | **PASS** — no diagnostics |
 | Lint (ESLint 9 + eslint-config-expo) | `npm run lint` | **PASS** — 0 errors, 0 warnings (app/ + src/ scope) |
-| OCR golden-set evaluation | `npm run eval` | Not run here — requires Gemini credentials or a deployed proxy and network access |
+| OCR golden-set evaluation | `npm run eval` | **Never run** — `eval/golden/` holds only `example.expected.json` and no sample images, so there is nothing to score; `eval/results.csv` contains just its header row. Adding anonymized prescriptions is the prerequisite |
 | Android APK/AAB build | see §8 | Not verified in this environment — no build artifacts present in the repository |
 
-Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill math, drug-interaction checking, dose/save duplicate matching, blur-sharpness scoring, PDF page/layout helpers, AI provider routing and OCR post-processing, markdown rendering, pill-icon rendering, tab events.
+Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill math, drug-interaction checking, dose/save duplicate matching, blur-sharpness scoring, PDF page/layout helpers, AI provider routing, AI failure classification and retry-delay parsing, OCR post-processing, markdown rendering, pill-icon rendering, tab events.
 
 ```text
 TypeScript: PASS
-Tests:      PASS (136/136)
+Tests:      PASS (172/172)
 Lint:       PASS (0 errors, 0 warnings)
 Build:      Not verified in the current environment
 ```
@@ -250,11 +251,12 @@ No secret values are stored in any of these files.
 - **Expo Go cannot run the app:** native modules (sqlite, secure-store, biometrics, widget plugins) require a development build, despite the readme's quick-start mentioning Expo Go for orientation.
 - **AI features need network + credentials:** scanning, chat and explanations require either the deployed proxy or user-provided Gemini/Groq/OpenRouter keys; without them the rest of the app (data, reminders) works fully offline.
 - **No cross-device sync:** data is device-local by design; transfer is via JSON export/import or encrypted backup files.
-- **App-scope lint is clean** (`app/` + `src/`: 0 errors, 0 warnings). Two issues remain *outside* `npm run lint`'s scope: a genuine duplicate-declaration parse error in `worker/src/index.js` (`Identifier 'text' has already been declared`) and a `no-undef` false positive for `__dirname` in `plugins/with-next-dose-widget.js` (a Node config plugin). Neither affects the app bundle.
+- **App-scope lint is clean** (`app/` + `src/`: 0 errors, 0 warnings), but `npm run lint` = `expo lint`, which never scans `worker/` or `plugins/`. That blind spot let a duplicate-declaration parse error in `worker/src/index.js` (`Identifier 'text' has already been declared`) survive undetected — it blocked `wrangler deploy` entirely, so the live worker had silently diverged from source. Fixed 2026-09-02; worker edits are now syntax-checked with `node --input-type=module --check < worker/src/index.js`. One harmless issue remains out of scope: a `no-undef` false positive for `__dirname` in `plugins/with-next-dose-widget.js` (a Node config plugin). Neither affects the app bundle.
 - **SQLite journal mode is DELETE, not WAL** (`src/db/database.ts`), chosen for compatibility; write-heavy operations are therefore slower than WAL would allow.
 - **Delete-all-data does not shrink the SQLite file** (standard SQLite behavior; freed pages are reused). App-lock credentials and AI keys intentionally survive the wipe.
 - **Urdu wordmark limitation:** the splash wordmark always renders in Latin Inter because Nastaliq shaping mangles Latin brand text.
-- **Eval harness requires credentials/network** and is not part of CI; `eval/results.csv` tracks runs manually.
+- **Eval harness has never been run:** `eval/golden/` contains only `example.expected.json` — no sample images — so `npm run eval` has nothing to score and `eval/results.csv` holds only its header row. It is not part of CI. Populating the golden set with anonymized prescriptions is the prerequisite for measuring any OCR change.
+- **OCR latency is provider-bound.** Verified on a physical device 2026-09-02: a 3-page scan through the proxy ran 46 s before the worker's 45 s deadline returned a structured 504, and two direct-Gemini attempts hit the app's own 60 s budget. Payload size is not the cause — measured 0.14 MB per page and 0.57 MB for a 3-page scan. Failures now surface as localized, actionable copy with working Retry/Back buttons instead of raw provider JSON or a bare "Aborted", and the budgets are nested (45 s worker attempt inside a 60 s client budget) so the app always receives a real reply; but a slow provider is still slow, and Gemini is the only vision path by design.
 - **No CI pipeline** is configured in the repository; verification commands must be run manually.
 
 ---
@@ -266,7 +268,7 @@ No secret values are stored in any of these files.
 - [x] `readme.md` (developer handoff guide) and `docs/` design/audit notes
 - [x] Configuration: `app.json`, `eas.json`, `env.example`, `package.json`, TS/ESLint/Babel/Metro configs
 - [x] Required assets: icons, splash images, bundled fonts (Inter, Noto Nastaliq Urdu)
-- [x] Unit test suites (13 files, 136 tests) and OCR eval harness with golden set
+- [x] Unit test suites (14 files, 172 tests) and the OCR eval harness (`eval/run-eval.ts` — golden set not yet populated, see §11)
 - [ ] APK / AAB artifact — **not committed**; produce with `eas build --platform android --profile preview` (evaluator APK) or the local Gradle release command in §8
 - [ ] `.env` — intentionally excluded (gitignored); provide values per `env.example` at build time
 
@@ -279,12 +281,15 @@ No secret values are stored in any of these files.
 - User-entered AI keys and the app-lock PIN live in `expo-secure-store` (hardware-backed keystore), never in the database or bundle; backup rules exclude them from Android backups (`android/app/src/main/res/xml/secure_store_backup_rules.xml`).
 - Encrypted backups use `crypto-js` with a user-supplied passphrase; plain JSON exports contain clinical data and should be shared deliberately.
 - The optional proxy holds provider keys as Cloudflare Worker secrets (`wrangler secret put …`), so no key ships in the app bundle in proxy mode.
+- The proxy **fails closed**: without the `APP_KEY` secret it refuses every POST with 503 rather than serving the providers' quota openly, and a missing or wrong `x-app-key` gets 401. The `GET /` health check stays open so a broken deploy remains diagnosable. Rate limiting is deliberately left to Cloudflare dashboard rules instead of the worker, because mobile carriers place many subscribers behind one public IP and a per-IP limit in the worker would block legitimate users.
+- Upstream provider response bodies are logged server-side only and never forwarded: the client receives a short human-safe `error` summary plus `errorDetail: { code, status, retryAfterSeconds }`, and maps the code to localized copy. Raw provider JSON is never shown to a user.
 
 ---
 
 ## Verification Summary
 
 - **Documented from source:** every feature, path, version, command and limitation above was read from repository files (`package.json`, `app.json`, `eas.json`, `env.example`, `src/`, `app/`, `plugins/`, `worker/`, `eval/`, `readme.md`).
-- **Executed and verified here (2026-09-02):** `npm test` (136/136 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), secrets scan (clean).
-- **Not verified in this environment:** Android/iOS artifact builds (no SDK build run; no artifacts in repo), `npm run eval` (needs AI credentials/network), on-device UI behavior.
+- **Executed and verified here (2026-09-02):** `npm test` (172/172 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), `node --input-type=module --check` on `worker/src/index.js` (parses), secrets scan (clean).
+- **Verified on a physical Android device (2026-09-02):** the OCR failure paths, observed through `adb logcat`. A bare `Aborted` now classifies as `code: 'timeout'`, `Network request failed` as `code: 'offline'`, and a deployed-proxy 504 arrived as a human-readable summary with `statusCode: 504` after 46 s — inside the app's 60 s budget, so the client never aborted. Payload sizes measured at 0.14 MB per page and 0.57 MB for three pages. No raw provider JSON reached the UI.
+- **Not verified in this environment:** Android/iOS artifact builds (no SDK build run; no artifacts in repo) and `npm run eval` (the golden set is empty — see §11).
 - **Known documentation inconsistency:** `readme.md`'s quick start suggests Expo Go, which cannot host the app's native modules; a development build is required (noted in §5/§11).
