@@ -10,7 +10,7 @@
 
 ## 1. Project Overview
 
-Nusxa (pronounced "nukh-sa") is an offline-first, AI-powered medication companion mobile app. It scans paper prescriptions with the phone camera, extracts medicine information with a vision model, builds medication schedules with local reminders, and tracks adherence over time — with a bilingual (English/Urdu, LTR/RTL) and accessibility-focused UI aimed at elderly patients.
+Nusxa (pronounced "nukh-sa") is an AI-powered medication companion mobile app. The only thing that requires an internet connection is scanning a prescription (AI extraction); once medicines are saved, everything else — reminders, adherence tracking, education library, backups — runs offline, unless the user opts into the AI chat companion. It scans paper prescriptions with the phone camera, extracts medicine information with a vision model, builds medication schedules with local reminders, and tracks adherence over time — with a bilingual (English/Urdu, LTR/RTL) and accessibility-focused UI aimed at elderly patients.
 
 **Problem solved.** Patients — especially elderly ones — struggle to read handwritten prescriptions, remember dose times, and track whether doses were taken. Nusxa turns a photo of a prescription into a structured, reminder-driven medication plan that lives entirely on the device.
 
@@ -71,7 +71,7 @@ All items below exist in the current source tree; file references are given for 
 
 ## 3. Architecture / Project Structure
 
-**Pattern.** Offline-first client app. No traditional backend: persistence is local SQLite; the only server component is an *optional* Cloudflare Worker that proxies AI calls so end users need no API keys.
+**Pattern.** Offline-capable client app: the only network-dependent flows are prescription scanning (AI OCR) and, optionally, the AI chat companion; everything else runs against local storage. No traditional backend: persistence is local SQLite; the only server component is an *optional* Cloudflare Worker that proxies AI calls so end users need no API keys.
 
 - **Frontend / navigation:** Expo Router v6 file-based routes under `app/`; five tabs (`(tabs)/`: Home, Medicines, History, Learn, Settings) plus modal/card screens for scan → processing → review, chat, schedule, analytics, detail pages.
 - **State:** Zustand v5 stores (`auth`, `settings`, `theme`) for session/preferences; TanStack Query caches DB reads (`src/hooks/queries.ts`).
