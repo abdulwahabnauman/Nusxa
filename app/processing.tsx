@@ -8,6 +8,7 @@ import { ProgressSteps } from '../src/components/ui/ProgressSteps';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { processPrescription } from '../src/ai/pipeline';
+import { aiErrorCopyKey } from '../src/ai/client';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
 import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
 import { archivePrescriptionImages } from '../src/utils/archiveImages';
@@ -49,7 +50,8 @@ export default function ProcessingScreen() {
 
   useEffect(() => {
     if (uris.length === 0) {
-      setError('No image provided.');
+      setError(t.aiErrors.generic);
+      setStage('error');
       return;
     }
     runPipeline();
@@ -62,7 +64,7 @@ export default function ProcessingScreen() {
       // With the serverless proxy configured the key lives server-side.
       const apiKey = await resolveApiKey();
       if (!apiKey && !isAiProxyConfigured()) {
-        setError('AI service key not configured. Add your Gemini API key in Settings.');
+        setError(t.aiErrors.notConfigured);
         setStage('error');
         return;
       }
@@ -77,12 +79,10 @@ export default function ProcessingScreen() {
       // Explicitly mark final step as completed
       setStage('complete');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setError(
-        /network request failed/i.test(message)
-          ? 'Could not reach the AI service. Check your internet connection and try again.'
-          : message
-      );
+      // Classified by failure code, never by matching provider prose: the raw
+      // message is an English JSON blob that offers the user nothing to do.
+      if (__DEV__) console.warn('[ocr] pipeline failed', err);
+      setError(t.aiErrors[aiErrorCopyKey(err)]);
       setStage('error');
     }
   }
@@ -189,7 +189,7 @@ export default function ProcessingScreen() {
         </View>
 
         <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
-          {stage === 'error' ? 'Processing failed' : 'Reading your prescription'}
+          {stage === 'error' ? t.processing.errorTitle : 'Reading your prescription'}
         </Text>
 
         <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center' }]}>
@@ -204,9 +204,9 @@ export default function ProcessingScreen() {
 
         {stage === 'error' && (
           <View style={styles.errorActions}>
-            <Button title="Try again" onPress={handleRetry} style={{ flex: 1 }} />
+            <Button title={t.common.retry} onPress={handleRetry} style={{ flex: 1 }} />
             <Button
-              title="Go back"
+              title={t.common.back}
               onPress={() => router.back()}
               variant="ghost"
               style={{ flex: 1 }}

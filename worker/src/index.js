@@ -12,6 +12,16 @@
  *
  * Model constants are imported from the shared app module, so the worker and
  * the app can never drift apart (single source of truth).
+ *
+ * Error contract: failures reply with a short human-safe `error` summary plus
+ * a structured `errorDetail: { code, status, retryAfterSeconds? }`. Upstream
+ * response bodies are logged here and never forwarded — they are English JSON
+ * blobs that mean nothing to the app's users and disclose provider details.
+ *
+ * Retry ownership lives in the app, not here: a proxy that silently retried
+ * for 90s was indistinguishable from a hang, and the client outlived none of
+ * it. Each attempt below is bounded by WORKER_VISION_TIMEOUT_MS, which is kept
+ * under the app's VISION_TIMEOUT_MS so the client always gets a real reply.
  */
 
 import {
@@ -22,14 +32,81 @@ import {
   GROQ_API_BASE as GROQ_BASE,
   GROQ_MODEL,
   API_TIMEOUT_MS as TIMEOUT_MS,
-  API_MAX_RETRIES as MAX_RETRIES,
+  WORKER_VISION_TIMEOUT_MS as VISION_TIMEOUT_MS,
 } from '../../src/constants/ai-models';
+import {
+  parseRetryAfterSeconds,
+  classifyFailure,
+} from '../../src/ai/retry-after';
+
+const ERROR_SUMMARIES = {
+  quota_exhausted: 'The AI service has reached its daily limit. Please try again tomorrow.',
+  rate_limited: 'The AI service is busy. Please try again in a moment.',
+  overloaded: 'The AI service is temporarily unavailable. Please try again.',
+  timeout: 'The AI service took too long to respond. Please try again.',
+  upstream: 'The AI service failed. Please try again.',
+  empty_response: 'The AI service returned nothing usable. Please try again.',
+  not_configured: 'The AI service is not configured.',
+  invalid_request: 'Invalid request.',
+  unauthorized: 'Unauthorized.',
+  not_found: 'Not found.',
+};
 
 function jsonReply(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+function errorReply(code, status, retryAfterSeconds) {
+  return jsonReply(
+    {
+      error: ERROR_SUMMARIES[code] ?? ERROR_SUMMARIES.upstream,
+      errorDetail: {
+        code,
+        status,
+        ...(retryAfterSeconds ? { retryAfterSeconds } : {}),
+      },
+    },
+    status,
+  );
+}
+
+/** Carry just enough provider detail to classify the failure. The upstream
+ * body is deliberately not attached — it must not reach the client. */
+function upstreamError(reason, { status, retryAfterSeconds, aborted } = {}) {
+  const error = new Error(reason);
+  error.status = status;
+  error.retryAfterSeconds = replyAfterSeconds(retryAfterSeconds);
+  error.aborted = aborted;
+  return error;
+}
+
+function replyAfterSeconds(seconds) {
+  return typeof seconds === 'number' && seconds > 0 ? seconds : undefined;
+}
+
+/** Classify a provider failure into the reply the client should see. */
+function upstreamErrorReply(error, context) {
+  const code = classifyFailure({
+    status: error?.status,
+    retryAfterSeconds: error?.retryAfterSeconds,
+    aborted: error?.aborted,
+  });
+  // Server-side only: this is the sole place the raw provider body survives,
+  // which is where it belongs for debugging quota and overload failures.
+  console.error(`[proxy] ${context} failed`, { code, status: error?.status, reason: error?.message });
+
+  const status =
+    code === 'quota_exhausted' || code === 'rate_limited'
+      ? 429
+      : code === 'timeout'
+        ? 504
+        : code === 'overloaded'
+          ? (error?.status ?? 502)
+          : 502;
+  return errorReply(code, status, error?.retryAfterSeconds);
 }
 
 async function readJson(request) {
@@ -40,11 +117,18 @@ async function readJson(request) {
   }
 }
 
-async function fetchWithTimeout(url, options) {
+async function fetchWithTimeout(url, options, timeoutMs = TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    // Flag our own deadline separately from a network failure: a timeout means
+    // the provider is slow, not unreachable, and the client says so differently.
+    if (error?.name === 'AbortError') {
+      throw upstreamError(`Upstream request timed out after ${timeoutMs}ms`, { aborted: true });
+    }
+    throw upstreamError('Upstream request failed');
   } finally {
     clearTimeout(timer);
   }
@@ -70,20 +154,26 @@ async function chatCompletion(baseUrl, model, apiKey, system, messages, temperat
   });
 
   if (!response.ok) {
-    throw new Error(`AI API error ${response.status}: ${await response.text()}`);
+    const errorBody = await response.text();
+    throw upstreamError('Text provider rejected the request', {
+      status: response.status,
+      retryAfterSeconds: parseRetryAfterSeconds(response.headers.get('retry-after'), errorBody),
+    });
   }
 
   const data = await response.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error('Empty response from AI service');
-  return text;
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) {
+    throw upstreamError('Empty response from text provider', { status: 200 });
+  }
+  return content;
 }
 
 /** Text chat: Groq first, Nemotron via OpenRouter fallback when quota/error */
 async function handleChat(request, env) {
   const body = await readJson(request);
   if (!body || typeof body.system !== 'string' || !Array.isArray(body.messages)) {
-    return jsonReply({ error: 'Invalid request body' }, 400);
+    return errorReply('invalid_request', 400);
   }
 
   const temperature = typeof body.temperature === 'number' ? body.temperature : 0.1;
@@ -110,14 +200,14 @@ async function handleChat(request, env) {
       );
       return jsonReply({ content });
     } catch (error) {
-      return jsonReply({ error: `AI service failed: ${error.message}` }, 502);
+      // The fallback also failed, so report the fallback's reason: it is the
+      // provider the client would have to wait on anyway.
+      return upstreamErrorReply(error, 'chat fallback');
     }
   }
 
-  return jsonReply(
-    { error: primaryError ? `AI service failed: ${primaryError.message}` : 'No text provider configured' },
-    502,
-  );
+  if (primaryError) return upstreamErrorReply(primaryError, 'chat');
+  return errorReply('not_configured', 502);
 }
 
 async function callGeminiOnce(env, system, text, images, temperature, responseSchema) {
@@ -150,35 +240,40 @@ async function callGeminiOnce(env, system, text, images, temperature, responseSc
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(geminiBody),
     },
+    VISION_TIMEOUT_MS,
   );
 
   if (!response.ok) {
-    const error = new Error(`Gemini API error ${response.status}: ${await response.text()}`);
-    error.status = response.status;
-    throw error;
+    const errorBody = await response.text();
+    throw upstreamError('Gemini rejected the request', {
+      status: response.status,
+      retryAfterSeconds: parseRetryAfterSeconds(response.headers.get('retry-after'), errorBody),
+    });
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    const error = new Error('Empty response from Gemini');
-    error.status = 502;
-    throw error;
+  // Named apart from the `text` prompt parameter above — redeclaring that name
+  // here is a SyntaxError in an ES module and silently blocks every deploy.
+  const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!replyText) {
+    throw upstreamError('Empty response from Gemini', { status: 200 });
   }
-  return text;
+  return replyText;
 }
 
-/** Prescription OCR via Gemini Vision, with retry on rate-limit/server errors.
- * Accepts a multi-page prescription as `images` (up to 3) or a single
- * `image` from older app versions. */
+/** Prescription OCR via Gemini Vision. Accepts a multi-page prescription as
+ * `images` (up to 3) or a single `image` from older app versions.
+ *
+ * One attempt only: the client owns retry, because only the client can show
+ * progress or offer a Retry button. */
 async function handleVision(request, env) {
   if (!env.GEMINI_API_KEY) {
-    return jsonReply({ error: 'Vision provider not configured' }, 502);
+    return errorReply('not_configured', 502);
   }
 
   const body = await readJson(request);
   if (!body || typeof body.system !== 'string' || typeof body.text !== 'string') {
-    return jsonReply({ error: 'Invalid request body' }, 400);
+    return errorReply('invalid_request', 400);
   }
 
   const images = Array.isArray(body.images) && body.images.length > 0
@@ -187,27 +282,22 @@ async function handleVision(request, env) {
       ? [body.image]
       : [];
   if (images.length === 0) {
-    return jsonReply({ error: 'Invalid request body' }, 400);
+    return errorReply('invalid_request', 400);
   }
 
   // OCR is deterministic (temperature 0) on newer app versions; older
   // versions that don't send the field keep the previous 0.1 behavior.
   const temperature = typeof body.temperature === 'number' ? body.temperature : 0.1;
 
-  let lastError = null;
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const content = await callGeminiOnce(env, body.system, body.text, images, temperature, body.responseSchema);
-      return jsonReply({ content });
-    } catch (error) {
-      lastError = error;
-      const retryable = error.status === 429 || error.status >= 500;
-      if (!retryable || attempt === MAX_RETRIES) break;
-      await new Promise((resolve) => setTimeout(resolve, 1000 * 2 ** attempt));
-    }
+  try {
+    const content = await callGeminiOnce(env, body.system, body.text, images, temperature, body.responseSchema);
+    return jsonReply({ content });
+  } catch (error) {
+    // An empty 200 is its own code so the client can retry it; every other
+    // failure is classified from the status the provider returned.
+    if (error?.status === 200) return errorReply('empty_response', 502);
+    return upstreamErrorReply(error, 'vision');
   }
-
-  return jsonReply({ error: `Vision service failed: ${lastError?.message ?? 'unknown error'}` }, 502);
 }
 
 export default {
@@ -218,16 +308,16 @@ export default {
       return jsonReply({ ok: true, service: 'nusxa-ai-proxy' });
     }
     if (request.method !== 'POST') {
-      return jsonReply({ error: 'Not found' }, 404);
+      return errorReply('not_found', 404);
     }
 
     // Shared app secret stops strangers from burning the provider quotas.
     if (env.APP_KEY && request.headers.get('x-app-key') !== env.APP_KEY) {
-      return jsonReply({ error: 'Unauthorized' }, 401);
+      return errorReply('unauthorized', 401);
     }
 
     if (url.pathname === '/chat') return handleChat(request, env);
     if (url.pathname === '/vision') return handleVision(request, env);
-    return jsonReply({ error: 'Not found' }, 404);
+    return errorReply('not_found', 404);
   },
 };

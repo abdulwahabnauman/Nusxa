@@ -7,11 +7,23 @@ import {
   GROQ_MODEL,
   API_TIMEOUT_MS,
   API_MAX_RETRIES,
+  VISION_TIMEOUT_MS,
+  VISION_MAX_RETRIES,
   AI_PROXY_URL,
   AI_PROXY_APP_KEY,
   isAiProxyConfigured,
 } from '../constants/config';
 import { shouldUseProxy } from './routing';
+import {
+  classifyFailure,
+  classifyThrownError,
+  copyKeyForCode,
+  isRetryableCode,
+  parseRetryAfterSeconds,
+  retryDelayMs,
+  type AiErrorCode,
+  type AiErrorCopyKey,
+} from './retry-after';
 import { useSettingsStore } from '../stores/settings-store';
 
 interface GeminiPart {
@@ -78,15 +90,85 @@ interface OpenRouterResponse {
 }
 
 export class AIError extends Error {
+  /** Stable, provider-independent failure code — what the UI switches on. */
+  code: AiErrorCode;
   statusCode?: number;
   retryable: boolean;
+  /** Delay the provider itself advertised, when it gave one. */
+  retryAfterMs?: number;
+  /** Daily provider cap. Retrying again today cannot succeed, so the UI says
+   * "try again tomorrow" instead of offering an immediate Retry. */
+  quotaExhausted: boolean;
 
-  constructor(message: string, statusCode?: number, retryable = true) {
+  constructor(
+    message: string,
+    options: { code?: AiErrorCode; statusCode?: number; retryAfterSeconds?: number } = {}
+  ) {
     super(message);
     this.name = 'AIError';
-    this.statusCode = statusCode;
-    this.retryable = retryable;
+    this.code = options.code ?? 'upstream';
+    this.statusCode = options.statusCode;
+    this.retryAfterMs =
+      options.retryAfterSeconds !== undefined ? options.retryAfterSeconds * 1000 : undefined;
+    this.quotaExhausted = this.code === 'quota_exhausted';
+    this.retryable = isRetryableCode(this.code);
   }
+}
+
+/** Network failures and our own aborts arrive as plain Errors. Give them a
+ * code so every caller can classify failures the same way. */
+function toAIError(error: unknown): AIError {
+  if (error instanceof AIError) return error;
+  const { code, message } = classifyThrownError(error);
+  return new AIError(message, { code });
+}
+
+/** Classify a non-OK provider response. The raw body is logged in dev only:
+ * it is an English JSON blob that means nothing to the user and discloses
+ * provider and account-tier details, so it never enters the error message. */
+async function throwForResponse(response: Response, provider: string): Promise<never> {
+  const bodyText = await response.text();
+  const retryAfterSeconds = parseRetryAfterSeconds(response.headers.get('retry-after'), bodyText);
+  const code = classifyFailure({ status: response.status, retryAfterSeconds });
+  if (__DEV__) console.warn(`[ai] ${provider} ${response.status}`, bodyText.slice(0, 500));
+  throw new AIError(`${provider} error ${response.status}`, {
+    code,
+    statusCode: response.status,
+    retryAfterSeconds,
+  });
+}
+
+/** One retry loop for every transport. Retries only what isRetryableCode
+ * allows, and waits the provider's own advertised delay when it gave one —
+ * except when that delay exceeds the shared cap, where failing fast with a
+ * clear message beats a minute-long spinner. */
+async function withRetry<T>(attempt: () => Promise<T>, maxRetries: number): Promise<T> {
+  let lastError: AIError | null = null;
+
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await attempt();
+    } catch (error) {
+      lastError = toAIError(error);
+      if (!lastError.retryable || i === maxRetries) throw lastError;
+
+      const wait = retryDelayMs(
+        i,
+        lastError.retryAfterMs !== undefined ? lastError.retryAfterMs / 1000 : undefined
+      );
+      if (wait === undefined) throw lastError;
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+
+  throw lastError ?? new AIError('Unknown error calling AI service');
+}
+
+/** Which `aiErrors` dictionary key describes this failure. Screens use it to
+ * pick localized copy instead of showing — or pattern-matching — the raw
+ * provider message. */
+export function aiErrorCopyKey(error: unknown): AiErrorCopyKey {
+  return copyKeyForCode(toAIError(error).code);
 }
 
 function proxyHeaders(): Record<string, string> {
@@ -95,37 +177,69 @@ function proxyHeaders(): Record<string, string> {
   return headers;
 }
 
+interface ProxyReply {
+  content?: string;
+  /** Short human-safe summary — the worker never forwards upstream bodies. */
+  error?: string;
+  errorDetail?: { code?: AiErrorCode; status?: number; retryAfterSeconds?: number };
+}
+
 /** Post to the serverless proxy and return the generated content. The proxy
- * holds the provider keys server-side, so the device never needs any. */
-async function callProxy(pathname: string, body: unknown): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+ * holds the provider keys server-side, so the device never needs any.
+ *
+ * The proxy makes one attempt per request and retry lives here, so a slow
+ * provider is visible to the caller instead of hiding inside a proxy that
+ * looks hung. */
+async function callProxy(
+  pathname: string,
+  body: unknown,
+  timeoutMs: number = API_TIMEOUT_MS,
+  maxRetries: number = API_MAX_RETRIES
+): Promise<string> {
+  return withRetry(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  try {
-    const response = await fetch(`${AI_PROXY_URL}${pathname}`, {
-      method: 'POST',
-      headers: proxyHeaders(),
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    try {
+      const response = await fetch(`${AI_PROXY_URL}${pathname}`, {
+        method: 'POST',
+        headers: proxyHeaders(),
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new AIError(
-        `AI proxy error ${response.status}: ${errorBody}`,
-        response.status,
-        response.status === 429 || response.status >= 500
-      );
+      // Read the body once as text: a non-JSON reply (an HTML error page from
+      // the edge, say) must not throw a parse error on top of the real failure.
+      const rawText = await response.text();
+      let data: ProxyReply = {};
+      try {
+        data = JSON.parse(rawText) as ProxyReply;
+      } catch {
+        data = {};
+      }
+
+      if (!response.ok) {
+        const detail = data.errorDetail;
+        throw new AIError(data.error ?? `AI proxy error ${response.status}`, {
+          code: detail?.code ?? classifyFailure({ status: response.status }),
+          statusCode: detail?.status ?? response.status,
+          retryAfterSeconds:
+            detail?.retryAfterSeconds ??
+            parseRetryAfterSeconds(response.headers.get('retry-after'), rawText),
+        });
+      }
+
+      if (!data.content) {
+        throw new AIError(data.error ?? 'Empty response from AI proxy', {
+          code: 'empty_response',
+          statusCode: response.status,
+        });
+      }
+      return data.content;
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const data = (await response.json()) as { content?: string; error?: string };
-    if (!data.content) {
-      throw new AIError(data.error ?? 'Empty response from AI proxy');
-    }
-    return data.content;
-  } finally {
-    clearTimeout(timeout);
-  }
+  }, maxRetries);
 }
 
 function buildGeminiUrl(apiKey: string): string {
@@ -138,15 +252,15 @@ async function callGemini(
   apiKey: string,
   temperature = 0.1,
   jsonResponse = true,
-  responseSchema?: unknown
+  responseSchema?: unknown,
+  timeoutMs: number = API_TIMEOUT_MS,
+  maxRetries: number = API_MAX_RETRIES
 ): Promise<string> {
-  let lastError: Error | null = null;
+  return withRetry(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
       const body: GeminiRequest = {
         systemInstruction: {
           parts: [{ text: systemPrompt }],
@@ -170,45 +284,28 @@ async function callGemini(
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        const retryable = response.status === 429 || response.status >= 500;
-        throw new AIError(
-          `Gemini API error ${response.status}: ${errorBody}`,
-          response.status,
-          retryable
-        );
-      }
+      if (!response.ok) await throwForResponse(response, 'Gemini API');
 
       const data: GeminiResponse = await response.json();
 
       if (data.error) {
-        throw new AIError(`Gemini error: ${data.error.message}`, data.error.code);
+        throw new AIError(`Gemini error: ${data.error.message}`, {
+          code: classifyFailure({ status: data.error.code }),
+          statusCode: data.error.code,
+        });
       }
 
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
       if (!text) {
-        throw new AIError('Empty response from AI service');
+        throw new AIError('Empty response from AI service', { code: 'empty_response' });
       }
 
       return text;
-    } catch (error) {
-      lastError = error as Error;
-
-      if (error instanceof AIError && !error.retryable) {
-        throw error;
-      }
-
-      if (attempt < API_MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
-      }
+    } finally {
+      clearTimeout(timeout);
     }
-  }
-
-  throw lastError ?? new Error('Unknown error calling Gemini');
+  }, maxRetries);
 }
 
 /** Call an OpenAI-compatible chat completions endpoint (used for both OpenRouter/Nemotron and Groq) */
@@ -221,13 +318,11 @@ async function callOpenAICompatible(
   temperature = 0.1,
   jsonResponse = true
 ): Promise<string> {
-  let lastError: Error | null = null;
+  return withRetry(async () => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
 
-  for (let attempt = 0; attempt <= API_MAX_RETRIES; attempt++) {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-
       const body: OpenRouterRequest = {
         model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
@@ -246,45 +341,29 @@ async function callOpenAICompatible(
         signal: controller.signal,
       });
 
-      clearTimeout(timeout);
-
-      if (!response.ok) {
-        const errorBody = await response.text();
-        const retryable = response.status === 429 || response.status >= 500;
-        throw new AIError(
-          `AI API error ${response.status}: ${errorBody}`,
-          response.status,
-          retryable
-        );
-      }
+      if (!response.ok) await throwForResponse(response, 'AI API');
 
       const data: OpenRouterResponse = await response.json();
 
       if (data.error) {
-        throw new AIError(`AI service error: ${data.error.message}`, Number(data.error.code) || undefined);
+        const status = Number(data.error.code) || undefined;
+        throw new AIError(`AI service error: ${data.error.message}`, {
+          code: classifyFailure({ status }),
+          statusCode: status,
+        });
       }
 
       const text = data.choices?.[0]?.message?.content;
 
       if (!text) {
-        throw new AIError('Empty response from AI service');
+        throw new AIError('Empty response from AI service', { code: 'empty_response' });
       }
 
       return text;
-    } catch (error) {
-      lastError = error as Error;
-
-      if (error instanceof AIError && !error.retryable) {
-        throw error;
-      }
-
-      if (attempt < API_MAX_RETRIES) {
-        await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
-      }
+    } finally {
+      clearTimeout(timeout);
     }
-  }
-
-  throw lastError ?? new Error('Unknown error calling AI service');
+  }, API_MAX_RETRIES);
 }
 
 /** Text keys needed for the primary (Groq) + fallback (Nemotron/OpenRouter) chain */
@@ -386,22 +465,34 @@ export async function visionCompletion(
   options?: VisionOptions
 ): Promise<string> {
   const temperature = options?.temperature ?? 0;
-  if (
-    shouldUseProxy(
-      isAiProxyConfigured(),
-      useSettingsStore.getState().useOwnKeys,
-      apiKey.trim().length > 0
-    )
-  ) {
-    return callProxy('/vision', {
-      system: systemPrompt,
-      text: userText,
-      // `image` keeps older workers working; `images` carries every page
-      image: imagesBase64[0],
-      images: imagesBase64,
-      temperature,
-      responseSchema: options?.responseSchema,
-    });
+  const viaProxy = shouldUseProxy(
+    isAiProxyConfigured(),
+    useSettingsStore.getState().useOwnKeys,
+    apiKey.trim().length > 0
+  );
+  // A saved key is ignored while "Use my own keys" is off, which reads as a bug
+  // from the outside — make the actual route observable in dev.
+  if (__DEV__) {
+    console.log(
+      `[ai] vision via ${viaProxy ? 'proxy' : 'own Gemini key'} (${imagesBase64.length} page(s))`
+    );
+  }
+
+  if (viaProxy) {
+    return callProxy(
+      '/vision',
+      {
+        system: systemPrompt,
+        text: userText,
+        // `image` keeps older workers working; `images` carries every page
+        image: imagesBase64[0],
+        images: imagesBase64,
+        temperature,
+        responseSchema: options?.responseSchema,
+      },
+      VISION_TIMEOUT_MS,
+      VISION_MAX_RETRIES
+    );
   }
 
   return callGemini(
@@ -423,7 +514,9 @@ export async function visionCompletion(
     apiKey,
     temperature,
     true,
-    options?.responseSchema
+    options?.responseSchema,
+    VISION_TIMEOUT_MS,
+    VISION_MAX_RETRIES
   );
 }
 

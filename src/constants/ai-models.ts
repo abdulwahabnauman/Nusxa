@@ -22,3 +22,16 @@ export const API_TIMEOUT_MS = 30_000;
 
 /** Maximum retry attempts for API calls */
 export const API_MAX_RETRIES = 2;
+
+/** OCR sends up to MAX_PRESCRIPTION_PAGES full-resolution JPEGs in one body,
+ * so it needs a longer budget than a chat turn. */
+export const VISION_TIMEOUT_MS = 60_000;
+
+/** The worker's own per-attempt upstream limit. Must stay below
+ * VISION_TIMEOUT_MS so the app receives the worker's structured `timeout`
+ * reply instead of aborting first and reporting a bare "Aborted". */
+export const WORKER_VISION_TIMEOUT_MS = 45_000;
+
+/** Vision retries once at most, and only for rate-limit/overload/empty
+ * responses — see isRetryableCode in src/ai/retry-after.ts. */
+export const VISION_MAX_RETRIES = 1;

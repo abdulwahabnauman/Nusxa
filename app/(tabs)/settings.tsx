@@ -186,6 +186,27 @@ export default function SettingsScreen() {
     label: null,
   });
   const [biometricPref, setBiometricPref] = useState(false);
+  // A saved Gemini key is ignored while "Use my own keys" is off — routing goes
+  // to the built-in service instead, so scans keep failing on its quota even
+  // though the user did everything they were asked to. Surface that explicitly.
+  const [geminiKeyUnused, setGeminiKeyUnused] = useState(false);
+  useEffect(() => {
+    if (useOwnKeys) {
+      setGeminiKeyUnused(false);
+      return;
+    }
+    let cancelled = false;
+    getApiKey()
+      .then((key) => {
+        if (!cancelled) setGeminiKeyUnused(!!key && key.trim().length > 0);
+      })
+      .catch(() => {
+        if (!cancelled) setGeminiKeyUnused(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [useOwnKeys]);
   const scrollRef = useRef<ScrollView>(null);
   useTabScrollReset(
     useCallback(() => scrollRef.current?.scrollTo({ y: 0, animated: true }), [])
@@ -924,6 +945,34 @@ export default function SettingsScreen() {
                     accessibilityLabel="Toggle use my own keys"
                   />
                 </View>
+                {geminiKeyUnused && (
+                  <>
+                    <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.border.default }} />
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'flex-start',
+                        padding: spacing.base,
+                        backgroundColor: colors.warning + '14',
+                      }}
+                    >
+                      <MaterialCommunityIcons
+                        name="information-outline"
+                        size={18}
+                        color={colors.warning}
+                        style={{ marginTop: 2 }}
+                      />
+                      <Text
+                        style={[
+                          typography.body.xs,
+                          { color: colors.text.secondary, flex: 1, marginStart: spacing.sm },
+                        ]}
+                      >
+                        {t.settings.ownKeysUnusedHint}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </Card>
               {useOwnKeys && (
                 <Animated.View entering={reducedMotion ? undefined : FadeInUp.duration(220)} style={{ marginTop: spacing.sm }}>

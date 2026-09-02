@@ -142,6 +142,7 @@ export const en = {
     aiPreconfiguredDesc: 'AI is already set up for you. No keys or extra steps needed.',
     ownKeys: 'Use my own keys',
     ownKeysDesc: 'Send requests straight to your own AI accounts. Providers without a saved key keep using the built-in service.',
+    ownKeysUnusedHint: 'A Gemini key is saved but not in use. Turn this on to scan prescriptions with your own key.',
     openRouterServiceDesc: 'Optional automatic fallback when Groq is unavailable. Key from:',
     groqServiceDesc: 'Powers chat & medicine explanations. Free key from:',
     apiKeyPlaceholder: 'Paste Gemini API key',
@@ -225,7 +226,17 @@ export const en = {
     validating: 'Checking extracted information',
     complete: 'Preparing review screen',
     errorTitle: 'Something went wrong',
-    noKey: 'AI service key not configured. Add your Gemini API key in Settings.',
+  },
+  // AI failure copy, keyed by AiErrorCopyKey in src/ai/retry-after.ts. The raw
+  // provider message is never shown to the user: it is an English JSON blob
+  // that offers them nothing to do.
+  aiErrors: {
+    quota: 'The AI service has reached its limit for today. Please try again tomorrow.',
+    busy: 'The AI service is busy right now. Please try again in a moment.',
+    timeout: 'Reading the prescription is taking too long. Check your connection and try again.',
+    offline: 'No internet connection. Reconnect and try again.',
+    notConfigured: 'The AI service is not set up yet. Open Settings, then AI Service, to finish setup.',
+    generic: 'Something went wrong while reading the prescription. Please try again.',
   },
   // Review
   review: {

@@ -24,6 +24,8 @@ export {
   GROQ_MODEL,
   API_TIMEOUT_MS,
   API_MAX_RETRIES,
+  VISION_TIMEOUT_MS,
+  VISION_MAX_RETRIES,
 } from './ai-models';
 
 /** Maximum image file size in bytes (10 MB) */
