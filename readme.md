@@ -100,7 +100,7 @@ nusxa/
 ├── assets/                       # App icons and splash images (all 1024x1024)
 │   ├── icon.png                  # App store icon
 │   ├── adaptive-icon.png         # Android adaptive icon foreground
-│   ├── splash-icon.png           # Native OS splash image (shown before JS loads, set in app.json)
+│   ├── splash-transparent.png    # Fully transparent native splash image — boot window stays plain black (see §7)
 │   ├── notification-icon.png     # Notification bar icon (flat white silhouette, transparent bg)
 │   ├── icon-half-navy.png        # Navy half of the capsule, used by the custom animated splash
 │   └── icon-half-white.png       # White half of the capsule, used by the custom animated splash
@@ -396,8 +396,8 @@ All AI calls go through `src/ai/client.ts`.
 
 ### 7. Two-Stage Splash Screen
 There are two separate splash moments, easy to mix up:
-1. **Native OS splash** — shown before JS loads at all, fully static (OS constraint, cannot be animated). Controlled by `app.json`'s `"splash"` key, uses `assets/splash-icon.png`.
-2. **Custom animated splash** (`src/components/ui/AnimatedSplash.tsx`) — takes over the instant JS boots. Two separate capsule-half images (`assets/icon-half-navy.png`, `assets/icon-half-white.png`) slide in from opposite corners along the capsule's own diagonal and snap together, then the screen fades into the app. Wired up in `app/_layout.tsx` via `SplashScreen.preventAutoHideAsync()` / `hideAsync()`.
+1. **Native OS splash** — shown before JS loads at all, fully static (OS constraint, cannot be animated). Intentionally invisible: the `expo-splash-screen` plugin config in `app.json` points at the fully transparent `assets/splash-transparent.png` on a `#000000` background (and the Android theme sets `windowSplashScreenAnimatedIcon` to `@android:color/transparent`), so the boot window is plain black and hands off seamlessly to the animated splash.
+2. **Custom animated splash** (`src/components/ui/AnimatedSplash.tsx`) — takes over the instant JS boots and is the only splash the user actually perceives. The capsule logo (`assets/splash-logo.png`) fades in while breathing from 92% to full size, the "Nusxa" wordmark rises in beneath it, the assembled mark holds for a beat, then the whole screen fades into the app. Wired up in `app/_layout.tsx` via `SplashScreen.preventAutoHideAsync()` / `hideAsync()`.
 
 This only renders in a real build (dev client or APK) — Expo Go can't fully replicate custom splash behavior, so don't expect to see it while testing in Expo Go.
 
