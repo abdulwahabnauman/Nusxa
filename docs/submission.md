@@ -10,7 +10,7 @@
 
 ## 1. Project Overview
 
-Nusxa (pronounced "nukh-sa") is an AI-powered medication companion mobile app. The only thing that requires an internet connection is scanning a prescription (AI extraction); once medicines are saved, everything else — reminders, adherence tracking, education library, backups — runs offline, unless the user opts into the AI chat companion. It scans paper prescriptions with the phone camera, extracts medicine information with a vision model, builds medication schedules with local reminders, and tracks adherence over time — with a bilingual (English/Urdu, LTR/RTL) and accessibility-focused UI aimed at elderly patients.
+Nusxa (pronounced "nukh-sa") is an AI-powered medication companion mobile app. The only thing that requires an internet connection is scanning a prescription (AI extraction); once medicines are saved, everything else — reminders, adherence tracking, backups — runs offline, unless the user opts into the AI chat companion. It scans paper prescriptions with the phone camera, extracts medicine information with a vision model, builds medication schedules with local reminders, and tracks adherence over time — with a bilingual (English/Urdu, LTR/RTL) and accessibility-focused UI aimed at elderly patients.
 
 **Problem solved.** Patients — especially elderly ones — struggle to read handwritten prescriptions, remember dose times, and track whether doses were taken. Nusxa turns a photo of a prescription into a structured, reminder-driven medication plan that lives entirely on the device.
 
@@ -50,9 +50,8 @@ All items below exist in the current source tree; file references are given for 
 - Emergency card and doctor-visit record screens (`app/emergency-card.tsx`, `app/doctor-visit.tsx`).
 - Prescription print/PDF and sharing via `expo-print` / `expo-sharing` (`src/utils/pdf*.ts`).
 
-### 2.4 AI chat and education library
+### 2.4 AI chat
 - Medicine chat/explanations with provider routing: Groq primary, OpenRouter (Nemotron) fallback; markdown rendering; conversation persisted to `chat_history.json` (`app/chat.tsx`, `src/ai/client.ts`, `src/utils/chatHistory.ts`).
-- Bilingual **Learn** tab: seeded education categories/articles (EN + UR), bookmarks, reading history, view counts (`app/(tabs)/education.tsx`, `app/education/`, `src/db/schemas/education.ts`).
 
 ### 2.5 Settings, accessibility and security
 - Profile (name per language, DOB, blood group), language switch English/Urdu with **live RTL flip** and Eastern numerals, theme light/dark/system, **elderly mode**, **high contrast**, reduced motion (`app/(tabs)/settings.tsx`, `src/stores/*`, `src/theme/*`, `src/i18n/*`).
@@ -73,7 +72,7 @@ All items below exist in the current source tree; file references are given for 
 
 **Pattern.** Offline-capable client app: the only network-dependent flows are prescription scanning (AI OCR) and, optionally, the AI chat companion; everything else runs against local storage. No traditional backend: persistence is local SQLite; the only server component is an *optional* Cloudflare Worker that proxies AI calls so end users need no API keys.
 
-- **Frontend / navigation:** Expo Router v6 file-based routes under `app/`; five tabs (`(tabs)/`: Home, Medicines, History, Learn, Settings) plus modal/card screens for scan → processing → review, chat, schedule, analytics, detail pages.
+- **Frontend / navigation:** Expo Router v6 file-based routes under `app/`; four tabs (`(tabs)/`: Home, Medicines, History, Settings) plus modal/card screens for scan → processing → review, chat, schedule, analytics, detail pages.
 - **State:** Zustand v5 stores (`auth`, `settings`, `theme`) for session/preferences; TanStack Query caches DB reads (`src/hooks/queries.ts`).
 - **Database:** `expo-sqlite` (`nusxa.db`), schema version 19 with sequential migrations, foreign-key cascades, repository layer (`src/db/database.ts`, `schema.ts`, `migrations.ts`, `repositories/`). Tables: `profile`, `prescriptions`, `medicines`, `schedules`, `dose_records`, `reminders_state`, `schema_version`, plus four `education_*` tables.
 - **AI layer:** `src/ai/` (client, OCR pipeline, prompts, post-processing, validation, routing) → Gemini (vision), Groq / OpenRouter (text), directly or via `worker/` proxy.
@@ -83,7 +82,7 @@ All items below exist in the current source tree; file references are given for 
 ```text
 nusxa/
 ├── app/                    # Expo Router screens
-│   ├── (tabs)/             #   index (Home), medicines, history, education, settings
+│   ├── (tabs)/             #   index (Home), medicines, history, settings (education route exists in code, not yet shipped)
 │   ├── _layout.tsx         #   boot sequence, splash handoff, lock/onboarding gates
 │   ├── onboarding.tsx  scan.tsx  processing.tsx  review.tsx  chat.tsx
 │   ├── schedule.tsx  analytics.tsx  emergency-card.tsx  doctor-visit.tsx
@@ -221,7 +220,7 @@ Build:      Not verified in the current environment
 4. Tap the scan action, photograph a prescription (up to 3 pages; blurry shots are rejected with a retake prompt), and wait for AI extraction on the processing screen.
 5. On the **review screen**, correct any flagged fields and save; medicines and schedules appear under **Medicines**.
 6. Dose reminders fire at scheduled times; tapping a notification opens the medicine detail where doses can be logged, edited or snoozed.
-7. **History** lists past prescriptions (archive/restore, swipe-delete with 30 s undo); **Analytics** shows adherence; **Learn** offers bilingual health articles with bookmarks.
+7. **History** lists past prescriptions (archive/restore, swipe-delete with 30 s undo); **Analytics** shows adherence.
 8. **Chat** answers medicine questions using the configured AI provider.
 9. **Settings** manages profile, language/RTL, theme, elderly mode, high contrast, notification preferences, app lock (PIN/biometric), AI keys or proxy mode, JSON export / encrypted backup / import, and Delete all data.
 10. Verify persistence by restarting the app: profile, medicines, schedules and preferences reload from the local database.
@@ -249,7 +248,7 @@ No secret values are stored in any of these files.
 
 - **iOS is code-supported but not shipped:** no `ios/` directory is committed; the widget and Today shortcut are Android-only native plugins.
 - **Expo Go cannot run the app:** native modules (sqlite, secure-store, biometrics, widget plugins) require a development build, despite the readme's quick-start mentioning Expo Go for orientation.
-- **AI features need network + credentials:** scanning, chat and explanations require either the deployed proxy or user-provided Gemini/Groq/OpenRouter keys; without them the rest of the app (data, reminders, education) works fully offline.
+- **AI features need network + credentials:** scanning, chat and explanations require either the deployed proxy or user-provided Gemini/Groq/OpenRouter keys; without them the rest of the app (data, reminders) works fully offline.
 - **No cross-device sync:** data is device-local by design; transfer is via JSON export/import or encrypted backup files.
 - **Lint has 73 open warnings** (style-level, e.g. `Array<T>` vs `T[]`); zero errors.
 - **SQLite journal mode is DELETE, not WAL** (`src/db/database.ts`), chosen for compatibility; write-heavy operations are therefore slower than WAL would allow.
