@@ -199,9 +199,6 @@ export default function OnboardingScreen() {
                   </View>
                 ))}
               </View>
-              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
-              </View>
             </View>
           )}
 
@@ -223,10 +220,6 @@ export default function OnboardingScreen() {
                   autoFocus
                   onSubmitEditing={handleProfileSave}
                 />
-              </View>
-              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button title={t.common.next} onPress={handleProfileSave} size="lg" />
-                <Button title={t.common.back} onPress={() => setStep('welcome')} variant="ghost" />
               </View>
             </View>
           )}
@@ -277,11 +270,6 @@ export default function OnboardingScreen() {
                   })}
                 </View>
               </View>
-              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button title={t.common.next} onPress={handleHealthSave} size="lg" />
-                {/* The whole step is optional — skip keeps DOB/blood unset */}
-                <Button title={t.onboarding.skipStep} onPress={() => setStep('permissions')} variant="ghost" />
-              </View>
             </View>
           )}
 
@@ -306,17 +294,38 @@ export default function OnboardingScreen() {
                   {t.onboarding.cameraNote}
                 </Text>
               </View>
-              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button
-                  title={t.onboarding.setUp}
-                  onPress={handlePermissions}
-                  loading={loading}
-                  size="lg"
-                />
-              </View>
             </View>
           )}
         </ScrollView>
+        {/* Actions pinned to the bottom on every step so Continue/Back never
+            float mid-screen on short content. Inside the KeyboardAvoidingView
+            so the bar rides above the keyboard on the name step. */}
+        <View style={styles.footer}>
+          {step === 'welcome' && (
+            <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
+          )}
+          {step === 'profile' && (
+            <>
+              <Button title={t.common.next} onPress={handleProfileSave} size="lg" />
+              <Button title={t.common.back} onPress={() => setStep('welcome')} variant="ghost" />
+            </>
+          )}
+          {step === 'health' && (
+            <>
+              <Button title={t.common.next} onPress={handleHealthSave} size="lg" />
+              {/* The whole step is optional — skip keeps DOB/blood unset */}
+              <Button title={t.onboarding.skipStep} onPress={() => setStep('permissions')} variant="ghost" />
+            </>
+          )}
+          {step === 'permissions' && (
+            <Button
+              title={t.onboarding.setUp}
+              onPress={handlePermissions}
+              loading={loading}
+              size="lg"
+            />
+          )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -394,8 +403,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     width: '100%',
   },
-  buttonContainer: {
-    width: '100%',
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 16,
     gap: 12,
     alignItems: 'center',
   },

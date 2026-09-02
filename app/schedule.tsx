@@ -300,24 +300,24 @@ export default function ScheduleScreen() {
               </Card>
             </View>
           )}
-
-          {/* Actions */}
-          <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
-            <Button
-              title={t.schedule.confirmSchedule}
-              onPress={handleConfirm}
-              loading={confirming}
-              disabled={hasInvalidOrEmptyTimes}
-              size="lg"
-              icon={<MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />}
-            />
-            <Button
-              title={t.common.back}
-              onPress={() => router.back()}
-              variant="ghost"
-            />
-          </View>
         </ScrollView>
+        {/* Pinned like the onboarding steps' footer so the actions sit in the
+            same spot on every screen of the flow. */}
+        <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
+          <Button
+            title={t.schedule.confirmSchedule}
+            onPress={handleConfirm}
+            loading={confirming}
+            disabled={hasInvalidOrEmptyTimes}
+            size="lg"
+            icon={<MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />}
+          />
+          <Button
+            title={t.common.back}
+            onPress={() => router.back()}
+            variant="ghost"
+          />
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   inner: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  scrollContent: { paddingBottom: 48 },
+  scrollContent: { paddingBottom: 16 },
   header: { marginTop: 16 },
   notice: { marginTop: 16 },
   medicineSchedule: { marginTop: 16 },
@@ -335,5 +335,5 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   windowRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
   windowChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
-  actions: { marginTop: 32, gap: 12, alignItems: 'center' },
+  actions: { paddingTop: 12, paddingBottom: 16, gap: 12, alignItems: 'center' },
 });
