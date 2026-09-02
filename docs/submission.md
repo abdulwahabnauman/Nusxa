@@ -187,7 +187,7 @@ Automated checks present in the repository and their **actual results, executed 
 | ----- | ------- | ------ |
 | Unit tests (Jest + jest-expo, 13 suites / 136 tests) | `npm test` | **PASS** — 13/13 suites, 136/136 tests, 20.5 s |
 | Static type checking (strict TS) | `npx tsc --noEmit` | **PASS** — no diagnostics |
-| Lint (ESLint 9 + eslint-config-expo) | `npm run lint` | **PASS with warnings** — 0 errors, 73 style warnings |
+| Lint (ESLint 9 + eslint-config-expo) | `npm run lint` | **PASS** — 0 errors, 0 warnings (app/ + src/ scope) |
 | OCR golden-set evaluation | `npm run eval` | Not run here — requires Gemini credentials or a deployed proxy and network access |
 | Android APK/AAB build | see §8 | Not verified in this environment — no build artifacts present in the repository |
 
@@ -196,7 +196,7 @@ Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill
 ```text
 TypeScript: PASS
 Tests:      PASS (136/136)
-Lint:       PASS (0 errors, 73 warnings)
+Lint:       PASS (0 errors, 0 warnings)
 Build:      Not verified in the current environment
 ```
 
@@ -250,7 +250,7 @@ No secret values are stored in any of these files.
 - **Expo Go cannot run the app:** native modules (sqlite, secure-store, biometrics, widget plugins) require a development build, despite the readme's quick-start mentioning Expo Go for orientation.
 - **AI features need network + credentials:** scanning, chat and explanations require either the deployed proxy or user-provided Gemini/Groq/OpenRouter keys; without them the rest of the app (data, reminders) works fully offline.
 - **No cross-device sync:** data is device-local by design; transfer is via JSON export/import or encrypted backup files.
-- **Lint has 73 open warnings** (style-level, e.g. `Array<T>` vs `T[]`); zero errors.
+- **App-scope lint is clean** (`app/` + `src/`: 0 errors, 0 warnings). Two issues remain *outside* `npm run lint`'s scope: a genuine duplicate-declaration parse error in `worker/src/index.js` (`Identifier 'text' has already been declared`) and a `no-undef` false positive for `__dirname` in `plugins/with-next-dose-widget.js` (a Node config plugin). Neither affects the app bundle.
 - **SQLite journal mode is DELETE, not WAL** (`src/db/database.ts`), chosen for compatibility; write-heavy operations are therefore slower than WAL would allow.
 - **Delete-all-data does not shrink the SQLite file** (standard SQLite behavior; freed pages are reused). App-lock credentials and AI keys intentionally survive the wipe.
 - **Urdu wordmark limitation:** the splash wordmark always renders in Latin Inter because Nastaliq shaping mangles Latin brand text.
@@ -285,6 +285,6 @@ No secret values are stored in any of these files.
 ## Verification Summary
 
 - **Documented from source:** every feature, path, version, command and limitation above was read from repository files (`package.json`, `app.json`, `eas.json`, `env.example`, `src/`, `app/`, `plugins/`, `worker/`, `eval/`, `readme.md`).
-- **Executed and verified here (2026-09-02):** `npm test` (136/136 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 73 warnings), secrets scan (clean).
+- **Executed and verified here (2026-09-02):** `npm test` (136/136 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), secrets scan (clean).
 - **Not verified in this environment:** Android/iOS artifact builds (no SDK build run; no artifacts in repo), `npm run eval` (needs AI credentials/network), on-device UI behavior.
 - **Known documentation inconsistency:** `readme.md`'s quick start suggests Expo Go, which cannot host the app's native modules; a development build is required (noted in §5/§11).
