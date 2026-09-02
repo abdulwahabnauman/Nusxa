@@ -221,18 +221,16 @@ export default function ProcessingScreen() {
               {result.validation.warnings.length > 0 &&
                 `, ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
             </Text>
-            <View style={{ width: '100%', flexDirection: 'row', gap: spacing.md }}>
-              <Button 
-                title="OK" 
+            <View style={styles.successButtons}>
+              <Button
+                title="OK"
                 onPress={handleApprove}
                 loading={saving}
-                style={{ flex: 1 }}
               />
               <Button
                 title="Review & adjust"
                 onPress={handleContinue}
                 variant="ghost"
-                style={{ flex: 1.7 }}
               />
             </View>
           </View>
@@ -270,5 +268,10 @@ const styles = StyleSheet.create({
     marginTop: 32,
     width: '100%',
     alignItems: 'center',
+  },
+  successButtons: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
   },
 });
