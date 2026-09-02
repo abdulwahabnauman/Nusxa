@@ -473,8 +473,16 @@ export async function visionCompletion(
   // A saved key is ignored while "Use my own keys" is off, which reads as a bug
   // from the outside — make the actual route observable in dev.
   if (__DEV__) {
+    // base64 carries 3 bytes per 4 characters. Payload size is what an upload
+    // has to fit inside VISION_TIMEOUT_MS, and the number any resolution
+    // change would have to be measured against — eval/golden/ has no samples
+    // yet, so this is the only evidence available.
+    const sizes = imagesBase64.map((b64) => ((b64.length * 3) / 4) / 1048576);
+    const total = sizes.reduce((sum, mb) => sum + mb, 0);
     console.log(
-      `[ai] vision via ${viaProxy ? 'proxy' : 'own Gemini key'} (${imagesBase64.length} page(s))`
+      `[ai] vision via ${viaProxy ? 'proxy' : 'own Gemini key'} — ` +
+        `${total.toFixed(2)} MB payload, ${imagesBase64.length} page(s) ` +
+        `[${sizes.map((mb) => `${mb.toFixed(2)} MB`).join(', ')}]`
     );
   }
 

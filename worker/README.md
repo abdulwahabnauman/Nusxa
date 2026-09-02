@@ -42,10 +42,15 @@ bring-your-own-key mode.
 
 ## Notes
 
+- `APP_KEY` is required. The worker refuses every POST without it (the `GET /`
+  health check still answers), so a deploy missing the secret fails loudly
+  instead of serving the providers' quota to anyone who finds the URL.
 - The app key is embedded in the app binary, so it deters casual abuse rather
   than being true security. For stronger protection, add Cloudflare rate
   limiting rules (dashboard -> Security -> WAF -> Rate limiting rules) on the
-  `/chat` and `/vision` paths.
+  `/chat` and `/vision` paths. Rate limiting belongs there rather than in the
+  worker: mobile carriers share one public IP across many subscribers, so a
+  per-IP limit inside the worker would block legitimate users.
 - Free model quotas are per-key and shared by all app users (Groq is primary
   at ~1,000 req/day; Nemotron fills in automatically). For a larger audience,
   upgrade the provider plans.

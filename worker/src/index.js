@@ -311,8 +311,16 @@ export default {
       return errorReply('not_found', 404);
     }
 
+    // Fail closed. A worker deployed without the APP_KEY secret used to skip
+    // this check entirely, handing the providers' quota to anyone who found
+    // the URL. GET / above stays open so a broken deploy is still diagnosable.
+    if (!env.APP_KEY) {
+      console.error('[proxy] APP_KEY secret is not set — refusing all requests');
+      return errorReply('not_configured', 503);
+    }
+
     // Shared app secret stops strangers from burning the provider quotas.
-    if (env.APP_KEY && request.headers.get('x-app-key') !== env.APP_KEY) {
+    if (request.headers.get('x-app-key') !== env.APP_KEY) {
       return errorReply('unauthorized', 401);
     }
 
