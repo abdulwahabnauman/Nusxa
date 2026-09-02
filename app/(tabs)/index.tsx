@@ -431,7 +431,11 @@ export default function HomeScreen() {
   const hasSchedule = todayItems.length > 0;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+    // The tab bar owns the bottom inset; padding it here too left a gap above the bar.
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background.primary }]}
+    >
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={styles.scrollContent}

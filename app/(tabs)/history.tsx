@@ -309,7 +309,11 @@ export default function HistoryScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+    // The tab bar owns the bottom inset; padding it here too left a gap above the bar.
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background.primary }]}
+    >
       <KeyboardAvoidingView
         behavior="padding"
         style={styles.inner}

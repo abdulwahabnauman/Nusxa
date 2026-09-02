@@ -168,7 +168,11 @@ export default function EducationScreen() {
   );
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+    // The tab bar owns the bottom inset; padding it here too left a gap above the bar.
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={{ flex: 1, backgroundColor: colors.background.primary }}
+    >
       <FlatList
         ref={listRef}
         data={medicines}
