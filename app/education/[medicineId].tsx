@@ -93,6 +93,7 @@ export default function MedicineEducationScreen() {
 
         // Lazy-load the AI client so the education screen's first paint
         // never pays for the network stack on startup.
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { chatCompletion } = require('../../src/ai/client') as typeof import('../../src/ai/client');
 
         const raw = await chatCompletion(

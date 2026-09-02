@@ -262,22 +262,22 @@ export function checkMedicineInteraction(medicine1: string, medicine2: string): 
 }
 
 /** Find all potential interactions in a list of medicines */
-export function findAllInteractions(medicines: string[]): Array<{
+export function findAllInteractions(medicines: string[]): {
   medicine1: string;
   medicine2: string;
   interaction: {
     severity: 'low' | 'medium' | 'high';
     description: string;
   };
-}> {
-  const interactions: Array<{
+}[] {
+  const interactions: {
     medicine1: string;
     medicine2: string;
     interaction: {
       severity: 'low' | 'medium' | 'high';
       description: string;
     };
-  }> = [];
+  }[] = [];
   
   for (let i = 0; i < medicines.length; i++) {
     const m1 = medicines[i];

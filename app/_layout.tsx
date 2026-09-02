@@ -16,9 +16,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ThemeProvider, useTheme } from '../src/theme/provider';
 import { openDatabase } from '../src/db/database';
-import { getProfile } from '../src/db/repositories/profile';
-import { updateProfile } from '../src/db/repositories/profile';
-import { ensureProfileRow } from '../src/db/repositories/profile';
+import { getProfile , updateProfile , ensureProfileRow } from '../src/db/repositories/profile';
+
+
 import { ensureNameForLanguage } from '../src/utils/profileName';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useSettingsStore, hydrateSettings } from '../src/stores/settings-store';

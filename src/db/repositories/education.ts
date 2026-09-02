@@ -4,7 +4,6 @@
  */
 
 import { getDatabase } from '../database';
-import type { SQLiteDatabase } from 'expo-sqlite';
 
 export interface EducationCategory {
   id: number;

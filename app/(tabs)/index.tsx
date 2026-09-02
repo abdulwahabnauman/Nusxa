@@ -140,7 +140,7 @@ export default function HomeScreen() {
     }
     prevStreakRef.current = streak;
     prevAllDoneRef.current = allDone;
-  }, [streak, todayItems]);
+  }, [streak, todayItems, t]);
 
   const loadData = useCallback(async () => {
     try {
@@ -329,7 +329,7 @@ export default function HomeScreen() {
     } catch {
       showToast(t.toasts.recordDoseFailed, 'error');
     }
-  }, [loadData, todayItems, showUndoToast]);
+  }, [loadData, todayItems, showUndoToast, t]);
 
   // "Take all" quick action: pending doses sharing the same reminder time,
   // only offered when at least two doses overlap at that time — and only

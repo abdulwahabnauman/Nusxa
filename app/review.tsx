@@ -144,11 +144,6 @@ export default function ReviewScreen() {
     });
   };
 
-  const isFieldLowConfidence = (medicine: MedicineJSON, field: string) => {
-    const source = medicine.field_sources?.[field];
-    return medicine.confidence < LOW_CONFIDENCE_THRESHOLD || source === 'unknown';
-  };
-
   const handleVerify = async () => {
     // Check required fields via the shared validation toolkit
     const missing: string[] = [];
@@ -185,7 +180,7 @@ export default function ReviewScreen() {
           imageUris: JSON.stringify(pageUris),
         },
       });
-    } catch (err) {
+    } catch {
       showToast(t.toasts.savePrescriptionFailed, 'error');
     } finally {
       setSaving(false);

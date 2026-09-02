@@ -48,6 +48,7 @@ export async function syncOtherLanguageName(
     if (!isAiProxyConfigured() && !keys.openRouterKey && !keys.groqKey) return;
 
     // Lazy-load the AI client so name saves never pay for the network stack
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { chatCompletion } = require('../ai/client') as typeof import('../ai/client');
 
     const raw = await chatCompletion(

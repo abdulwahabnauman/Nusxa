@@ -15,7 +15,6 @@ import * as Notifications from 'expo-notifications';
 import { useCameraPermissions } from 'expo-camera';
 import { useTheme } from '../src/theme/provider';
 import { useAuthStore } from '../src/stores/auth-store';
-import { useThemeStore } from '../src/stores/theme-store';
 import { useSettingsStore } from '../src/stores/settings-store';
 import { upsertProfileForOnboarding } from '../src/db/repositories/profile';
 import { syncOtherLanguageName } from '../src/utils/profileName';
@@ -31,6 +30,11 @@ type OnboardingStep = 'welcome' | 'profile' | 'health' | 'permissions';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+const LANGUAGE_OPTIONS = [
+  { lang: 'en' as const, label: 'English' },
+  { lang: 'ur' as const, label: 'اردو' },
+];
+
 export default function OnboardingScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
@@ -43,7 +47,7 @@ export default function OnboardingScreen() {
   // Same expo-camera permission API the scan screen uses — requested here so
   // the camera note above matches what actually happens on this step.
   const [, requestCameraPermission] = useCameraPermissions();
-  const { t } = useI18n();
+  const { t, language, setLanguage } = useI18n();
 
   const handleWelcome = () => {
     setStep('profile');
@@ -121,6 +125,41 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+      {/* Language switch — visible on every step so the whole flow can be
+          read in Urdu from the start; setLanguage flips copy + RTL live and
+          the permissions step persists the choice into the new profile. */}
+      <View style={styles.languageBar}>
+        <View
+          style={[
+            styles.languagePill,
+            { backgroundColor: colors.background.surface, borderColor: colors.border.default, borderRadius: borderRadius.lg },
+          ]}
+        >
+          {LANGUAGE_OPTIONS.map(({ lang, label }) => {
+            const selected = language === lang;
+            return (
+              <TouchableOpacity
+                key={lang}
+                onPress={() => { if (!selected) setLanguage(lang); }}
+                style={[
+                  styles.languageChip,
+                  {
+                    borderRadius: borderRadius.md,
+                    backgroundColor: selected ? colors.accent.primary : 'transparent',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Set language to ${label}`}
+              >
+                <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
       <KeyboardAvoidingView
         behavior="padding"
         style={styles.inner}
@@ -289,6 +328,25 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
+  },
+  languageBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  languagePill: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    padding: 3,
+    gap: 2,
+  },
+  languageChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     flexGrow: 1,

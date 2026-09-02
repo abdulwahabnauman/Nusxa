@@ -203,7 +203,7 @@ export function buildMedicineInfoRequest(
 }
 
 export function buildChatContext(
-  medicines: Array<{ name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }>
+  medicines: { name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }[]
 ): string {
   if (medicines.length === 0) {
     return 'The patient has no active verified medicines in their schedule.';

@@ -102,7 +102,7 @@ export async function getAllDoseRecords(): Promise<DoseRecord[]> {
  */
 export async function getDailyAdherence(
   fromDate: string
-): Promise<Array<{ date: string; taken: number; total: number }>> {
+): Promise<{ date: string; taken: number; total: number }[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<{ day: string; taken: number; total: number }>(
     `SELECT substr(scheduled_time, 1, 10) AS day,

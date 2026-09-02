@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { CameraView as ExpoCameraView, CameraType, useCameraPermissions } from 'expo-camera';
+import { CameraView as ExpoCameraView, useCameraPermissions } from 'expo-camera';
 import * as ImagePicker from 'expo-image-picker';
 import { withLockExemption } from '../src/utils/appLock';
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -295,7 +295,7 @@ export default function ScanScreen() {
         setCameraActive(false);
         void checkSharpness(persistentUri);
       }
-    } catch (error) {
+    } catch {
       showToast(t.toasts.captureFailed, 'error');
     }
   };
@@ -399,7 +399,7 @@ export default function ScanScreen() {
         capturedRef.current = finalUri;
         void checkSharpness(finalUri);
       }
-    } catch (error) {
+    } catch {
       showToast(t.toasts.imagePickFailed, 'error');
     }
   };

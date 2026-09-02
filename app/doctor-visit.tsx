@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Sharing from 'expo-sharing';
 import { withLockExemption } from '../src/utils/appLock';
@@ -19,12 +18,11 @@ import { getLocalizedName } from '../src/utils/profileName';
 import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
-  const { colors, typography, spacing, borderRadius } = useTheme();
+  const { colors, typography, spacing } = useTheme();
   const { t, language } = useI18n();
-  const router = useRouter();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [sharing, setSharing] = useState(false);
   const [questions, setQuestions] = useState('');
   const [profileName, setProfileName] = useState('Patient');
@@ -64,6 +62,7 @@ export default function DoctorVisitScreen() {
     try {
       // Generate a clean PDF on-device, then hand it to the native share sheet.
       // The PDF stack is heavy, so load it only when the user actually shares.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { generateDoctorVisitPdf } = require('../src/utils/pdf') as typeof import('../src/utils/pdf');
       pdfUri = await generateDoctorVisitPdf({
         profileName,

@@ -73,7 +73,7 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
       }
       // If not a function yet, language won't be saved but UI will work
     },
-    [],
+    [setLanguagePref],
   );
 
   const value: I18nContextValue = {

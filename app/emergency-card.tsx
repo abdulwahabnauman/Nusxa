@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, Switch, Alert, TouchableOpacity, Linking, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert, TouchableOpacity, Linking, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
@@ -9,7 +8,7 @@ import { Input } from '../src/components/ui/Input';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { useSuccessMorph } from '../src/hooks/useSuccessMorph';
-import { getProfile, updateProfile } from '../src/db/repositories/profile';
+import { updateProfile } from '../src/db/repositories/profile';
 import { useAuthStore } from '../src/stores/auth-store';
 import { useI18n } from '../src/i18n';
 import { getLocalizedName } from '../src/utils/profileName';
@@ -20,7 +19,6 @@ const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 export default function EmergencyCardScreen() {
   const { colors, typography, spacing } = useTheme();
   const { t, isRTL, language } = useI18n();
-  const router = useRouter();
   const align = isRTL ? 'right' : 'left';
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
@@ -67,6 +65,10 @@ export default function EmergencyCardScreen() {
       setOriginalEmergencyPhone(newEmergencyPhone);
       setOriginalPhysician(newPhysician);
     }
+    // Intentionally keyed on `profile` only: re-syncing when `editing` flips
+    // would clobber the fields the user is mid-edit. `editing` is read for
+    // its current value, not tracked as a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   const handleCancel = () => {
@@ -146,7 +148,7 @@ export default function EmergencyCardScreen() {
       // Inline confirmation on the Save button, then collapse back to read mode
       savedMorph.trigger();
       setTimeout(() => setEditing(false), 1200);
-    } catch (err) {
+    } catch {
       showToast(t.toasts.saveFailed, 'error');
     } finally {
       setSaving(false);

@@ -38,9 +38,9 @@ export function findDuplicateMedicines(medicines: MedicineJSON[]): string[] {
 
 /** Check for conflicting schedule times */
 export function findScheduleConflicts(
-  schedules: Array<{ medicineName: string; time: string }>
-): Array<{ medicine1: string; medicine2: string; time: string }> {
-  const conflicts: Array<{ medicine1: string; medicine2: string; time: string }> = [];
+  schedules: { medicineName: string; time: string }[]
+): { medicine1: string; medicine2: string; time: string }[] {
+  const conflicts: { medicine1: string; medicine2: string; time: string }[] = [];
   const timeMap = new Map<string, string[]>();
 
   for (const sch of schedules) {

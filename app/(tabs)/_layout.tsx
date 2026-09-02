@@ -6,8 +6,6 @@ import { AnimatedTabBar } from '../../src/components/navigation/AnimatedTabBar';
 import { useTranslation } from '../../src/i18n';
 import { useSettingsStore } from '../../src/stores/settings-store';
 
-type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
-
 export default function TabLayout() {
   const t = useTranslation();
   const currentLanguage = useSettingsStore((s) => s.language);

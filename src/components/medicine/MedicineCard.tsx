@@ -40,7 +40,7 @@ export function MedicineCard({
   daysUntilRefill,
   onPress,
 }: MedicineCardProps) {
-  const { colors, typography, spacing, mode } = useTheme();
+  const { colors, typography, mode } = useTheme();
   const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();

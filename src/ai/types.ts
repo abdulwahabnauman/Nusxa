@@ -40,18 +40,18 @@ export interface MedicineJSON {
 
 export interface OCRRawExtraction {
   raw_text: string;
-  medicines: Array<{
+  medicines: {
     name: string | null;
     dosage: string | null;
     frequency: string | null;
     duration: string | null;
     notes: string | null;
     confidence: number;
-  }>;
+  }[];
   doctor_name: string | null;
   hospital: string | null;
   date: string | null;
-  abbreviations_found: Array<{ abbreviation: string; interpretation: string | null }>;
+  abbreviations_found: { abbreviation: string; interpretation: string | null }[];
 }
 
 export interface ValidationResult {

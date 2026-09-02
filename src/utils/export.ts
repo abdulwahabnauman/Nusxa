@@ -4,8 +4,8 @@ import './webCryptoShim';
 import Constants from 'expo-constants';
 import CryptoJS from 'crypto-js';
 import { getDatabase } from '../db/database';
-import { getProfile } from '../db/repositories/profile';
-import { ensureProfileRow } from '../db/repositories/profile';
+import { getProfile , ensureProfileRow } from '../db/repositories/profile';
+
 import { getActiveMedicines } from '../db/repositories/medicine';
 import { getActiveSchedules } from '../db/repositories/schedule';
 import { getAllDoseRecords } from '../db/repositories/dose';
@@ -70,7 +70,7 @@ export async function exportAsJSON(): Promise<Record<string, unknown>> {
 }
 
 /** Reminder/bookmark key-value state (reminders_state table) */
-async function getKVState(): Promise<Array<{ key: string; value: string }>> {
+async function getKVState(): Promise<{ key: string; value: string }[]> {
   try {
     return await getDatabase().getAllAsync<{ key: string; value: string }>(
       'SELECT key, value FROM reminders_state;'
@@ -84,7 +84,7 @@ async function getKVState(): Promise<Array<{ key: string; value: string }>> {
  * Education bookmarks keyed by content SLUG (not the autoincrement id) so a
  * restore onto a fresh install still resolves to the right articles.
  */
-async function getEducationBookmarks(): Promise<Array<{ user_id: string; content_slug: string; added_at: string | null }>> {
+async function getEducationBookmarks(): Promise<{ user_id: string; content_slug: string; added_at: string | null }[]> {
   try {
     return await getDatabase().getAllAsync<{ user_id: string; content_slug: string; added_at: string | null }>(
       `SELECT b.user_id, c.slug AS content_slug, b.added_at
@@ -96,14 +96,14 @@ async function getEducationBookmarks(): Promise<Array<{ user_id: string; content
   }
 }
 
-async function getEducationReadingHistory(): Promise<Array<{
+async function getEducationReadingHistory(): Promise<{
   user_id: string;
   content_slug: string;
   last_read_position: number;
   completed_at: string | null;
   started_at: string | null;
   total_time_spent_seconds: number;
-}>> {
+}[]> {
   try {
     return await getDatabase().getAllAsync(
       `SELECT h.user_id, c.slug AS content_slug, h.last_read_position, h.completed_at, h.started_at, h.total_time_spent_seconds
@@ -350,12 +350,10 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       );
     }
 
-    let restoredDoses = 0;
     for (const d of doseRecords) {
       const id = d.id as string | undefined;
       // Skip orphan records (their schedule wasn't part of this export)
       if (!id || !d.scheduled_time || !d.status || !scheduleIds.has(d.schedule_id as string)) continue;
-      restoredDoses++;
       await db.runAsync(
         `INSERT INTO dose_records (id, schedule_id, medicine_id, scheduled_time, actual_time, status, notes, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);`,
@@ -485,7 +483,7 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
         typeof m.id === 'string' &&
         typeof m.content === 'string' &&
         (m.role === 'user' || m.role === 'assistant')
-    ) as Array<{ id: string; role: 'user' | 'assistant'; content: string; timestamp?: string }>;
+    ) as { id: string; role: 'user' | 'assistant'; content: string; timestamp?: string }[];
     await saveChatHistory(
       messages.map((m) => ({ ...m, timestamp: typeof m.timestamp === 'string' ? m.timestamp : new Date().toISOString() }))
     );

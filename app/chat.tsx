@@ -97,7 +97,7 @@ export default function ChatScreen() {
   }, []);
 
   const [medicines, setMedicines] = useState<
-    Array<{ name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }>
+    { name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }[]
   >([]);
   useEffect(() => {
     getActiveMedicines()
@@ -244,6 +244,7 @@ export default function ChatScreen() {
 
       // Lazy-load the AI client so opening the chat never pays for the
       // network stack up front.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { multiTurnChat } = require('../src/ai/client') as typeof import('../src/ai/client');
       const response = await multiTurnChat(chatMessages, keys);
 
@@ -255,7 +256,7 @@ export default function ChatScreen() {
       };
       setMessages((prev) => [...prev, assistantMsg]);
       if (!reducedMotion) setReveal({ id: assistantMsg.id, count: 3 });
-    } catch (err) {
+    } catch {
       const errorMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',

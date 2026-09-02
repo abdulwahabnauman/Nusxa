@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
 import { AccessibilityInfo, Platform, useColorScheme } from 'react-native';
-import { lightTokens, darkTokens, ThemeTokens, ThemeMode, elderlyTokens, elderlyTokens as elderlyColorsTokens } from './tokens';
+import { lightTokens, darkTokens, ThemeMode, elderlyTokens } from './tokens';
 import { getTypography, Typography } from './typography';
 import { spacing, borderRadius, elderlySpacing, elderlyBorderRadius } from './spacing';
 import { useThemeStore } from '../stores/theme-store';

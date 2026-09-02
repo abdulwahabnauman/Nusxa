@@ -22,16 +22,6 @@ const elderlyFontSize = {
 
 export type FontSizeKey = keyof typeof baseFontSize;
 
-const baseLineHeight = {
-  xs: 16,
-  sm: 20,
-  base: 24,
-  lg: 28,
-  xl: 28,
-  '2xl': 32,
-  '3xl': 36,
-} as const;
-
 const weights = {
   regular: '400' as TextStyle['fontWeight'],
   medium: '500' as TextStyle['fontWeight'],

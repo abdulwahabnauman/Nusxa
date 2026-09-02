@@ -9,7 +9,6 @@ import {
   CREATE_SCHEMA_VERSION_TABLE,
   CREATE_INDEXES,
   ALTER_PROFILE_ADD_LANGUAGE,
-  ALTER_PROFILE_ADD_SETTINGS,
 } from './schema';
 import {
   EDUCATION_SCHEMA,
@@ -72,7 +71,7 @@ const migration_v3: Migration = {
       await db.runAsync(
         'ALTER TABLE profile ADD COLUMN elderly_mode INTEGER DEFAULT 0;',
       );
-    } catch (e) {
+    } catch {
       // Column may already exist
     }
     try {

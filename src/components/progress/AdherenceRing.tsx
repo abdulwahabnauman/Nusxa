@@ -21,9 +21,6 @@ export function AdherenceRing({
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
 
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
 
   const ringColor =
     clampedPercentage >= 80 ? colors.success

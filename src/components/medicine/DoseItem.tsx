@@ -49,7 +49,7 @@ export function DoseItem({
   onTaken,
   onSkip,
 }: DoseItemProps) {
-  const { colors, typography, spacing, borderRadius } = useTheme();
+  const { colors, typography, borderRadius } = useTheme();
   const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const reducedMotion = useReducedMotion();

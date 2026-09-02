@@ -6,6 +6,11 @@ import * as path from 'path';
 // the tests — this file verifies what an iPhone receives from expo-print.
 // (Platform.OS is read at call time in getPrintFileOptions' default param.)
 import { Platform } from 'react-native';
+
+import * as Print from 'expo-print';
+import { generateDoctorVisitPdf, generateAnalyticsReportPdf } from '../pdf';
+import { PAGE_CSS, mmToPoints, PAGE_SIZE_MM, PAGE_MARGIN_MM } from '../pdfPage';
+import type { Medicine, Schedule } from '../../types/models';
 (Platform as { OS: string }).OS = 'ios';
 
 jest.mock('expo-print', () => ({
@@ -23,11 +28,6 @@ jest.mock('expo-file-system/legacy', () => ({
 }));
 
 jest.mock('expo-asset', () => ({ Asset: { fromModule: jest.fn() } }));
-
-import * as Print from 'expo-print';
-import { generateDoctorVisitPdf, generateAnalyticsReportPdf } from '../pdf';
-import { PAGE_CSS, mmToPoints, PAGE_SIZE_MM, PAGE_MARGIN_MM } from '../pdfPage';
-import type { Medicine, Schedule } from '../../types/models';
 
 const printMock = Print.printToFileAsync as jest.Mock;
 

@@ -108,7 +108,7 @@ export default function AnalyticsScreen() {
     loadAnalyticsData(selectedPeriod);
   }, [selectedPeriod, loadAnalyticsData]);
 
-  function groupByDate(records: Array<{ scheduled_time: string; status: string }>): AdherenceData[] {
+  function groupByDate(records: { scheduled_time: string; status: string }[]): AdherenceData[] {
     const groups: Record<string, AdherenceData> = {};
 
     records.forEach((record) => {
@@ -132,7 +132,7 @@ export default function AnalyticsScreen() {
     );
   }
 
-  function calculateStats(records: Array<{ status: string }>): WeeklyStats {
+  function calculateStats(records: { status: string }[]): WeeklyStats {
     const totalSchedules = records.length;
     const completed = records.filter((r) => r.status === 'taken').length;
     const missed = records.filter((r) => r.status === 'missed').length;

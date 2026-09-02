@@ -41,12 +41,12 @@ interface GeminiRequest {
 }
 
 interface GeminiResponse {
-  candidates?: Array<{
+  candidates?: {
     content: {
-      parts: Array<{ text: string }>;
+      parts: { text: string }[];
     };
     finishReason?: string;
-  }>;
+  }[];
   error?: {
     code: number;
     message: string;
@@ -67,10 +67,10 @@ interface OpenRouterRequest {
 }
 
 interface OpenRouterResponse {
-  choices?: Array<{
+  choices?: {
     message: { content: string };
     finish_reason?: string;
-  }>;
+  }[];
   error?: {
     code: number | string;
     message: string;
@@ -429,7 +429,7 @@ export async function visionCompletion(
 
 /** Multi-turn chat completion (Groq's gpt-oss-120b first, falling back to Nemotron 3 Ultra when Groq is unavailable) */
 export async function multiTurnChat(
-  messages: Array<{ role: string; content: string }>,
+  messages: { role: string; content: string }[],
   keys: TextProviderKeys
 ): Promise<string> {
   // Extract system prompt from messages
