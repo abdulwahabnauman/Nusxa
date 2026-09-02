@@ -252,7 +252,17 @@ export async function upsertProfileForOnboarding(
 
 export async function deleteProfile(): Promise<void> {
   const db = getDatabase();
-  // Foreign keys cascade will clean up related data
-  await db.runAsync('DELETE FROM prescriptions;');
-  await db.runAsync('DELETE FROM profile;');
+  // Bulk-delete children first inside one transaction. A cascading
+  // DELETE FROM prescriptions walks every medicine/schedule/dose row
+  // individually, which took seconds on long dose histories.
+  await db.withTransactionAsync(async () => {
+    await db.execAsync('DELETE FROM dose_records;');
+    await db.execAsync('DELETE FROM schedules;');
+    await db.execAsync('DELETE FROM medicines;');
+    await db.execAsync('DELETE FROM prescriptions;');
+    await db.execAsync('DELETE FROM reminders_state;');
+    await db.execAsync('DELETE FROM education_bookmarks;');
+    await db.execAsync('DELETE FROM education_reading_history;');
+    await db.execAsync('DELETE FROM profile;');
+  });
 }

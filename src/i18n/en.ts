@@ -485,6 +485,7 @@ export const en = {
     requiredFieldsMissing: 'Required fields missing. Please fill in: {fields}',
     profileSetupFailed: 'Your profile could not be set up. Please try again.',
     deleteDataFailed: 'The data could not be deleted. Please try again.',
+    deleteDataComplete: 'All data has been deleted.',
     appLockEnableFailed: 'App lock could not be enabled. Please try again.',
     databaseNotReady: 'The database is not ready yet. Please try again in a moment.',
     saveNameFailed: 'Your name could not be saved. Please try again.',

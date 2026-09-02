@@ -32,7 +32,10 @@ import { getLocalizedName, syncOtherLanguageName, ensureNameForLanguage } from '
 import { exportAsJSON, importFromJSON, createEncryptedBackup, isEncryptedBackup, openEncryptedBackup } from '../../src/utils/export';
 import type { ImportResult } from '../../src/utils/export';
 import type { Profile } from '../../src/types/models';
-import { syncDoseNotifications } from '../../src/utils/notifications';
+import { syncDoseNotifications, cancelAllNotifications } from '../../src/utils/notifications';
+import { clearChatHistory } from '../../src/utils/chatHistory';
+import { clearArchivedImages } from '../../src/utils/archiveImages';
+import { useQueryClient } from '@tanstack/react-query';
 import { isValidDate } from '../../src/utils/date';
 import { saveApiKey, getApiKey, deleteApiKey, saveOpenRouterKey, getOpenRouterKey, deleteOpenRouterKey, saveGroqKey, getGroqKey, deleteGroqKey } from '../../src/utils/secureStorage';
 import { isAiProxyConfigured } from '../../src/constants/config';
@@ -155,6 +158,7 @@ export default function SettingsScreen() {
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
+  const clearProfile = useAuthStore((s) => s.clearProfile);
   const appLockEnabled = useAuthStore((s) => s.appLockEnabled);
   const setAppLockEnabled = useAuthStore((s) => s.setAppLockEnabled);
   const setLocked = useAuthStore((s) => s.setLocked);
@@ -175,6 +179,8 @@ export default function SettingsScreen() {
   const [editingDob, setEditingDob] = useState(false);
   const [editingBlood, setEditingBlood] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const queryClient = useQueryClient();
   const [biometricSupport, setBiometricSupport] = useState<{ available: boolean; label: string | null }>({
     available: false,
     label: null,
@@ -210,12 +216,27 @@ export default function SettingsScreen() {
   const handleClearData = () => {
     Alert.alert(
       'Delete all data',
-      'This will permanently delete your profile, all prescriptions, medicines, schedules, and dose records.',
+      'This will permanently delete your profile, all prescriptions, medicines, schedules, dose records, chat history, and saved prescription images.',
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Delete everything', style: 'destructive', onPress: async () => {
-          try { await deleteProfile(); }
-          catch (err) { showToast(t.toasts.deleteDataFailed, 'error'); }
+          setClearing(true);
+          try {
+            await deleteProfile();
+            // Best-effort companions: a failure here must not undo the wipe
+            await cancelAllNotifications().catch(() => {});
+            await clearChatHistory();
+            await clearArchivedImages();
+            // Drop cached queries and the in-memory profile so the root gate
+            // falls back to onboarding instead of rendering stale data
+            queryClient.clear();
+            clearProfile();
+            showToast(t.toasts.deleteDataComplete, 'success');
+          } catch {
+            showToast(t.toasts.deleteDataFailed, 'error');
+          } finally {
+            setClearing(false);
+          }
         }}
       ]
     );
@@ -987,10 +1008,10 @@ export default function SettingsScreen() {
                 <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
               </TouchableOpacity>
               <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-              <TouchableOpacity style={styles.row} onPress={handleClearData} accessibilityLabel="Delete all data">
+              <TouchableOpacity style={styles.row} onPress={handleClearData} disabled={clearing} accessibilityLabel="Delete all data">
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MaterialCommunityIcons name="delete-outline" size={20} color={colors.error} />
-                  <Text style={[typography.body.base, { color: colors.error, marginStart: 8 }]}>{t.settings.deleteAllData}</Text>
+                  <Text style={[typography.body.base, { color: colors.error, marginStart: 8 }]}>{clearing ? t.common.loading : t.settings.deleteAllData}</Text>
                 </View>
                 <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
               </TouchableOpacity>

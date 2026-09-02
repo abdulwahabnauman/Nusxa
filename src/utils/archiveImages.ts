@@ -64,3 +64,20 @@ export async function archivePrescriptionImages(uris: string[]): Promise<string[
 
   return archived;
 }
+
+/** Remove the whole archive ("Delete all data" path). Best-effort: the
+ * folder only exists once something has been archived. */
+export async function clearArchivedImages(): Promise<void> {
+  const base = FileSystem.documentDirectory;
+  if (!base) return;
+  const dir = `${base}${ARCHIVE_DIR_NAME}/`;
+  try {
+    const files = await FileSystem.readDirectoryAsync(dir);
+    for (const file of files) {
+      await FileSystem.deleteAsync(dir + file, { idempotent: true });
+    }
+    await FileSystem.deleteAsync(dir, { idempotent: true });
+  } catch {
+    // Nothing archived yet — nothing to clear
+  }
+}

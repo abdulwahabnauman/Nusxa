@@ -9,6 +9,7 @@ interface AuthState {
   /** App is currently locked behind the PIN/biometric gate */
   isLocked: boolean;
   setProfile: (profile: Profile) => void;
+  clearProfile: () => void;
   updateProfile: (partial: Partial<Profile>) => void;
   setLoaded: (loaded: boolean) => void;
   setAppLockEnabled: (enabled: boolean) => void;
@@ -21,6 +22,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   appLockEnabled: false,
   isLocked: false,
   setProfile: (profile) => set({ profile, isLoaded: true }),
+  clearProfile: () => set({ profile: null }),
   updateProfile: (partial) =>
     set((state) => ({
       profile: state.profile ? { ...state.profile, ...partial } : null,

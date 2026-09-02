@@ -470,6 +470,7 @@ export const ur: TranslationKeys = {
     requiredFieldsMissing: 'ضروری خانے خالی ہیں۔ براہ کرم درج کریں: {fields}',
     profileSetupFailed: 'آپ کا پروفائل ترتیب نہیں دیا جا سکا۔ براہ کرم دوبارہ کوشش کریں۔',
     deleteDataFailed: 'ڈیٹا حذف نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔',
+    deleteDataComplete: 'تمام ڈیٹا حذف کر دیا گیا ہے۔',
     appLockEnableFailed: 'ایپ لاک فعال نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔',
     databaseNotReady: 'ڈیٹا بیس ابھی تیار نہیں۔ براہ کرم چند لمحوں بعد دوبارہ کوشش کریں۔',
     saveNameFailed: 'آپ کا نام محفوظ نہیں ہو سکا۔ براہ کرم دوبارہ کوشش کریں۔',
