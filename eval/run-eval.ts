@@ -26,7 +26,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA } from '../src/ai/prompts';
-import { GEMINI_MODEL, GEMINI_API_BASE } from '../src/constants/ai-models';
+import { GEMINI_MODEL, GEMINI_API_BASE, MAX_OUTPUT_TOKENS } from '../src/constants/ai-models';
 import { levenshteinSimilarity } from '../src/ai/postprocess';
 
 /** Name fuzzy-match acceptance threshold for "this is the same medicine" */
@@ -127,7 +127,7 @@ async function callDirectGemini(apiKey: string, imageB64: string): Promise<strin
     ],
     generationConfig: {
       temperature: 0,
-      maxOutputTokens: 4096,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
       responseMimeType: 'application/json',
       responseSchema: OCR_RESPONSE_SCHEMA,
     },
