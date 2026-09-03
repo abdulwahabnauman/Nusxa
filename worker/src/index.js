@@ -33,6 +33,7 @@ import {
   GROQ_MODEL,
   API_TIMEOUT_MS as TIMEOUT_MS,
   WORKER_VISION_TIMEOUT_MS as VISION_TIMEOUT_MS,
+  MAX_OUTPUT_TOKENS,
 } from '../../src/constants/ai-models';
 import {
   parseRetryAfterSeconds,
@@ -213,7 +214,7 @@ async function handleChat(request, env) {
 async function callGeminiOnce(env, system, text, images, temperature, responseSchema) {
   const generationConfig = {
     temperature,
-    maxOutputTokens: 4096,
+    maxOutputTokens: MAX_OUTPUT_TOKENS,
     responseMimeType: 'application/json',
   };
   // Controlled generation: the app sends a response schema so the OCR JSON

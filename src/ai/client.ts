@@ -9,6 +9,7 @@ import {
   API_MAX_RETRIES,
   VISION_TIMEOUT_MS,
   VISION_MAX_RETRIES,
+  MAX_OUTPUT_TOKENS,
   AI_PROXY_URL,
   AI_PROXY_APP_KEY,
   isAiProxyConfigured,
@@ -268,7 +269,7 @@ async function callGemini(
         contents,
         generationConfig: {
           temperature,
-          maxOutputTokens: 4096,
+          maxOutputTokens: MAX_OUTPUT_TOKENS,
           ...(jsonResponse ? { responseMimeType: 'application/json' } : {}),
           // Controlled generation: hard-enforces the JSON shape server-side
           ...(responseSchema ? { responseSchema } : {}),
