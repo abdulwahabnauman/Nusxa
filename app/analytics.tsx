@@ -376,7 +376,8 @@ export default function AnalyticsScreen() {
                 {t.analytics.tipTitle}
               </Text>
             </View>
-            <Text style={[typ.body.sm, { color: colors.text.secondary, lineHeight: 22 }]}>
+            {/* 22 loosens Latin spacing only; Urdu keeps typ.body.sm's taller Nastaliq line box */}
+            <Text style={[typ.body.sm, { color: colors.text.secondary, lineHeight: language === 'ur' ? undefined : 22 }]}>
               {t.analytics.tipText}
             </Text>
           </View>

@@ -16,6 +16,7 @@ import Animated, {
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../theme/provider';
+import { urduLineHeight } from '../../theme/typography';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useSettingsStore } from '../../stores/settings-store';
 import { notifyTabPressed } from '../../utils/tabEvents';
@@ -137,7 +138,7 @@ export function AnimatedTabBar({ state, descriptors, navigation }: BottomTabBarP
             }
             labelStyle={{
               fontSize: typography.sizes.xs,
-              lineHeight: isRTL ? 20 : 16,
+              lineHeight: isRTL ? urduLineHeight(typography.sizes.xs) : 16,
               marginTop: 2,
               fontFamily: focused
                 ? typography.families.semibold

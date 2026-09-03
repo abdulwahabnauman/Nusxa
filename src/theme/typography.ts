@@ -60,6 +60,18 @@ const BOLD_SHIFT: Record<WeightKey, FontFamilyKey> = {
   bold: 'bold',
 };
 
+/**
+ * Nastaliq ink reaches far beyond the font's own ascent/descent metrics, so a
+ * line box sized like a Latin one slices glyph tops and bottoms off — seen on
+ * device in Urdu mode as clipped row labels, subtitles and tab titles. Urdu
+ * line height is therefore a multiple of its own font size, not of the Latin
+ * line height. iOS clips tall glyphs a little sooner than Android.
+ */
+export const URDU_LINE_RATIO = Platform.OS === 'ios' ? 3.1 : 2.7;
+
+export const urduLineHeight = (fontSize: number): number =>
+  Math.round(fontSize * URDU_LINE_RATIO);
+
 export function getTypography(elderly: boolean, fontFamily?: string, boldText = false) {
   const sizes = elderly ? elderlyFontSize : baseFontSize;
   const urdu = !!fontFamily;
@@ -84,24 +96,25 @@ export function getTypography(elderly: boolean, fontFamily?: string, boldText = 
         }
       : { ...LATIN_FONTS };
 
-  // Nastaliq glyphs render visually large, so sizes shrink a little, and
-  // their deep descenders need generous line boxes. iOS clips tall glyphs
-  // sooner than Android, so Urdu gets extra headroom there.
+  // Nastaliq glyphs render visually large, so sizes shrink a little.
   const fs = (value: number) => (urdu ? Math.round(value * 0.9) : value);
-  const lh = (value: number) =>
-    urdu ? Math.round(value * (Platform.OS === 'ios' ? 1.8 : 1.6)) : value;
+  // Urdu line boxes come from urduLineHeight(): scaling the Latin line height
+  // kept them near 2.4em, which the Nastaliq ink overflows in both directions.
+  const lh = (latin: number, fontSize: number) =>
+    urdu ? urduLineHeight(fontSize) : latin;
 
   // Latin text picks an explicit Inter face per weight (no fontWeight —
   // static faces would be double-bolded on Android otherwise). Urdu keeps
   // fontWeight so Android synthesizes the bolder headings, but Nastaliq
   // ships as a single weight: asking Android for 700 on the custom family
   // makes it substitute the system Naskh bold (the tab-screen titles
-  // rendered flat on device), so cap Urdu at semibold.
+  // rendered flat on device), so cap Urdu at semibold. Android's default
+  // includeFontPadding stays on: the extra metric padding is part of the
+  // headroom Nastaliq needs, and turning it off clipped glyphs.
   const face = (weight: WeightKey): TextStyle =>
     urdu
       ? {
           fontFamily: fontFamily!,
-          includeFontPadding: false,
           fontWeight: weights[weight === 'bold' ? 'semibold' : weight],
         }
       : { fontFamily: families[weight] };
@@ -127,25 +140,25 @@ export function getTypography(elderly: boolean, fontFamily?: string, boldText = 
         ...face('bold'),
         ...rtlText,
         fontSize: fs(sizes['3xl']),
-        lineHeight: lh(36),
+        lineHeight: lh(36, fs(sizes['3xl'])),
       } as TextStyle,
       h2: {
         ...face('bold'),
         ...rtlText,
         fontSize: fs(sizes['2xl']),
-        lineHeight: lh(32),
+        lineHeight: lh(32, fs(sizes['2xl'])),
       } as TextStyle,
       h3: {
         ...face('semibold'),
         ...rtlText,
         fontSize: fs(sizes.xl),
-        lineHeight: lh(28),
+        lineHeight: lh(28, fs(sizes.xl)),
       } as TextStyle,
       h4: {
         ...face('semibold'),
         ...rtlText,
         fontSize: fs(sizes.lg),
-        lineHeight: lh(28),
+        lineHeight: lh(28, fs(sizes.lg)),
       } as TextStyle,
     },
     body: {
@@ -153,25 +166,25 @@ export function getTypography(elderly: boolean, fontFamily?: string, boldText = 
         ...face('regular'),
         ...rtlText,
         fontSize: fs(sizes.lg),
-        lineHeight: lh(28),
+        lineHeight: lh(28, fs(sizes.lg)),
       } as TextStyle,
       base: {
         ...face('regular'),
         ...rtlText,
         fontSize: fs(sizes.base),
-        lineHeight: lh(24),
+        lineHeight: lh(24, fs(sizes.base)),
       } as TextStyle,
       sm: {
         ...face('regular'),
         ...rtlText,
         fontSize: fs(sizes.sm),
-        lineHeight: lh(20),
+        lineHeight: lh(20, fs(sizes.sm)),
       } as TextStyle,
       xs: {
         ...face('regular'),
         ...rtlText,
         fontSize: fs(sizes.xs),
-        lineHeight: lh(16),
+        lineHeight: lh(16, fs(sizes.xs)),
       } as TextStyle,
     },
     label: {
@@ -179,20 +192,20 @@ export function getTypography(elderly: boolean, fontFamily?: string, boldText = 
         ...face('medium'),
         ...rtlText,
         fontSize: fs(sizes.sm),
-        lineHeight: lh(20),
+        lineHeight: lh(20, fs(sizes.sm)),
       } as TextStyle,
       sm: {
         ...face('medium'),
         ...rtlText,
         fontSize: fs(sizes.xs),
-        lineHeight: lh(16),
+        lineHeight: lh(16, fs(sizes.xs)),
       } as TextStyle,
     },
     button: {
       ...face('semibold'),
       ...rtlText,
       fontSize: fs(sizes.base),
-      lineHeight: lh(24),
+      lineHeight: lh(24, fs(sizes.base)),
     } as TextStyle,
   };
 }
