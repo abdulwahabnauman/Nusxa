@@ -1,5 +1,5 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { visionCompletion, chatCompletion, TextProviderKeys } from './client';
+import { visionCompletion, chatCompletion, TextProviderKeys, AIError } from './client';
 import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
 import { PrescriptionJSON, PipelineStage, ValidationResult, MedicineJSON } from './types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../constants/config';
@@ -189,6 +189,14 @@ export async function processPrescription(
     // Stage 3: Validating
     onStageChange?.('validating');
     const validation = validatePrescription(prescriptionData);
+
+    // Zero medicines is a failed scan, not a success: the review screen
+    // would have nothing to review and OK would save an empty prescription.
+    // Throwing here routes it through the error stage, whose copy tells the
+    // user to retake the photo instead of retrying the same image.
+    if (prescriptionData.medicines.length === 0) {
+      throw new AIError('OCR extracted no medicines from the image', { code: 'no_medicines' });
+    }
 
     // Stage 4: Complete
     onStageChange?.('complete');
