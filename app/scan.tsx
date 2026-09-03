@@ -45,6 +45,11 @@ const TARGET_LONG_EDGE = 2000;
 // Rectangular crop box: minimum selectable size and the drag-handle footprint.
 const MIN_CROP_SIZE = 48;
 const HANDLE_SIZE = 28;
+// Handles are centered on the crop box edges, so they reach HANDLE_SIZE / 2
+// past the image on every side, and the crop viewport clips its overflow.
+// Fitting the image inside this inset is what keeps edge handles fully
+// visible and grabbable instead of sliced in half at the viewport border.
+const CROP_FIT_INSET = HANDLE_SIZE / 2 + 6;
 
 type CropRect = { x: number; y: number; w: number; h: number };
 // Handle ids encode which edges they move (combinations of t/b/l/r).
@@ -128,7 +133,9 @@ export default function ScanScreen() {
 
   const baseSize = useMemo(() => {
     if (!viewport || !imageDims) return null;
-    const ratio = Math.min(viewport.width / imageDims.width, viewport.height / imageDims.height);
+    const innerWidth = Math.max(1, viewport.width - CROP_FIT_INSET * 2);
+    const innerHeight = Math.max(1, viewport.height - CROP_FIT_INSET * 2);
+    const ratio = Math.min(innerWidth / imageDims.width, innerHeight / imageDims.height);
     return { width: imageDims.width * ratio, height: imageDims.height * ratio };
   }, [viewport, imageDims]);
 
