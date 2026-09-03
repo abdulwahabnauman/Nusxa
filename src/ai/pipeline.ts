@@ -1,8 +1,10 @@
 import * as FileSystem from 'expo-file-system/legacy';
+import * as ImageManipulator from 'expo-image-manipulator';
 import { visionCompletion, chatCompletion, TextProviderKeys, AIError } from './client';
 import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
 import { PrescriptionJSON, PipelineStage, ValidationResult, MedicineJSON } from './types';
-import { LOW_CONFIDENCE_THRESHOLD } from '../constants/config';
+import { LOW_CONFIDENCE_THRESHOLD, OCR_MAX_IMAGE_EDGE } from '../constants/config';
+import { resizeToFit } from '../utils/ocr-image';
 import { postProcessPrescription } from './postprocess';
 
 type StageCallback = (stage: PipelineStage) => void;
@@ -38,6 +40,45 @@ async function imageToBase64(uri: string): Promise<string> {
     encoding: FileSystem.EncodingType.Base64,
   });
   return base64;
+}
+
+/** Shrink the copy that goes to OCR so its long edge fits OCR_MAX_IMAGE_EDGE.
+ *
+ * Gemini downscales anything larger on its own side, so the extra pixels buy no
+ * accuracy — they only lengthen the upload and the inference that has to fit
+ * inside VISION_TIMEOUT_MS. This returns a separate throwaway file: the image
+ * persisted for the review and history screens keeps its full resolution.
+ *
+ * An image that already fits is returned untouched rather than re-encoded, and
+ * a failed resize falls back to the original. This is an optimization, not a
+ * precondition, so it must never be the reason a scan fails.
+ */
+async function downscaleForOcr(uri: string): Promise<string> {
+  try {
+    // A no-op manipulation reports true pixel dimensions and bakes EXIF
+    // orientation in, so resizeToFit names the axis that is really longer.
+    const probe = await ImageManipulator.manipulateAsync(uri, [], {
+      format: ImageManipulator.SaveFormat.JPEG,
+      compress: 0.95,
+    });
+    const target = resizeToFit(probe.width, probe.height, OCR_MAX_IMAGE_EDGE);
+    if (!target) return uri;
+
+    const resized = await ImageManipulator.manipulateAsync(probe.uri, [{ resize: target }], {
+      format: ImageManipulator.SaveFormat.JPEG,
+      compress: 0.92,
+    });
+    if (__DEV__) {
+      console.log(
+        `[ocr] page downscaled for upload: ${probe.width}x${probe.height} -> ` +
+          `${resized.width}x${resized.height}`
+      );
+    }
+    return resized.uri;
+  } catch (error) {
+    if (__DEV__) console.warn('[ocr] downscale skipped, sending original', error);
+    return uri;
+  }
 }
 
 /** Parse the AI OCR response into structured data */
@@ -157,7 +198,12 @@ export async function processPrescription(
 
     // Stage 1: Preparing images
     onStageChange?.('preparing');
-    const imagesBase64 = await Promise.all(imageUris.map((uri) => imageToBase64(uri)));
+    // Only the upload copy is downscaled. `imageUris` stay full-resolution:
+    // they are what gets archived and shown on the review screen, and
+    // source_image_id below still records the original.
+    const imagesBase64 = await Promise.all(
+      imageUris.map(async (uri) => imageToBase64(await downscaleForOcr(uri)))
+    );
 
     // Stage 2: Reading prescription (OCR)
     onStageChange?.('reading');
