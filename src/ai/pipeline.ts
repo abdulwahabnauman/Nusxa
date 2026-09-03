@@ -175,6 +175,12 @@ export async function processPrescription(
       { temperature: 0, responseSchema: OCR_RESPONSE_SCHEMA }
     );
 
+    // The only record of what the model actually returned: an empty
+    // extraction is otherwise indistinguishable from a transport failure.
+    if (__DEV__) {
+      console.log(`[ocr] raw reply (${ocrResult.length} chars): ${ocrResult.slice(0, 400)}`);
+    }
+
     // Deterministic post-processing (fuzzy name correction, abbreviation
     // expansion, strength normalization) before validation sees the data.
     const prescriptionData = postProcessPrescription(parseOCRResponse(ocrResult));
