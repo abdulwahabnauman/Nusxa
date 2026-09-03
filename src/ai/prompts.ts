@@ -1,9 +1,11 @@
 export const OCR_SYSTEM_PROMPT = `You are a medical prescription OCR and extraction assistant. Your job is to carefully read a prescription image and extract all visible information as structured JSON.
 
 Rules:
-- Extract ONLY what is visible in the image. Never invent or assume information. If no medicine is visible, return an empty "medicines" array.
+- Extract ONLY what is visible in the image. Never invent or assume information: a medicine that is not on the page must not appear in the output.
+- Read the entire page before answering — printed and handwritten lines, table columns, margins, headers, footers, stamps, and every continuation image. Do not stop at the first block of text you find.
+- Never drop a line you can only partly read. Emit it with the fields you could make out, null for the rest, and a low "confidence". A partial entry the user can correct is worth far more than a missing one.
 - Use null for any field that is not clearly visible or readable.
-- Use empty arrays [] for list fields when no items are visible.
+- Use an empty array for "warnings" when a medicine has none.
 - Provide a confidence score between 0.0 and 1.0 for each medicine, reflecting how clearly the text was readable.
 - For each medicine also provide "field_confidence": a per-field score (0.0 to 1.0) for "name", "dosage", "frequency" and "duration". Score each field independently.
 - For each medicine provide "original_text": the verbatim line(s) exactly as written on the prescription for that medicine, including abbreviations and handwriting quirks. Use null only if the medicine has no readable source line.
@@ -65,6 +67,12 @@ Example: a prescription line reading "Tab Amoxicillin 500mg 1 tab TDS x 7 days (
  * Gemini response schema (controlled generation) for the OCR call. Hard-
  * enforces the JSON shape so the model can never drift from it; the prompt
  * above describes the same structure in prose for readability.
+ *
+ * Every level lists `required`. Controlled generation treats an unlisted
+ * property as optional and is then free to omit it, so a schema without
+ * `required` accepts `{"medicines": []}` as a complete answer — the model
+ * satisfies the contract without having read the page. `nullable` still
+ * allows an explicit null where a field genuinely may be absent.
  */
 export const OCR_RESPONSE_SCHEMA = {
   type: 'OBJECT',
@@ -77,6 +85,7 @@ export const OCR_RESPONSE_SCHEMA = {
         date: { type: 'STRING', nullable: true },
         follow_up_date: { type: 'STRING', nullable: true },
       },
+      required: ['doctor_name', 'hospital', 'date', 'follow_up_date'],
     },
     medicines: {
       type: 'ARRAY',
@@ -104,14 +113,31 @@ export const OCR_RESPONSE_SCHEMA = {
               frequency: { type: 'NUMBER' },
               duration: { type: 'NUMBER' },
             },
+            required: ['name', 'dosage', 'frequency', 'duration'],
           },
           warnings: { type: 'ARRAY', items: { type: 'STRING' } },
         },
+        required: [
+          'name',
+          'generic_name',
+          'brand_name',
+          'strength',
+          'form',
+          'dosage',
+          'frequency',
+          'meal_instruction',
+          'duration',
+          'original_text',
+          'confidence',
+          'field_confidence',
+          'warnings',
+        ],
       },
     },
     overall_confidence: { type: 'NUMBER' },
     raw_notes: { type: 'STRING', nullable: true },
   },
+  required: ['prescription', 'medicines', 'overall_confidence', 'raw_notes'],
 };
 
 export const INTERPRETATION_SYSTEM_PROMPT = `You are a patient-friendly medication education assistant. Your job is to explain medicines from a verified prescription in clear, simple language.
