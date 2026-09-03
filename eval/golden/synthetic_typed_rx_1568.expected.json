@@ -1,0 +1,23 @@
+{
+  "medicines": [
+    {
+      "name": "Amoxicillin",
+      "dosage": "1 capsule",
+      "frequency": "Three times daily",
+      "duration": "7 days"
+    },
+    {
+      "name": "Paracetamol",
+      "dosage": "1 tablet",
+      "frequency": "Twice daily",
+      "duration": "5 days"
+    },
+    {
+      "name": "Folic Acid",
+      "dosage": "1 tablet",
+      "frequency": "Once daily",
+      "duration": "30 days"
+    }
+  ],
+  "_comment": "Ground truth for synthetic_typed_rx_1568.jpg, the downscaled twin of synthetic_typed_rx.jpg. Must stay byte-identical in its medicines array to synthetic_typed_rx.expected.json - the whole point of the pair is that the expected answer does not change when the upload copy is resized to OCR_MAX_IMAGE_EDGE."
+}

@@ -1,0 +1,23 @@
+{
+  "medicines": [
+    {
+      "name": "Amoxicillin",
+      "dosage": "1 capsule",
+      "frequency": "Three times daily",
+      "duration": "7 days"
+    },
+    {
+      "name": "Paracetamol",
+      "dosage": "1 tablet",
+      "frequency": "Twice daily",
+      "duration": "5 days"
+    },
+    {
+      "name": "Folic Acid",
+      "dosage": "1 tablet",
+      "frequency": "Once daily",
+      "duration": "30 days"
+    }
+  ],
+  "_comment": "Ground truth for synthetic_typed_rx.jpg and its synthetic_typed_rx_1568.jpg twin. Both files hold identical content, so both expected files must stay identical: the two rows this produces in results.csv are the before/after comparison for OCR_MAX_IMAGE_EDGE downscaling. Fabricated clinic, doctor and patient-free text."
+}
