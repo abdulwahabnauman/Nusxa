@@ -1,1 +1,4 @@
 timestamp,sample,is_negative,expected,extracted,matched,name_accuracy,dosage_accuracy,frequency_accuracy,duration_accuracy,false_rate,missing_rate,hallucination
+2026-09-03T14:24:59.629Z,blank_paper,true,0,0,0,,,,,0,0,false
+2026-09-03T14:24:59.629Z,synthetic_typed_rx,false,3,3,3,1,1,1,1,0,0,false
+2026-09-03T14:24:59.629Z,synthetic_typed_rx_1568,false,3,3,3,1,1,1,1,0,0,false
