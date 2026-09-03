@@ -26,6 +26,7 @@ export {
   API_MAX_RETRIES,
   VISION_TIMEOUT_MS,
   VISION_MAX_RETRIES,
+  MAX_OUTPUT_TOKENS,
 } from './ai-models';
 
 /** Maximum image file size in bytes (10 MB) */

@@ -35,3 +35,9 @@ export const WORKER_VISION_TIMEOUT_MS = 45_000;
 /** Vision retries once at most, and only for rate-limit/overload/empty
  * responses — see isRetryableCode in src/ai/retry-after.ts. */
 export const VISION_MAX_RETRIES = 1;
+
+/** Gemini output cap for both the direct and proxied paths. The OCR schema
+ * requires every field on every medicine — verbatim `original_text` plus four
+ * `field_confidence` scores among them — so 4096 truncated longer
+ * prescriptions mid-JSON and the parse then failed outright. */
+export const MAX_OUTPUT_TOKENS = 8192;
