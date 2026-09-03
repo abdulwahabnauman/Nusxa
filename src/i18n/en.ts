@@ -236,6 +236,7 @@ export const en = {
     timeout: 'Reading the prescription is taking too long. Check your connection and try again.',
     offline: 'No internet connection. Reconnect and try again.',
     notConfigured: 'The AI service is not set up yet. Open Settings, then AI Service, to finish setup.',
+    noMedicines: 'No medicine was found in this image. Go back and retake the photo in good light with the whole page visible.',
     generic: 'Something went wrong while reading the prescription. Please try again.',
   },
   // Review

@@ -33,7 +33,10 @@ export type AiErrorCode =
   /** The proxy could not parse the request it was sent. */
   | 'invalid_request'
   /** The proxy URL points at a path that does not exist. */
-  | 'not_found';
+  | 'not_found'
+  /** The OCR call succeeded but the extraction held zero medicines — the
+   * image was readable transport-wise yet nothing was extracted from it. */
+  | 'no_medicines';
 
 /** A 429 advertising a delay longer than this is a daily quota rather than a
  * per-minute burst. Observed in the field: `retryDelay: "57s"` on a per-minute
@@ -152,7 +155,14 @@ export function classifyThrownError(error: unknown): { code: AiErrorCode; messag
 }
 
 /** Keys of the localized `aiErrors` dictionary section. */
-export type AiErrorCopyKey = 'quota' | 'busy' | 'timeout' | 'offline' | 'notConfigured' | 'generic';
+export type AiErrorCopyKey =
+  | 'quota'
+  | 'busy'
+  | 'timeout'
+  | 'offline'
+  | 'notConfigured'
+  | 'noMedicines'
+  | 'generic';
 
 /** Which localized string describes a code. Screens use this instead of
  * showing — or pattern-matching — the raw provider message. */
@@ -170,6 +180,8 @@ export function copyKeyForCode(code: AiErrorCode): AiErrorCopyKey {
       return 'offline';
     case 'not_configured':
       return 'notConfigured';
+    case 'no_medicines':
+      return 'noMedicines';
     default:
       return 'generic';
   }

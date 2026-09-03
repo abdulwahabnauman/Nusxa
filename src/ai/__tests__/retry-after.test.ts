@@ -107,6 +107,7 @@ describe('isRetryableCode', () => {
     'unauthorized',
     'invalid_request',
     'not_found',
+    'no_medicines',
   ];
 
   it.each(retryable)('retries %s', (code) => {
@@ -191,6 +192,7 @@ describe('copyKeyForCode', () => {
     expect(copyKeyForCode('timeout')).toBe('timeout');
     expect(copyKeyForCode('offline')).toBe('offline');
     expect(copyKeyForCode('not_configured')).toBe('notConfigured');
+    expect(copyKeyForCode('no_medicines')).toBe('noMedicines');
     expect(copyKeyForCode('upstream')).toBe('generic');
     expect(copyKeyForCode('unauthorized')).toBe('generic');
     expect(copyKeyForCode('invalid_request')).toBe('generic');
