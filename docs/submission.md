@@ -34,7 +34,7 @@ All items below exist in the current source tree; file references are given for 
 ### 2.1 Prescription scanning and AI extraction
 - Camera capture with a **blur gate** (Laplacian-variance sharpness score; threshold `BLUR_VARIANCE_THRESHOLD = 55` in `src/constants/config.ts`) that asks for a retake before spending an API call (`app/scan.tsx`, `src/utils/sharpness.ts`).
 - Up to 3 pages per scan (`MAX_PRESCRIPTION_PAGES`), 10 MB per image (`MAX_IMAGE_SIZE_BYTES`).
-- OCR pipeline against Google Gemini vision with a fixed response schema, post-processing, validation and per-field confidence; fields below `LOW_CONFIDENCE_THRESHOLD = 0.6` are flagged for review (`src/ai/pipeline.ts`, `src/ai/prompts.ts`, `src/ai/postprocess.ts`, `src/ai/validation.ts`; `app/processing.tsx`, `app/review.tsx`).
+- OCR pipeline against Google Gemini vision with a fixed response schema, post-processing, validation and per-field confidence; fields below `LOW_CONFIDENCE_THRESHOLD = 0.6` are flagged for review (`src/ai/pipeline.ts`, `src/ai/prompts.ts`, `src/ai/postprocess.ts`, `src/ai/validation.ts`; `app/processing.tsx`, `app/review.tsx`). The page uploaded for OCR is downscaled to `OCR_MAX_IMAGE_EDGE = 1568` px on its long edge while the persisted image keeps full resolution (`src/utils/ocr-image.ts`).
 - Review screen lets the user edit/confirm every extracted medicine before it is saved (`app/review.tsx`, `src/utils/savePrescription.ts` with fuzzy duplicate detection).
 
 ### 2.2 Medicines, schedules and reminders
@@ -182,21 +182,21 @@ Web mode is **not supported** (no pinned `react-native-web`; see `readme.md`).
 
 ## 7. Testing & Verification
 
-Automated checks present in the repository and their **actual results, executed on 2026-09-02** in this workspace (Windows, Node v24.18.0):
+Automated checks present in the repository and their **actual results, executed on 2026-09-03** in this workspace (Windows, Node v24.18.0):
 
 | Check | Command | Result |
 | ----- | ------- | ------ |
-| Unit tests (Jest + jest-expo, 14 suites / 172 tests) | `npm test` | **PASS** — 14/14 suites, 172/172 tests, 8.0 s |
+| Unit tests (Jest + jest-expo, 16 suites / 188 tests) | `npm test` | **PASS** — 16/16 suites, 188/188 tests, 10.0 s |
 | Static type checking (strict TS) | `npx tsc --noEmit` | **PASS** — no diagnostics |
 | Lint (ESLint 9 + eslint-config-expo) | `npm run lint` | **PASS** — 0 errors, 0 warnings (app/ + src/ scope) |
 | OCR golden-set evaluation | `npm run eval` | **Never run** — `eval/golden/` holds only `example.expected.json` and no sample images, so there is nothing to score; `eval/results.csv` contains just its header row. Adding anonymized prescriptions is the prerequisite |
 | Android APK/AAB build | see §8 | Not verified in this environment — no build artifacts present in the repository |
 
-Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill math, drug-interaction checking, dose/save duplicate matching, blur-sharpness scoring, PDF page/layout helpers, AI provider routing, AI failure classification and retry-delay parsing, OCR post-processing, markdown rendering, pill-icon rendering, tab events.
+Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill math, drug-interaction checking, dose/save duplicate matching, blur-sharpness scoring, PDF page/layout helpers, AI provider routing, AI failure classification and retry-delay parsing, OCR post-processing, OCR prompt and response-schema invariants, OCR upload-image sizing, markdown rendering, pill-icon rendering, tab events.
 
 ```text
 TypeScript: PASS
-Tests:      PASS (172/172)
+Tests:      PASS (188/188)
 Lint:       PASS (0 errors, 0 warnings)
 Build:      Not verified in the current environment
 ```
@@ -256,7 +256,7 @@ No secret values are stored in any of these files.
 - **Delete-all-data does not shrink the SQLite file** (standard SQLite behavior; freed pages are reused). App-lock credentials and AI keys intentionally survive the wipe.
 - **Urdu wordmark limitation:** the splash wordmark always renders in Latin Inter because Nastaliq shaping mangles Latin brand text.
 - **Eval harness has never been run:** `eval/golden/` contains only `example.expected.json` — no sample images — so `npm run eval` has nothing to score and `eval/results.csv` holds only its header row. It is not part of CI. Populating the golden set with anonymized prescriptions is the prerequisite for measuring any OCR change.
-- **OCR latency is provider-bound.** Verified on a physical device 2026-09-02: a 3-page scan through the proxy ran 46 s before the worker's 45 s deadline returned a structured 504, and two direct-Gemini attempts hit the app's own 60 s budget. Payload size is not the cause — measured 0.14 MB per page and 0.57 MB for a 3-page scan. Failures now surface as localized, actionable copy with working Retry/Back buttons instead of raw provider JSON or a bare "Aborted", and the budgets are nested (45 s worker attempt inside a 60 s client budget) so the app always receives a real reply; but a slow provider is still slow, and Gemini is the only vision path by design.
+- **OCR latency is provider-bound, and not yet fully mitigated.** Verified on a physical device 2026-09-02: a 3-page scan through the proxy ran 46 s before the worker's 45 s deadline returned a structured 504, and two direct-Gemini attempts hit the app's own 60 s budget. A further device log on 2026-09-03 shows five worker deadlines and two client aborts on single-page scans before one attempt succeeded and returned a complete 897-character extraction — so the provider does answer, just often outside the budget. The earlier conclusion that "payload size is not the cause" measured *upload bytes* (0.14 MB per page) and did not account for *vision token count*, which is what drives inference time: the camera captures at `quality: 1.0` with no resize, so full-resolution frames were being sent for Gemini to downscale server-side anyway. The page uploaded for OCR is now downscaled to `OCR_MAX_IMAGE_EDGE = 1568` px on its long edge (`src/utils/ocr-image.ts`, `src/ai/pipeline.ts`), leaving the persisted review/history image at full resolution. **That mitigation has not yet been measured on a device**, so this limitation stands until it is. Failures surface as localized, actionable copy with working Retry/Back buttons rather than raw provider JSON or a bare "Aborted", and the budgets stay nested (45 s worker attempt inside a 60 s client budget) so the app always receives a real reply; but a slow provider is still slow, and Gemini is the only vision path by design.
 - **No CI pipeline** is configured in the repository; verification commands must be run manually.
 
 ---
@@ -268,7 +268,7 @@ No secret values are stored in any of these files.
 - [x] `readme.md` (developer handoff guide) and `docs/` design/audit notes
 - [x] Configuration: `app.json`, `eas.json`, `env.example`, `package.json`, TS/ESLint/Babel/Metro configs
 - [x] Required assets: icons, splash images, bundled fonts (Inter, Noto Nastaliq Urdu)
-- [x] Unit test suites (14 files, 172 tests) and the OCR eval harness (`eval/run-eval.ts` — golden set not yet populated, see §11)
+- [x] Unit test suites (16 files, 188 tests) and the OCR eval harness (`eval/run-eval.ts` — golden set not yet populated, see §11)
 - [ ] APK / AAB artifact — **not committed**; produce with `eas build --platform android --profile preview` (evaluator APK) or the local Gradle release command in §8
 - [ ] `.env` — intentionally excluded (gitignored); provide values per `env.example` at build time
 
@@ -289,7 +289,7 @@ No secret values are stored in any of these files.
 ## Verification Summary
 
 - **Documented from source:** every feature, path, version, command and limitation above was read from repository files (`package.json`, `app.json`, `eas.json`, `env.example`, `src/`, `app/`, `plugins/`, `worker/`, `eval/`, `readme.md`).
-- **Executed and verified here (2026-09-02):** `npm test` (172/172 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), `node --input-type=module --check` on `worker/src/index.js` (parses), secrets scan (clean).
+- **Executed and verified here (2026-09-03):** `npm test` (188/188 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), `node --check` on `worker/src/index.js` (parses), secrets scan (clean).
 - **Verified on a physical Android device (2026-09-02):** the OCR failure paths, observed through `adb logcat`. A bare `Aborted` now classifies as `code: 'timeout'`, `Network request failed` as `code: 'offline'`, and a deployed-proxy 504 arrived as a human-readable summary with `statusCode: 504` after 46 s — inside the app's 60 s budget, so the client never aborted. Payload sizes measured at 0.14 MB per page and 0.57 MB for three pages. No raw provider JSON reached the UI.
 - **Not verified in this environment:** Android/iOS artifact builds (no SDK build run; no artifacts in repo) and `npm run eval` (the golden set is empty — see §11).
 - **Known documentation inconsistency:** `readme.md`'s quick start suggests Expo Go, which cannot host the app's native modules; a development build is required (noted in §5/§11).
