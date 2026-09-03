@@ -41,3 +41,10 @@ export const VISION_MAX_RETRIES = 1;
  * `field_confidence` scores among them — so 4096 truncated longer
  * prescriptions mid-JSON and the parse then failed outright. */
 export const MAX_OUTPUT_TOKENS = 8192;
+
+/** Longest pixel edge sent to Gemini for OCR. Anything larger is downscaled
+ * server-side regardless, so the extra pixels buy no accuracy — they only
+ * lengthen the upload and the inference that has to fit inside
+ * VISION_TIMEOUT_MS. Bounds the throwaway OCR copy only; the image persisted
+ * for the review and history screens keeps its full resolution. */
+export const OCR_MAX_IMAGE_EDGE = 1568;

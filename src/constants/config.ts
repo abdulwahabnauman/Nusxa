@@ -27,6 +27,7 @@ export {
   VISION_TIMEOUT_MS,
   VISION_MAX_RETRIES,
   MAX_OUTPUT_TOKENS,
+  OCR_MAX_IMAGE_EDGE,
 } from './ai-models';
 
 /** Maximum image file size in bytes (10 MB) */
