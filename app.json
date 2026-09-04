@@ -20,7 +20,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1B3A7B"
+        "backgroundColor": "#000000"
       },
       "package": "com.nusxa.app",
       "permissions": [
