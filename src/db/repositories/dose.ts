@@ -214,33 +214,3 @@ export async function deleteDoseRecord(id: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM dose_records WHERE id = ?;', [id]);
 }
-
-/** Get adherence stats for a date range */
-export async function getAdherenceStats(
-  startDate: string,
-  endDate: string
-): Promise<{ total: number; taken: number; skipped: number; missed: number; pending: number }> {
-  const db = getDatabase();
-  // Callers usually pass date-only strings while scheduled_time stores full
-  // ISO timestamps — expand the bounds so same-day records are included.
-  const start = startDate.length <= 10 ? `${startDate}T00:00:00` : startDate;
-  const end = endDate.length <= 10 ? `${endDate}T23:59:59` : endDate;
-  const rows = await db.getAllAsync<{ status: string; count: number }>(
-    `SELECT status, COUNT(*) as count FROM dose_records
-     WHERE scheduled_time >= ? AND scheduled_time <= ?
-     GROUP BY status;`,
-    [start, end]
-  );
-
-  const stats = { total: 0, taken: 0, skipped: 0, missed: 0, pending: 0 };
-  for (const row of rows) {
-    const count = row.count as number;
-    stats.total += count;
-    if (row.status === 'taken') stats.taken = count;
-    else if (row.status === 'skipped') stats.skipped = count;
-    else if (row.status === 'missed') stats.missed = count;
-    else if (row.status === 'pending') stats.pending = count;
-  }
-
-  return stats;
-}

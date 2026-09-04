@@ -28,10 +28,10 @@ import { Celebration } from '../../src/components/ui/Celebration';
 import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
-import { getTodayRange, getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getDayPart, getTodayAtMs } from '../../src/utils/date';
+import { getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getDayPart, getTodayAtMs } from '../../src/utils/date';
 import { formatDigits } from '../../src/utils/numerals';
 import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markEndOfDayMissed, missedWarningNotificationId } from '../../src/utils/notifications';
-import { getAdherenceStats, upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
+import { upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
 import { getActiveSchedules } from '../../src/db/repositories/schedule';
 import { getMedicine, getMedicinesByIds, updateInventory, getActiveMedicines } from '../../src/db/repositories/medicine';
 import { doseHaptic, milestoneHaptic } from '../../src/utils/haptics';
@@ -145,14 +145,12 @@ export default function HomeScreen() {
   const loadData = useCallback(async () => {
     try {
       const today = getTodayISO();
-      const [rangeStart, rangeEnd] = getTodayRange();
       // Close out past days first so history already shows them as missed
       await markEndOfDayMissed();
       // All independent loads run in parallel (no sequential awaits)
-      const [schedules, todayRecords, stats, daily, activeMedicines] = await Promise.all([
+      const [schedules, todayRecords, daily, activeMedicines] = await Promise.all([
         getActiveSchedules(),
         getTodayDoseRecords(today),
-        getAdherenceStats(rangeStart, rangeEnd),
         // Two years of per-day rollups in ONE query — enough for any streak
         getDailyAdherence(getDaysAgoISO(730)),
         getActiveMedicines(),
@@ -186,8 +184,12 @@ export default function HomeScreen() {
 
       setTodayItems(items);
 
-      // Adherence stats
-      setAdherence(stats.total > 0 ? Math.round((stats.taken / stats.total) * 100) : 0);
+      // Adherence ring: the whole day's plan, not just doses that already have
+      // a record. A dose nobody acted on has no dose_records row, so a
+      // records-only denominator read 2/2 = 100% while a third dose was still
+      // pending — and 1/1 on a day a dose was never taken at all.
+      const takenToday = items.filter((item) => item.status === 'taken').length;
+      setAdherence(items.length > 0 ? Math.round((takenToday / items.length) * 100) : 0);
 
       // Weekly chart from the single daily rollup query (localized labels)
       const dailyByDate = new Map(daily.map((d) => [d.date, d]));
