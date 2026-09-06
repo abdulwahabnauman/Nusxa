@@ -516,29 +516,6 @@ Pressing `s` in `npx expo start` toggles Metro to target a dev-client build inst
 
 ## Known Limitations / Things to Improve
 
-### 🆕 Educational Content Library
-
-**Status**: Database foundation ✅ | UI ✅ (Learn tab shipped)
-
-A complete educational content system for medication literacy:
-
-- **4 Database Tables**:
-  1. `education_categories` - Group articles by topic (Blood Pressure, Antibiotics, Painkillers, Vitamins)
-  2. `education_content` - Bilingual articles with English & Urdu support
-  3. `education_bookmarks` - User favorites for quick access
-  4. `education_reading_history` - Track reading progress & completion
-
-- **Sample Data Pre-loaded** (migration v6, idempotent):
-  - 4 educational categories
-  - 2 starter articles (ACE inhibitors overview, antibiotic resistance)
-  - All content fully bilingual (English + Urdu translations)
-
-- **UI**: Learn tab (`app/(tabs)/education.tsx`) + article reader (`app/education/[slug].tsx`) with bookmarks and reading history
-
-**Next Steps**: Populate more medical content
-
----
-
 ### ✅ COMPLETED (Fixed Today - Latest Session)
 
 | Item | Status | Notes |
@@ -565,8 +542,6 @@ A complete educational content system for medication literacy:
 
 | Area | Priority | Status | Effort | Notes |
 |------|----------|--------|--------|-------|
-| **Urdu translation coverage** | 🔴 CRITICAL | ~5% complete | High | Only Settings + tabs translated. Every screen needs `t.*` strings wired up. Major documentation effort (~40 files). |
-| **RTL layout testing** | 🟡 MEDIUM | Not exercised | Low-Medium | After Urdu translations, test RTL layout. May need `flexDirection: 'row-reverse'` adjustments. |
 | **Background notifications** | 🟡 MEDIUM | Expo Go limitation | N/A | Works in production builds. Dev client or APK needed for background execution. |
 | **Push notifications (Firebase)** | ⏸️ DEFERRED | Decided against for now | — | Local scheduled notifications are delivered by the OS even when the app is killed. True server-triggered push needs a Firebase project + a backend sender; revisit when a backend exists. |
 
@@ -574,38 +549,13 @@ A complete educational content system for medication literacy:
 
 | Feature | Priority | Why Important | Effort | Implementation Notes |
 |---------|----------|---------------|--------|---------------------|
-| **App biometric lock** | ✅ DONE | — | — | Real gate: `expo-local-authentication` fingerprint/Face with PIN fallback (SecureStore), Settings → Security setup, locks on cold start + backgrounding, 30s lockout after 5 wrong PINs |
 | **Enhanced elderly mode redesign** | 🔴 CRITICAL | Real accessibility improvement (target audience!) | Medium-High | Larger touch targets (>48dp), simplified navigation flow, higher contrast colors, icon simplification. NOT just larger fonts. |
-| **Full theme/settings persistence** | 🟠 HIGH | Prevent settings reset confusion | Low-Medium | Add DB columns: `notifications_enabled`, `reduced_motion`, `theme_preference`. Already mostly done, needs final polish. |
 | **Tablet layout optimization** | 🟢 LOW | Expand user base to tablets | Medium | Responsive layouts using Flexbox. Test on various screen sizes. |
-| **Data backup & cloud sync** | 🟡 PARTIAL | Prevent total data loss if device lost | Medium-High | Password-encrypted backup files (AES, user stores them anywhere — Drive/email/WhatsApp) shipped in Settings → Data. Auto cloud sync still open. |
+| **Cloud sync** | 🟡 PARTIAL | Prevent total data loss if device lost | Medium-High | Password-encrypted backup files (AES, user stores them anywhere — Drive/email/WhatsApp) already shipped in Settings → Data. Automatic cloud sync is still open. |
 | **Offline AI capabilities** | 🟢 LOW | Scan prescriptions without internet | High | On-device ML models (TensorFlow Lite). Complex but valuable niche feature. |
 | **Family caregiver view** | 🟢 LOW | Share medication schedule with family | Medium | Role-based permissions. Family member can see schedules, edit emergency info. |
 | **Pharmacy integration** | 🟡 PLANNED | Direct refill requests to pharmacies | High | Entry point shipped as an "Order refill" (coming soon) row on the medicine detail screen; build plan in `docs/REFILL_ORDERING_GUIDE.md`. |
-| **Adherence analytics dashboard** | ✅ DONE | — | — | Live dashboard (adherence ring, activity chart, month calendar) plus exportable PDF report via the header share button |
-| **Medicine interaction checker** | ✅ DONE | — | — | 16 curated two-sided rules in `src/constants/medical.ts`, matched over name/generic/brand (`src/utils/interactions.ts`), warned on the review screen before save and on the Medicines tab |
-| **Medication education library** | ✅ DONE | — | — | Schema v4–v6 + UI (Learn tab, article reader, bookmarks, history) all shipped |
 | **Appointment reminders** | 🟢 LOW | Reminder for doctor visits | Low | Separate from medicine reminders. Calendar integration. |
-
----
-
-### 📊 CURRENT MVP COMPLETENESS SUMMARY
-
-| Category | Total Items | Complete | In Progress | Pending | % Complete |
-|----------|-------------|----------|-------------|---------|------------|
-| **Critical Bugs Fixed** | 6 | 6 | 0 | 0 | 100% ✅ |
-| **Core Medication Management** | 12 | 11 | 1 | 0 | 92% ✅ |
-| **Accessibility Features** | 8 | 4 | 0 | 4 | 50% 🟡 |
-| **Bilingual Support (Urdu)** | 35 | 2 | 0 | 33 | 6% ⚪ |
-| **Production Readiness** | 7 | 3 | 1 | 3 | 57% 🟡 |
-| **Future Enhancements** | 11 | 0 | 0 | 11 | 0% ⚪ |
-
-**OVERALL STATUS**: **~65% Complete** 🚀
-
-The core medication tracking functionality works flawlessly! The remaining gaps are primarily about:
-1. Completing bilingual support (Urdu translation of all screens)
-2. Adding critical safety features (biometric lock, medicine interactions)
-3. Production-ready infrastructure (push notifications, cloud backup)
 
 ---
 
@@ -622,11 +572,6 @@ The core medication tracking functionality works flawlessly! The remaining gaps 
 ### Chat/explain feature seems slow or fails intermittently
 - OpenRouter's free Nemotron tier has a low daily quota (~50 req/day). When exhausted, `callTextModel()` in `client.ts` automatically retries with backoff before falling to Groq — this adds a few seconds of delay right at the point the quota runs out, that's expected, not a bug
 - If both OpenRouter and Groq keys are empty/invalid, the chat feature will show a "unable to connect" message rather than crash
-
-### Red "Console Error" screen on Android in Expo Go mentioning expo-notifications
-- Expected, not a bug. `expo-notifications` auto-registers for a push token the instant it's imported. On iOS in Expo Go this only logs a soft warning; on Android specifically, Expo Go escalates the same situation to a hard `console.error`, which shows as a red overlay
-- Root cause is identical to the iOS warning: Expo Go removed remote push support starting SDK 53. Dismiss the overlay and keep going, local scheduled reminders still work fine in Expo Go
-- Goes away entirely once you're testing on a real dev build or APK instead of Expo Go, since that restriction is Expo-Go-specific
 
 ### Notifications not showing
 - Expo Go: notifications only work when app is foregrounded or recently used
@@ -691,9 +636,9 @@ The `.env` file is gitignored, and `EXPO_PUBLIC_*` values are baked into the app
 
 ---
 
-## 🚧 UI/UX IMPROVEMENT BATCH — IN PROGRESS (August 26, 2026)
+## UI/UX Improvement Batch (August 26, 2026)
 
-Working through the user-approved roadmap (items 1–6, 9, 11, 14, 15, 18) plus reported bug fixes. This section is updated after each completed chunk.
+Covers the user-approved roadmap items (1–6, 9, 11, 14, 15, 18) plus reported bug fixes, shipped as the chunks below.
 
 ### ✅ Chunk 1 — Headers + dose tracking correctness
 
@@ -845,21 +790,7 @@ User-selected items 2–13, 16–18, 20, 22, 23 from the 25-item improvement lis
 
 ---
 
-## 🎉 LATEST SESSION CHANGES - AUGUST 26, 2026
-
-A seven-issue hardening pass. Nothing Gemini/API-related was touched.
-
-### ✅ What changed
-
-1. **Data Import** — Settings now has a real import: document picker → validate → transactional SQLite restore (`importFromJSON`). Export now includes prescriptions and format markers, so export/import fully round-trips.
-2. **Doctor Visit PDF** — `handleShare()` no longer shares plain text. `src/utils/pdf.ts` renders a styled A4 report (medicines table, daily schedule, patient notes, disclaimer) via `expo-print`, shared with `expo-sharing` as a real PDF.
-3. **Brand pill icon** — new shared `src/components/ui/PillIcon.tsx` (react-native-svg, two-tone capsule matching the logo). Replaced all `MaterialCommunityIcons "pill"` usages: tab bar, onboarding, schedule headers, both empty states. One dynamically-themed component — no separate light/dark variants needed.
-4. **Animations pass** — Reanimated everywhere, reduced-motion aware: Button press-scale, DoseItem status pop, MedicineCard entrance; Toast & Skeleton converted off the legacy Animated API.
-5. **Onboarding in APK** — gate now depends purely on `profile.name || onboarding_complete` in SQLite; `updateProfile` actually persists the flag now (it was silently dropped before); upsert handles upgrade installs; DB open retries once.
-6. **Image aspect ratio** — forced `aspect` removed from the picker (Android hard-crop eliminated), manual crop kept via `allowsEditing`, ratio handled post-pick by `normalizeToScanAspect()` (SDK 54 caveat: native padding unsupported, image kept intact instead — nothing cut off).
-7. **Error screen** — processing.tsx error state is now scrollable with side-by-side Try again / Go back buttons.
-
-### 🗄️ DATABASE VERSION HISTORY
+## Database Version History
 
 - v1: Initial schema (profiles, prescriptions, medicines, schedules, doses)
 - v2: Added language column to profile
@@ -876,77 +807,7 @@ A seven-issue hardening pass. Nothing Gemini/API-related was touched.
 - v13: Multi-patient support (prescriptions.patient_name, profile.active_patient)
 - v14: Reminder escalation preference (profile.reminder_escalation)
 - v15: Multi-patient removed — wipes all patient_name / active_patient values; the feature and its UI are gone (single-user app again)
-
----
-
-## Session Changelog - August 25, 2026
-
-This README documents the complete implementation of **4 MAJOR FEATURES** built in a single session without stopping or asking questions!
-
-### 🚀 NEW FEATURES ADDED TODAY:
-
-#### 1. ✅ Education Library (FULLY COMPLETE)
-- **Files created:** `app/education.tsx`, `app/education/[slug].tsx`
-- **Database:** 4 new tables (`education_categories`, `education_content`, `education_bookmarks`, `education_reading_history`)
-- **Features:** Browse articles by category, read bilingual content, bookmark favorites, track reading progress
-- **Sample content:** 4 categories + 2 articles pre-loaded (English + Urdu)
-- **Navigation:** New "Learn" tab between History and Settings tabs
-
-#### 2. ✅ Analytics Dashboard (FULLY COMPLETE)
-- **File created:** `app/(tabs)/analytics.tsx`
-- **Features:** Adherence ring counter, weekly activity bar chart, stats summary (taken/missed/total), period selector (7d/30d/all time)
-- **Visualization:** SVG-based circular progress, horizontal scrolling charts
-- **Real-time data:** Queries from dose_records table automatically
-
-#### 3. ✅ Biometric Authentication (COMPLETE)
-- **File created:** `src/components/ui/BiometricLock.tsx`
-- **Features:** PIN keypad entry, biometric unlock support (ready for expo-biometrics integration), secure app access
-- **Security:** Prevents unauthorized access to sensitive medical data
-- **Implementation:** Currently uses PIN (easy to test), simple swap to biometric auth required
-
-#### 4. ✅ Medicine Interaction Checker (COMPLETE)
-- **File modified:** `src/constants/medical.ts`
-- **Rules added:** 12+ interaction rules with severity levels (HIGH/MEDIUM/LOW)
-- **Functions:** `checkMedicineInteraction()`, `findAllInteractions()`
-- **Integration:** Will run during prescription verification, blocks schedule if HIGH severity found
-- **Safety:** Warns about dangerous drug-drug combinations before confirmation
-
-### 🐛 CRITICAL BUGS FIXED TODAY:
-
-1. ✅ **Database Migration Error** - `runMigrations` was undefined (export issue)
-2. ✅ **Name Displaying Twice in Settings** - Duplicate row removed
-3. ✅ **Processing Step 4 Stuck Pending** - Added explicit stage completion call
-4. ✅ **Added OK Button** - Secondary action button alongside Review prescription
-5. ✅ **Urdu Tab Overflow on iOS** - Increased heights for Nasteq font compatibility
-6. ✅ **Import Resolution Errors** - Changed to relative paths, fixed icon imports
-7. ✅ **Gemini Model Update** - Changed from gemini-2.5-flash to gemini-3.6-flash
-8. ✅ **Button Alignment** - Consistent sizing across all screens
-
-### 📊 CODE STATISTICS:
-
-- **New files:** 6 (+1,970 lines)
-- **Modified files:** 15 (+500 lines)
-- **Total impact:** ~2,500 lines of production code
-- **Build time:** ~90 minutes of focused development
-- **Zero errors:** All features tested and working
-
-### 📱 NAVIGATION UPDATES:
-
-Old tab order (4 tabs): Home, Medicines, History, Settings
-New tab order (6 tabs): Home, Medicines, History, Learn, Analytics, Settings
-
-### 🗄️ DATABASE VERSION HISTORY:
-
-- v1: Initial schema (profiles, prescriptions, medicines, schedules, doses)
-- v2: Added language column to profile
-- v3: Added elderly_mode, reduced_motion settings
-- v4: Education library tables ✨ NEW
-- v5: Schema consistency updates ✨ NEW
-
-### 🌍 TRANSLATIONS ADDED:
-
-- English keys: 50+ new strings (nav.analytics, nav.education, analytics.*, interactions.*)
-- Urdu translations: Complete RTL equivalents for all new features
+- v16: Soft-delete tombstones on prescriptions and medicines (`deleted_at`), indexed `scheduled_time` on dose_records
 
 ---
 
