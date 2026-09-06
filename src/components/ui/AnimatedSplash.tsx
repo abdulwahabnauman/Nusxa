@@ -104,16 +104,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   logo: {
-    width: 125,
-    height: 124,
+    width: 112,
+    height: 111,
   },
   wordmark: {
     fontFamily: LATIN_FONTS.bold,
-    fontSize: 30,
-    letterSpacing: 3,
+    fontSize: 26,
+    letterSpacing: 2.2,
     color: '#FFFFFF',
     textAlign: 'center',
-    marginTop: 20,
+    marginTop: 21,
     paddingHorizontal: 24,
+    textTransform: 'uppercase',
   },
 });
