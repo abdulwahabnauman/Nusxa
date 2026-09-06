@@ -88,8 +88,15 @@ export function AnimatedSplash({ onAnimationDone, ready }: AnimatedSplashProps) 
         />
       </Animated.View>
       <Animated.Text style={[nameStyle, styles.wordmark]}>
-        {/* NBSP: Android letterSpacing clips the last glyph without it */}
-        {'Nusxa '}
+        {/* Double NBSP: Android's text measurement can undercount the
+            letterSpacing added after the last glyph, clipping it off. One
+            trailing NBSP isn't always enough buffer at every size/spacing
+            combo -- two is a safer margin.
+            The case is baked into the literal for the same reason:
+            Android measures the pre-transform string, so
+            textTransform: 'uppercase' painted wider than measured
+            and clipped the final glyph. */}
+        {'NUSXA  '}
       </Animated.Text>
     </Animated.View>
   );
@@ -115,6 +122,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 21,
     paddingHorizontal: 24,
-    textTransform: 'uppercase',
   },
 });
