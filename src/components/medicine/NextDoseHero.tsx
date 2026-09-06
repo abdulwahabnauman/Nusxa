@@ -55,8 +55,13 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
 
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
 
-  /** Human countdown, e.g. "in 2h 15m", "due now", "overdue by 35m" */
-  const formatCountdown = (diffMs: number): string => {
+  /**
+   * Human countdown, e.g. "in 2h 15m", "due now", "overdue by 35m".
+   * `trulyOverdue` must reflect the dose WINDOW having closed (not just the
+   * dose's start time having passed) — a dose is still "due now", not
+   * "overdue", for as long as its window remains open.
+   */
+  const formatCountdown = (diffMs: number, trulyOverdue: boolean): string => {
     const span = (min: number) => {
       if (min < 60) return `${nf(min)}${t.home.minutesShort}`;
       const h = Math.floor(min / 60);
@@ -65,11 +70,12 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
         ? `${nf(h)}${t.home.hoursShort}`
         : `${nf(h)}${t.home.hoursShort} ${nf(m)}${t.home.minutesShort}`;
     };
-    if (diffMs <= 0) {
+    if (trulyOverdue) {
       const overdueMin = Math.round(-diffMs / 60000);
       if (overdueMin < 1) return t.home.dueNow;
       return t.home.countdownOverdue.replace('{t}', span(overdueMin));
     }
+    if (diffMs <= 0) return t.home.dueNow;
     const totalMin = Math.round(diffMs / 60000);
     if (totalMin < 1) return t.home.dueNow;
     return t.home.countdownIn.replace('{t}', span(totalMin));
@@ -118,13 +124,19 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     );
   }
 
-  // Next = earliest pending dose that hasn't passed yet; otherwise the earliest overdue one
-  const upcoming =
-    pending.find((item) => todaysDateFor(item.time).getTime() > now) ?? pending[0];
+  // Next = earliest pending dose, whether it's still ahead of us or already
+  // active/overdue. `pending` is sorted ascending by start time, so the
+  // earliest entry is always correct — there is no need (and it was a bug)
+  // to skip past an already-open dose to reach a later one that simply
+  // hasn't started yet.
+  const upcoming = pending[0];
   if (!upcoming) return null;
   const next = upcoming;
   const doseDate = todaysDateFor(next.time);
-  const diffMs = doseDate.getTime() - now;
+  const windowMs = (next.windowMinutes ?? 120) * 60_000;
+  const windowEndDate = new Date(doseDate.getTime() + windowMs);
+  const diffToStart = doseDate.getTime() - now;
+  const diffToEnd = windowEndDate.getTime() - now;
   const snoozeEntry = snoozedUntil[next.scheduleId];
   const isSnoozed = !!snoozeEntry && snoozeEntry.until > now;
 
@@ -133,7 +145,14 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     .replace('{start}', nf(rangeStart))
     .replace('{end}', nf(rangeEnd));
 
-  const overdue = diffMs <= 0;
+  // "Started" = the dose window has opened (Take/Snooze become available).
+  // "Overdue" = the dose window has fully closed without action — this is
+  // the only state that should show the warning tint and "overdue by …"
+  // text. A dose that's merely in-progress (started but window still open)
+  // reads as "due now" in the normal accent color.
+  const started = diffToStart <= 0;
+  const overdue = diffToEnd <= 0;
+  const diffMs = overdue ? diffToEnd : diffToStart;
   const heroTint = overdue ? colors.warning : colors.accent.primary;
 
   // Ring fills from 0 → 1 during the last hour before the dose is due.
@@ -143,7 +162,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     ? Math.max(0, Math.min(1, (snoozeEntry.until - now) / Math.max(1, snoozeEntry.until - snoozeEntry.start)))
     : overdue
       ? 1
-      : Math.max(0, Math.min(1, 1 - diffMs / RING_LEAD_MS));
+      : Math.max(0, Math.min(1, 1 - diffToStart / RING_LEAD_MS));
   const ringOffset = RING_CIRCUMFERENCE * (1 - ringProgress);
 
   /** Snooze the reminder card locally and arm a one-shot re-ring. */
@@ -239,14 +258,14 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
             {isSnoozed && snoozeEntry
               ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeEntry.until)))
-              : `${windowLabel} · ${formatCountdown(diffMs)}`}
+              : `${windowLabel} · ${formatCountdown(diffMs, overdue)}`}
           </Text>
         </View>
       </View>
 
       {/* Before the scheduled time there is nothing to act on — the ring
           and countdown carry the information until the dose is due */}
-      {overdue && (
+      {started && (
         <View style={[styles.actions, { marginTop: spacing.md }]}>
           <TouchableOpacity
             style={[styles.takeButton, { backgroundColor: colors.accent.primary }]}
@@ -289,7 +308,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
         </View>
       )}
 
-      {overdue && showSnoozeOptions && !isSnoozed && (
+      {started && showSnoozeOptions && !isSnoozed && (
         <View style={[styles.snoozeOptions, { marginTop: spacing.sm }]}>
           {SNOOZE_OPTIONS.map((min) => (
             <TouchableOpacity
