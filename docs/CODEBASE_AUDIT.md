@@ -8,7 +8,12 @@
 >
 > **STATUS UPDATE (Aug 2026):** the items selected for the hardening pass are marked
 > ✅ FIXED with the implementing commit. Everything else is still genuinely open —
-> do NOT re-report the fixed items in future audits.
+> do NOT re-report the fixed items in future audits. A third marker, 🔮 FUTURE, covers
+> the generic Education Library (browse/search library, categories, bookmarks, reading
+> history): that feature was fully built, then intentionally pulled from the UI when
+> Learn became "Your Medicines." Its DB layer and routes are still sitting in the
+> codebase, dormant, kept in case it gets revived later — that's a shelved feature,
+> not an unfinished one, so don't lump it in with genuinely left-out work.
 
 ---
 
@@ -33,7 +38,7 @@
 
 | # | Status | Feature | Notes |
 |---|--------|---------|-------|
-| H1 | ⬜ OPEN | **Education Library** — full DB layer, zero UI consumers (Learn tab only lists the user's own medicines). ROADMAP.md confirms ~30% done. |
+| H1 | 🔮 FUTURE | **Education Library** — full DB layer still in the codebase from the original build; the UI was intentionally pulled when Learn became "Your Medicines." Dormant, not missing — a candidate to revive later, not a gap to close now. |
 | H2 | ✅ FIXED `6442a2a` | **Reminder escalation** — Settings toggle shipped + notification backend reads it (escalating reminders when a dose stays untaken past the window). |
 | H3 | ⬜ OPEN | **`explainMedicine()`** exported in `src/ai/pipeline.ts` but never called anywhere. |
 | H4 | ✅ FIXED `664f8cf` | **Validation toolkit** wired into the review + schedule screens (time format, conflicts, duplicates, missing fields). |
@@ -102,7 +107,7 @@
 ## 3. 💡 Suggested Features
 
 ### Finish what's half-built (highest ROI)
-1. ⬜ OPEN — **Education Library UI** (browse/search, category tabs, bookmarks, reading progress, per-medicine articles).
+1. 🔮 FUTURE — **Education Library UI** (browse/search, category tabs, bookmarks, reading progress, per-medicine articles) — shipped once, then shelved in favor of Learn = Your Medicines. Only worth reviving if a real content library gets reprioritized.
 2. ⬜ OPEN — **`explainMedicine()` wiring** ("Explain in simple words" on medicine detail).
 3. ✅ FIXED `6442a2a` — **Reminder escalation toggle + behavior** shipped end-to-end.
 4. ✅ FIXED `fa032f4` — **Medicine edit/delete** shipped (edit, pause, delete with Undo).
@@ -173,7 +178,8 @@
 
 **Resolved in the Aug 2026 hardening pass** (do not re-report):
 - **Bugs:** B1, B2, B3, B4, B6, B7, B8, B9, B10 (only B5 remains).
-- **Half-built:** H2, H4, H5, H6 (H1 Education UI, H3 explainMedicine, H7 links remain).
+- **Half-built:** H2, H4, H5, H6 (H3 explainMedicine, H7 links remain).
+- **Shelved for future revival:** H1 Education Library UI + the matching Suggested Feature — built, then intentionally removed from the UI, DB layer and routes still in place.
 - **Config/native:** arm64, mic permission removed, worker↔app model-constant drift, eas.json iOS profiles.
 - **Performance/data:** N+1 kills, react-query adoption, schema versioning, tests (75), full-state export/import v3, encrypted backups, `scheduled_time` index, soft-delete tombstones, docs consolidation, env cleanup.
 - **Features:** escalation, follow-up reminders, refill entry point (+ guide), home-screen widget, encrypted backup, emergency-card calls, chat context/quick questions.
@@ -181,8 +187,11 @@
 
 **Still open (highest value first):**
 1. §1.4 i18n sweep + UX1/UX2 (the bilingual requirement is still only partially met).
-2. H1 Education Library UI + H7 links (+ H3 explainMedicine wiring).
+2. H7 links + H3 explainMedicine wiring.
 3. B5 MarkdownText dark-mode colors; remaining hardcoded hexes (UX7).
 4. Dead-code leftovers (§1.3), `console.log` stripping (CQ11), `as any` casts in `savePrescription` (CQ6).
 5. Remaining UX polish: Undo everywhere (UX11), capture preview (UX13), OCR confidence editing (UX14), empty states (UX24), daypart grouping (UX10).
 6. Features backlog: caregiver mode, voice output, vitals log, multi-profile, push notifications, true cloud sync.
+
+**Shelved, not open (revisit only if reprioritized):**
+- H1 / Suggested Feature #1 — the Education Library UI (browse/search, categories, bookmarks, reading progress). Built once, deliberately removed from the UI in favor of Learn = Your Medicines. Code and schema stay in place for a possible future revival.
