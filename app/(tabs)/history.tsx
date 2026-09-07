@@ -1,64 +1,182 @@
-import React, { useCallback, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect, memo, useRef } from 'react';
 import {
   View,
   Text,
-  ScrollView,
+  FlatList,
   StyleSheet,
   RefreshControl,
   TextInput,
   TouchableOpacity,
-  Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  withDelay,
+  Easing,
+} from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../src/theme/provider';
 import { Card } from '../../src/components/ui/Card';
 import { Badge } from '../../src/components/ui/Badge';
 import { EmptyState } from '../../src/components/ui/EmptyState';
+import { useUndoToast } from '../../src/components/ui/UndoToast';
+import { SkeletonCard } from '../../src/components/ui/Skeleton';
+import { SwipeActions, type SwipeAction } from '../../src/components/ui/SwipeActions';
+import { useI18n } from '../../src/i18n';
+import { useReducedMotion } from '../../src/hooks/useReducedMotion';
+import { usePrescriptionList, PrescriptionItem } from '../../src/hooks/queries';
+import { useTabScrollReset } from '../../src/hooks/useTabScrollReset';
+import { useSettingsStore } from '../../src/stores/settings-store';
+import { formatDigits } from '../../src/utils/numerals';
+import { formatDateLocalized } from '../../src/utils/date';
 import {
-  getAllPrescriptions,
-  searchPrescriptions,
   deletePrescription,
+  restorePrescription,
   archivePrescription,
+  updatePrescription,
 } from '../../src/db/repositories/prescription';
-import { getMedicinesByPrescription } from '../../src/db/repositories/medicine';
-import type { Prescription } from '../../src/types/models';
+import { syncDoseNotifications } from '../../src/utils/notifications';
 
-interface PrescriptionItem extends Prescription {
-  medicineCount: number;
-}
+/** Memoized row so the prescription list stays cheap to scroll */
+const PrescriptionRow = memo(function PrescriptionRow({
+  rx,
+  onOpen,
+  onArchive,
+  onDelete,
+}: {
+  rx: PrescriptionItem;
+  onOpen: (rx: PrescriptionItem) => void;
+  onArchive: (rx: PrescriptionItem) => void;
+  onDelete: (rx: PrescriptionItem) => void;
+}) {
+  const { colors, typography } = useTheme();
+  const { t, language } = useI18n();
+  const locale = language === 'ur' ? 'ur-PK' : 'en-US';
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const nf = (v: string | number) => formatDigits(v, easternNumerals);
+
+  // Swipe-revealed actions replace the old always-visible button row (UX17)
+  const actions: SwipeAction[] = [];
+  if (rx.treatment_status === 'active') {
+    actions.push({
+      label: t.history.archive,
+      icon: 'archive-outline',
+      background: colors.accent.primary,
+      onPress: () => onArchive(rx),
+    });
+  }
+  actions.push({
+    label: t.common.delete,
+    icon: 'delete-outline',
+    background: colors.error,
+    onPress: () => onDelete(rx),
+  });
+
+  const displayDate = rx.date ? formatDateLocalized(rx.date, locale) : t.history.noDate;
+
+  return (
+    <SwipeActions actions={actions} style={{ marginBottom: 16 }}>
+      <Card>
+        <TouchableOpacity
+          onPress={() => onOpen(rx)}
+          accessibilityLabel={`Prescription from ${displayDate}`}
+        >
+          <View style={styles.rxHeader}>
+            <View style={{ flex: 1 }}>
+              <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                {rx.doctor_name ?? t.history.unknownDoctor}
+              </Text>
+              <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                {displayDate},{' '}
+                {nf(
+                  (rx.medicineCount === 1 ? t.history.medicineCountOne : t.history.medicineCountMany).replace(
+                    '{n}',
+                    String(rx.medicineCount),
+                  ),
+                )}
+              </Text>
+              {rx.hospital && (
+                <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 2 }]}>
+                  {rx.hospital}
+                </Text>
+              )}
+            </View>
+            <Badge
+              label={rx.treatment_status}
+              variant={rx.treatment_status === 'active' ? 'verified' : 'info'}
+            />
+          </View>
+        </TouchableOpacity>
+      </Card>
+    </SwipeActions>
+  );
+});
 
 export default function HistoryScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
+  const { t, isRTL } = useI18n();
+  const reducedMotion = useReducedMotion();
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [prescriptions, setPrescriptions] = useState<PrescriptionItem[]>([]);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const { showUndoToast, undoToastElement } = useUndoToast();
+
+  // react-query owns the list (Perf 2): cached, keyed by search term, and
+  // enriched with medicine counts in one batch query (no N+1, Perf 1).
+  const {
+    data: prescriptions = [],
+    isLoading: loading,
+    refetch,
+  } = usePrescriptionList(searchQuery);
+  const listRef = useRef<FlatList<PrescriptionItem>>(null);
+  useTabScrollReset(
+    useCallback(() => listRef.current?.scrollToOffset({ offset: 0, animated: true }), [])
+  );
+
+  // Marquee placeholder: the search hint stays on one line and, when it is
+  // wider than the field, slides across slowly instead of wrapping/disappearing.
+  const [placeholderFieldW, setPlaceholderFieldW] = useState(0);
+  const [placeholderTextW, setPlaceholderTextW] = useState(0);
+  const marqueeX = useSharedValue(0);
+  const placeholderOverflow = Math.max(0, placeholderTextW - placeholderFieldW);
+
+  useEffect(() => {
+    if (reducedMotion || placeholderOverflow <= 0) {
+      marqueeX.value = 0;
+      return;
+    }
+    const dir = isRTL ? 1 : -1;
+    const dist = placeholderOverflow + 12;
+    // Slow, legible crawl (~18px/s), with pauses at both ends
+    marqueeX.value = withRepeat(
+      withSequence(
+        withDelay(1500, withTiming(dir * dist, { duration: Math.max(2000, dist * 55), easing: Easing.linear })),
+        withDelay(1200, withTiming(0, { duration: 600, easing: Easing.out(Easing.quad) })),
+      ),
+      -1,
+      false,
+    );
+  }, [placeholderOverflow, isRTL, reducedMotion, marqueeX]);
+
+  const marqueeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: marqueeX.value }],
+  }));
 
   const loadPrescriptions = useCallback(async () => {
     try {
-      let results: Prescription[];
-      if (searchQuery.trim()) {
-        results = await searchPrescriptions(searchQuery.trim());
-      } else {
-        results = await getAllPrescriptions();
-      }
-
-      const enriched: PrescriptionItem[] = [];
-      for (const rx of results) {
-        const meds = await getMedicinesByPrescription(rx.id);
-        enriched.push({ ...rx, medicineCount: meds.length });
-      }
-      setPrescriptions(enriched);
+      await refetch();
     } catch {
       // Offline-safe
     }
-  }, [searchQuery]);
-
-  useEffect(() => {
-    loadPrescriptions();
-  }, [loadPrescriptions]);
+  }, [refetch]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -66,170 +184,167 @@ export default function HistoryScreen() {
     setRefreshing(false);
   }, [loadPrescriptions]);
 
-  const handleArchive = (id: string) => {
-    Alert.alert(
-      'Archive prescription',
-      'This will hide the prescription from your active list. You can still view it in history.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Archive',
-          onPress: async () => {
-            await archivePrescription(id);
-            await loadPrescriptions();
-          },
-        },
-      ]
-    );
-  };
+  const handleArchive = useCallback(async (rx: PrescriptionItem) => {
+    const prevStatus = rx.treatment_status;
+    try {
+      await archivePrescription(rx.id);
+      await loadPrescriptions();
+      showUndoToast(t.history.archivedToast, async () => {
+        try {
+          await updatePrescription(rx.id, { treatment_status: prevStatus });
+          await loadPrescriptions();
+        } catch { /* undo is best-effort */ }
+      });
+    } catch { /* action failed silently */ }
+  }, [loadPrescriptions, showUndoToast, t]);
 
-  const handleDelete = (id: string) => {
-    Alert.alert(
-      'Delete prescription',
-      'This will permanently delete this prescription and all associated medicines and schedules. This cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await deletePrescription(id);
-            await loadPrescriptions();
-          },
-        },
-      ]
-    );
-  };
+  const handleDelete = useCallback(async (rx: PrescriptionItem) => {
+    try {
+      // Soft delete tombstones the prescription + its medicines; Undo just clears the tombstone
+      await deletePrescription(rx.id);
+      await syncDoseNotifications();
+      await loadPrescriptions();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active': return colors.success;
-      case 'completed': return colors.text.secondary;
-      case 'archived': return colors.text.disabled;
-      default: return colors.text.secondary;
-    }
-  };
+      showUndoToast(t.history.deletedToast, async () => {
+        try {
+          await restorePrescription(rx.id);
+          await syncDoseNotifications();
+          await loadPrescriptions();
+        } catch { /* undo is best-effort */ }
+      });
+    } catch { /* action failed silently */ }
+  }, [loadPrescriptions, showUndoToast, t]);
 
-  return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={colors.accent.primary}
-          />
-        }
-      >
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            History
-          </Text>
-          <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            Your prescription records
-          </Text>
-        </View>
+  const handleOpen = useCallback((rx: PrescriptionItem) => {
+    // History cards are prescriptions — the medicine detail route expects a
+    // medicine id, so open the prescription detail screen instead.
+    router.push({ pathname: '/prescription/[id]', params: { id: rx.id } });
+  }, [router]);
 
-        {/* Search */}
-        <View style={[styles.searchContainer, { paddingHorizontal: spacing.base }]}>
+  const renderItem = useCallback(
+    ({ item }: { item: PrescriptionItem }) => (
+      <PrescriptionRow rx={item} onOpen={handleOpen} onArchive={handleArchive} onDelete={handleDelete} />
+    ),
+    [handleOpen, handleArchive, handleDelete]
+  );
+
+  const listHeader = (
+    <>
+      <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+        <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
+          {t.history.title}
+        </Text>
+        <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+          {t.history.subtitle} · {t.history.swipeHint}
+        </Text>
+      </View>
+
+      {/* Search */}
+      <View style={[styles.searchContainer, { paddingHorizontal: spacing.base }]}>
+        <View
+          style={[
+            styles.searchInput,
+            {
+              backgroundColor: colors.background.surface,
+              borderColor: colors.border.default,
+              borderRadius: borderRadius.md,
+            },
+          ]}
+        >
+          <MaterialCommunityIcons name="magnify" size={20} color={colors.text.disabled} />
           <View
-            style={[
-              styles.searchInput,
-              {
-                backgroundColor: colors.background.surface,
-                borderColor: colors.border.default,
-                borderRadius: borderRadius.md,
-              },
-            ]}
+            style={styles.searchField}
+            onLayout={(e) => setPlaceholderFieldW(e.nativeEvent.layout.width)}
           >
-            <MaterialCommunityIcons name="magnify" size={20} color={colors.text.disabled} />
+            {!searchQuery && !searchFocused && (
+              <Animated.View
+                pointerEvents="none"
+                style={[styles.searchPlaceholderOverlay, marqueeStyle]}
+              >
+                <Text
+                  numberOfLines={1}
+                  onLayout={(e) => setPlaceholderTextW(e.nativeEvent.layout.width)}
+                  style={[typography.body.base, { color: colors.text.disabled }]}
+                >
+                  {t.history.searchPlaceholder}
+                </Text>
+              </Animated.View>
+            )}
             <TextInput
-              style={[typography.body.base, { color: colors.text.primary, flex: 1, marginLeft: 8 }]}
-              placeholder="Search by medicine, doctor, or date"
-              placeholderTextColor={colors.text.disabled}
+              style={[typography.body.base, { color: colors.text.primary, flex: 1 }]}
+              placeholder=""
               value={searchQuery}
               onChangeText={setSearchQuery}
-              accessibilityLabel="Search prescriptions"
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
+              accessibilityLabel={t.history.searchPlaceholder}
             />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <MaterialCommunityIcons name="close-circle" size={18} color={colors.text.disabled} />
-              </TouchableOpacity>
-            )}
           </View>
-        </View>
-
-        {/* List */}
-        <View style={[styles.content, { paddingHorizontal: spacing.base }]}>
-          {prescriptions.length === 0 ? (
-            <EmptyState
-              icon="history"
-              title={searchQuery ? 'No results found' : 'No prescription history'}
-              description={
-                searchQuery
-                  ? 'Try a different search term.'
-                  : 'Your scanned prescriptions will appear here, organized chronologically.'
-              }
-            />
-          ) : (
-            prescriptions.map((rx) => (
-              <Card key={rx.id} style={{ marginBottom: 12 }}>
-                <TouchableOpacity
-                  onPress={() => router.push(`/medicine/${rx.id}`)}
-                  accessibilityLabel={`Prescription from ${rx.date ?? 'unknown date'}`}
-                >
-                  <View style={styles.rxHeader}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-                        {rx.doctor_name ?? 'Unknown doctor'}
-                      </Text>
-                      <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                        {rx.date ?? 'No date'} — {rx.medicineCount} {rx.medicineCount === 1 ? 'medicine' : 'medicines'}
-                      </Text>
-                      {rx.hospital && (
-                        <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 2 }]}>
-                          {rx.hospital}
-                        </Text>
-                      )}
-                    </View>
-                    <Badge
-                      label={rx.treatment_status}
-                      variant={rx.treatment_status === 'active' ? 'verified' : 'info'}
-                    />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Actions */}
-                <View style={styles.actions}>
-                  {rx.treatment_status === 'active' && (
-                    <TouchableOpacity
-                      onPress={() => handleArchive(rx.id)}
-                      style={styles.actionBtn}
-                      accessibilityLabel="Archive prescription"
-                    >
-                      <MaterialCommunityIcons name="archive-outline" size={18} color={colors.text.secondary} />
-                      <Text style={[typography.body.xs, { color: colors.text.secondary, marginLeft: 4 }]}>
-                        Archive
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                  <TouchableOpacity
-                    onPress={() => handleDelete(rx.id)}
-                    style={styles.actionBtn}
-                    accessibilityLabel="Delete prescription"
-                  >
-                    <MaterialCommunityIcons name="delete-outline" size={18} color={colors.error} />
-                    <Text style={[typography.body.xs, { color: colors.error, marginLeft: 4 }]}>
-                      Delete
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </Card>
-            ))
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <MaterialCommunityIcons name="close-circle" size={18} color={colors.text.disabled} />
+            </TouchableOpacity>
           )}
         </View>
-      </ScrollView>
+      </View>
+    </>
+  );
+
+  const listEmpty = loading ? (
+    <View style={{ gap: 12, marginTop: 16 }}>
+      <SkeletonCard />
+      <SkeletonCard />
+      <SkeletonCard />
+    </View>
+  ) : (
+    <EmptyState
+      icon="history"
+      title={searchQuery ? t.history.noResults : t.history.noHistory}
+      description={
+        searchQuery
+          ? t.history.noResultsDesc
+          : t.history.noHistoryDesc
+      }
+    />
+  );
+
+  return (
+    // The tab bar owns the bottom inset; padding it here too left a gap above the bar.
+    <SafeAreaView
+      edges={['top', 'left', 'right']}
+      style={[styles.container, { backgroundColor: colors.background.primary }]}
+    >
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          ref={listRef}
+          data={prescriptions}
+          keyExtractor={(item) => item.id}
+          renderItem={renderItem}
+          contentContainerStyle={[styles.scrollContent, { paddingHorizontal: spacing.base }]}
+          ListHeaderComponent={listHeader}
+          ListEmptyComponent={listEmpty}
+          initialNumToRender={8}
+          windowSize={7}
+          // iOS physically detaches clipped rows and reattached rows with
+          // gesture wrappers lose touch responsiveness — Android clipping is
+          // purely visual, so keep it there only
+          removeClippedSubviews={Platform.OS === 'android'}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent.primary}
+            />
+          }
+        />
+      </KeyboardAvoidingView>
+      {undoToastElement}
     </SafeAreaView>
   );
 }
@@ -238,6 +353,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  inner: { flex: 1 },
   scrollContent: {
     paddingBottom: 24,
   },
@@ -246,6 +362,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginTop: 16,
+    marginBottom: 16,
   },
   searchInput: {
     flexDirection: 'row',
@@ -255,6 +372,19 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     minHeight: 44,
   },
+  searchField: {
+    flex: 1,
+    marginStart: 8,
+    overflow: 'hidden',
+    justifyContent: 'center',
+  },
+  searchPlaceholderOverlay: {
+    position: 'absolute',
+    top: 0,
+    bottom: 0,
+    start: 0,
+    justifyContent: 'center',
+  },
   content: {
     flex: 1,
     marginTop: 16,
@@ -263,17 +393,5 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: 16,
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: '#ccc',
-  },
-  actionBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
   },
 });

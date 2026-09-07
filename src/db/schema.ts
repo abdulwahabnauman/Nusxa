@@ -1,11 +1,17 @@
 /** SQL statements for creating the Nusxa database schema (version 1) */
 
-export const SCHEMA_VERSION = 3;
+/**
+ * Single source of truth for the database schema version. Every migration
+ * updates the stored `schema_version` row to its own version, so after all
+ * migrations run the stored value always equals this constant.
+ */
+export const CURRENT_SCHEMA_VERSION = 19;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (
   id INTEGER PRIMARY KEY CHECK (id = 1),
   name TEXT,
+  name_ur TEXT,
   date_of_birth TEXT,
   blood_group TEXT,
   allergies TEXT DEFAULT '[]',
@@ -18,6 +24,7 @@ CREATE TABLE IF NOT EXISTS profile (
   language TEXT DEFAULT 'en',
   notifications_enabled INTEGER DEFAULT 1,
   reduced_motion INTEGER DEFAULT 0,
+  use_own_keys INTEGER DEFAULT 0,
   theme_preference TEXT DEFAULT 'system'
 );
 `;
@@ -34,6 +41,7 @@ CREATE TABLE IF NOT EXISTS prescriptions (
   overall_confidence REAL DEFAULT 0,
   patient_notes TEXT,
   treatment_status TEXT DEFAULT 'active',
+  deleted_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -56,11 +64,17 @@ CREATE TABLE IF NOT EXISTS medicines (
   side_effects TEXT DEFAULT '[]',
   food_interactions TEXT DEFAULT '[]',
   storage TEXT,
+  purpose_ur TEXT,
+  side_effects_ur TEXT DEFAULT '[]',
+  food_interactions_ur TEXT DEFAULT '[]',
+  storage_ur TEXT,
+  warnings_ur TEXT DEFAULT '[]',
   confidence REAL DEFAULT 0,
   warnings TEXT DEFAULT '[]',
   verification_status TEXT DEFAULT 'pending',
   initial_quantity REAL,
   remaining_quantity REAL,
+  deleted_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -71,6 +85,7 @@ CREATE TABLE IF NOT EXISTS schedules (
   id TEXT PRIMARY KEY,
   medicine_id TEXT NOT NULL REFERENCES medicines(id) ON DELETE CASCADE,
   time TEXT NOT NULL,
+  window_minutes INTEGER DEFAULT 120,
   timezone TEXT NOT NULL,
   frequency TEXT NOT NULL,
   meal_instruction TEXT,

@@ -4,7 +4,6 @@
  */
 
 import { getDatabase } from '../database';
-import type { SQLiteDatabase } from 'expo-sqlite';
 
 export interface EducationCategory {
   id: number;
@@ -52,26 +51,31 @@ export interface EducationReadingHistory {
   total_time_spent_seconds: number;
 }
 
-// Get all categories (active ones)
-export async function getCategories(language: 'en' | 'ur' = 'en'): Promise<EducationCategory[]> {
+/** Category row shaped for display, with the localized title resolved */
+export interface EducationCategoryDisplay extends EducationCategory {
+  title: string;
+}
+
+// Get all categories (active ones), with localized title
+export async function getCategories(language: 'en' | 'ur' = 'en'): Promise<EducationCategoryDisplay[]> {
   const db = getDatabase();
-  
+
   const column = language === 'ur' ? 'title_ur' : 'title_en';
-  
-  const results = await db.getAllAsync<EducationCategory>(
+
+  const results = await db.getAllAsync<EducationCategory & { title?: string }>(
     `SELECT *, ${column} as title FROM education_categories 
      WHERE is_active = 1 
      ORDER BY sort_order ASC`,
   );
-  
-  return results.map(row => ({
+
+  return results.map((row) => ({
     ...row,
-    title: row.title!,
+    title: row.title ?? (language === 'ur' ? row.title_ur : row.title_en),
   }));
 }
 
 // Get categories with Urdu titles
-export async function getCategoriesUrdu(): Promise<EducationCategory[]> {
+export async function getCategoriesUrdu(): Promise<EducationCategoryDisplay[]> {
   return getCategories('ur');
 }
 
@@ -114,16 +118,29 @@ export async function getContentByCategory(categoryId: number, language: 'en' | 
   return results;
 }
 
+// Get all published content across categories (most viewed first)
+export async function getAllContent(): Promise<EducationContent[]> {
+  const db = getDatabase();
+
+  const results = await db.getAllAsync<EducationContent>(
+    `SELECT * FROM education_content 
+     WHERE is_published = 1 
+     ORDER BY view_count DESC, sort_order ASC`,
+  );
+
+  return results;
+}
+
 // Check if user has bookmarked content
 export async function isBookmarked(userId: string, contentId: number): Promise<boolean> {
   const db = getDatabase();
   
-  const result = await db.getFirstAsync<{ exists: number }>(
-    'SELECT 1 as exists FROM education_bookmarks WHERE user_id = ? AND content_id = ?',
+  const result = await db.getFirstAsync<{ found: number }>(
+    'SELECT 1 as found FROM education_bookmarks WHERE user_id = ? AND content_id = ?',
     [userId, contentId]
   );
   
-  return result?.exists === 1;
+  return result?.found === 1;
 }
 
 // Add bookmark
@@ -229,19 +246,21 @@ export async function getReadingProgress(userId: string, contentId: number): Pro
 // Search content across all categories
 export async function searchContent(query: string, language: 'en' | 'ur' = 'en'): Promise<EducationContent[]> {
   const db = getDatabase();
-  
-  const column = language === 'ur' ? 'title_ur, summary_ur, content_ur' : 'title_en, summary_en, content_en';
-  
+
+  const pattern = `%${query}%`;
+  const localizedMatch = language === 'ur'
+    ? '(title_ur LIKE ? OR summary_ur LIKE ? OR content_ur LIKE ?)'
+    : '(title_en LIKE ? OR summary_en LIKE ? OR content_en LIKE ?)';
+
   const results = await db.getAllAsync<EducationContent>(
     `SELECT * FROM education_content 
      WHERE is_published = 1 AND (
-       ${column} LIKE '%${query}%' OR
-       title_en LIKE '%${query}%'
+       ${localizedMatch} OR title_en LIKE ?
      )
      ORDER BY view_count DESC
      LIMIT 20`,
-    []
+    [pattern, pattern, pattern, pattern]
   );
-  
+
   return results;
 }

@@ -8,10 +8,16 @@ interface SettingsState {
   notificationsEnabled: boolean;
   reminderEscalation: boolean;
   reducedMotion: boolean;
+  /** Derived from language: Urdu always renders Eastern Arabic-Urdu digits */
+  easternNumerals: boolean;
+  useOwnKeys: boolean;
+  snoozeMinutes: number;
   setLanguage: (lang: Language) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
+  setUseOwnKeys: (enabled: boolean) => void;
+  setSnoozeMinutes: (minutes: number) => void;
 }
 
 // Helper function to save settings to database
@@ -19,10 +25,22 @@ const saveSettingsToDatabase = async (state: SettingsState) => {
   try {
     await updateProfile({
       language: state.language,
-      notifications_enabled: state.notificationsEnabled ? 1 : 0,
-      reduced_motion: state.reducedMotion ? 1 : 0,
+      notifications_enabled: state.notificationsEnabled,
+      reduced_motion: state.reducedMotion,
+      eastern_numerals: state.easternNumerals,
+      snooze_minutes: state.snoozeMinutes,
+      reminder_escalation: state.reminderEscalation,
+      use_own_keys: state.useOwnKeys,
     });
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message.includes('Database not initialized')) {
+      // Boot race: a preference changed before openDatabase() finished —
+      // nothing to persist yet, and the UI isn't interactive until after
+      // init, so there is no user change to lose.
+      console.debug('Settings save skipped: database not ready yet');
+      return;
+    }
     console.error('Failed to save settings to database:', error);
   }
 };
@@ -34,8 +52,12 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
     if (profile) {
       return {
         language: (profile.language as Language) || 'en',
-        notificationsEnabled: profile.notifications_enabled !== 0,
-        reducedMotion: profile.reduced_motion !== 0,
+        notificationsEnabled: !!profile.notifications_enabled,
+        reducedMotion: !!profile.reduced_motion,
+        easternNumerals: ((profile.language as Language) || 'en') === 'ur',
+        snoozeMinutes: profile.snooze_minutes ?? 10,
+        reminderEscalation: profile.reminder_escalation ?? true,
+        useOwnKeys: profile.use_own_keys ?? false,
       };
     }
   } catch (error) {
@@ -48,13 +70,49 @@ const loadSettingsFromDatabase = async (): Promise<Partial<SettingsState>> => {
   return {};
 };
 
+let hydrationRan = false;
+
+/**
+ * Re-read persisted settings once the database is ready.
+ * The module-level load below usually runs before openDatabase() and falls
+ * back to defaults, so the root layout calls this right after the DB opens
+ * to guarantee the saved language/preferences win over the defaults.
+ */
+export async function hydrateSettings(): Promise<void> {
+  if (hydrationRan) return;
+  hydrationRan = true;
+  const loaded = await loadSettingsFromDatabase();
+  if (Object.keys(loaded).length === 0) {
+    // No profile row yet (fresh install pre-onboarding) — allow a retry
+    // on the next call instead of locking in the defaults.
+    hydrationRan = false;
+    return;
+  }
+  useSettingsStore.setState({
+    language: loaded.language || 'en',
+    notificationsEnabled: loaded.notificationsEnabled ?? true,
+    reducedMotion: loaded.reducedMotion ?? false,
+    easternNumerals: (loaded.language || 'en') === 'ur',
+    snoozeMinutes: loaded.snoozeMinutes ?? 10,
+    reminderEscalation: loaded.reminderEscalation ?? true,
+    useOwnKeys: loaded.useOwnKeys ?? false,
+  });
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => {
-  // Load settings from database on initialization (side effect)
+  // Best-effort load at import time. This usually races openDatabase() and
+  // resolves with defaults; hydrateSettings() re-applies the saved values
+  // once the DB is ready, so the user's language survives cold starts.
   loadSettingsFromDatabase().then((initialSettings) => {
+    if (Object.keys(initialSettings).length === 0) return;
     set({
       language: initialSettings.language || 'en',
       notificationsEnabled: initialSettings.notificationsEnabled ?? true,
       reducedMotion: initialSettings.reducedMotion ?? false,
+      easternNumerals: (initialSettings.language || 'en') === 'ur',
+      snoozeMinutes: initialSettings.snoozeMinutes ?? 10,
+      reminderEscalation: initialSettings.reminderEscalation ?? true,
+      useOwnKeys: initialSettings.useOwnKeys ?? false,
     });
   });
 
@@ -64,9 +122,13 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     notificationsEnabled: true,
     reminderEscalation: true,
     reducedMotion: false,
+    easternNumerals: false,
+    useOwnKeys: false,
+    snoozeMinutes: 10,
     
     setLanguage: (language) => {
-      set({ language });
+      // Numeral style follows the language: Urdu always shows ۰۱۲۳۴۵۶۷۸۹
+      set({ language, easternNumerals: language === 'ur' });
       saveSettingsToDatabase(get());
     },
     
@@ -77,10 +139,21 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     
     setReminderEscalation: (reminderEscalation) => {
       set({ reminderEscalation });
+      saveSettingsToDatabase(get());
     },
     
     setReducedMotion: (reducedMotion) => {
       set({ reducedMotion });
+      saveSettingsToDatabase(get());
+    },
+
+    setUseOwnKeys: (useOwnKeys) => {
+      set({ useOwnKeys });
+      saveSettingsToDatabase(get());
+    },
+
+    setSnoozeMinutes: (snoozeMinutes) => {
+      set({ snoozeMinutes });
       saveSettingsToDatabase(get());
     },
   };

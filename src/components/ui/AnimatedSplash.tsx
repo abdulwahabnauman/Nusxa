@@ -4,73 +4,74 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
-  withSequence,
   withDelay,
   Easing,
   runOnJS,
 } from 'react-native-reanimated';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { LATIN_FONTS } from '../../theme/typography';
+
+// One splash look everywhere: the native splash (app.json) and this animated
+// handoff both use the same black, so there is no second color variant.
+export const SPLASH_BACKGROUND = '#000000';
 
 interface AnimatedSplashProps {
-  backgroundColor: string;
   onAnimationDone: () => void;
+  ready: boolean;
 }
 
-// how far each half starts from its resting spot, travelling along the
-// capsule's own diagonal (matches the tilt in the source art, so the slide
-// looks like it's following the seam rather than just flying in sideways)
-const TRAVEL_DISTANCE = 220;
-
 /**
- * Two halves slide in from opposite ends of the capsule's own diagonal and
- * snap together in the middle, then the whole thing holds a beat and fades
- * out into the app. Takes over the instant the native static splash hides.
+ * Gentle opening: the logo fades in while softly "breathing" from 92% to
+ * full size, the wordmark rises in beneath it, the mark holds for a beat,
+ * then the whole screen fades into the app. Calm and slow-moving on
+ * purpose — no crashes or fast flying parts — and reduced-motion users
+ * get plain fades only.
+ *
+ * The wordmark always renders with the Latin Inter face: in Urdu mode the
+ * theme's heading family is Noto Nastaliq Urdu, whose shaping mangled the
+ * Latin brand text (it displayed as "Nusx").
  */
-export function AnimatedSplash({ backgroundColor, onAnimationDone }: AnimatedSplashProps) {
-  // both represent "distance still to travel" — start at TRAVEL_DISTANCE, animate down to 0
-  const navyProgress = useSharedValue(TRAVEL_DISTANCE);
-  const whiteProgress = useSharedValue(TRAVEL_DISTANCE);
-  const snapScale = useSharedValue(1);
+export function AnimatedSplash({ onAnimationDone, ready }: AnimatedSplashProps) {
+  const reducedMotion = useReducedMotion();
+
+  const logoOpacity = useSharedValue(0);
+  const logoScale = useSharedValue(reducedMotion ? 1 : 0.92);
+  const nameOpacity = useSharedValue(0);
+  const nameShift = useSharedValue(reducedMotion ? 0 : 8);
   const screenOpacity = useSharedValue(1);
 
   useEffect(() => {
-    const slideConfig = { duration: 480, easing: Easing.out(Easing.cubic) };
+    // Wait for the Inter faces: painting the wordmark with an unregistered
+    // family lets Android's fallback shaping mangle it ("Nusx").
+    if (!ready) return;
 
-    // navy is the bottom-left half in the source art — comes in from further down-left
-    navyProgress.value = withTiming(0, slideConfig);
-    // white is the top-right half — comes in from further up-right, and arrives second
-    whiteProgress.value = withTiming(0, slideConfig, (finished) => {
-      if (!finished) return;
-      // snap pulse right as the two halves meet
-      snapScale.value = withSequence(
-        withTiming(1.06, { duration: 90, easing: Easing.out(Easing.quad) }),
-        withTiming(1, { duration: 140, easing: Easing.inOut(Easing.quad) })
-      );
-    });
+    const breathe = { duration: 640, easing: Easing.out(Easing.cubic) };
 
-    // hold after the snap, then fade the whole screen out
+    logoOpacity.value = withTiming(1, { duration: 520, easing: Easing.out(Easing.cubic) });
+    logoScale.value = withTiming(1, breathe);
+
+    // The name follows a moment after the logo settles in
+    nameOpacity.value = withDelay(300, withTiming(1, { duration: 420 }));
+    nameShift.value = withDelay(300, withTiming(0, breathe));
+
+    // Hold the assembled mark for a beat, then fade into the app
     screenOpacity.value = withDelay(
-      480 + 230 + 650,
-      withTiming(0, { duration: 300 }, (finished) => {
+      1100,
+      withTiming(0, { duration: 280 }, (finished) => {
         if (finished) runOnJS(onAnimationDone)();
       })
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [ready]);
 
-  const navyStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: -navyProgress.value },
-      { translateY: navyProgress.value },
-      { scale: snapScale.value },
-    ],
+  const logoStyle = useAnimatedStyle(() => ({
+    opacity: logoOpacity.value,
+    transform: [{ scale: logoScale.value }],
   }));
 
-  const whiteStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: whiteProgress.value },
-      { translateY: -whiteProgress.value },
-      { scale: snapScale.value },
-    ],
+  const nameStyle = useAnimatedStyle(() => ({
+    opacity: nameOpacity.value,
+    transform: [{ translateY: nameShift.value }],
   }));
 
   const screenStyle = useAnimatedStyle(() => ({
@@ -78,21 +79,25 @@ export function AnimatedSplash({ backgroundColor, onAnimationDone }: AnimatedSpl
   }));
 
   return (
-    <Animated.View style={[styles.container, { backgroundColor }, screenStyle]}>
-      <Animated.View style={[styles.layer, navyStyle]}>
+    <Animated.View style={[styles.container, screenStyle]}>
+      <Animated.View style={logoStyle}>
         <Image
-          source={require('../../../assets/icon-half-navy.png')}
+          source={require('../../../assets/splash-logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
       </Animated.View>
-      <Animated.View style={[styles.layer, whiteStyle]}>
-        <Image
-          source={require('../../../assets/icon-half-white.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
-      </Animated.View>
+      <Animated.Text style={[nameStyle, styles.wordmark]}>
+        {/* Double NBSP: Android's text measurement can undercount the
+            letterSpacing added after the last glyph, clipping it off. One
+            trailing NBSP isn't always enough buffer at every size/spacing
+            combo -- two is a safer margin.
+            The case is baked into the literal for the same reason:
+            Android measures the pre-transform string, so
+            textTransform: 'uppercase' painted wider than measured
+            and clipped the final glyph. */}
+        {'NUSXA  '}
+      </Animated.Text>
     </Animated.View>
   );
 }
@@ -102,15 +107,20 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: SPLASH_BACKGROUND,
     zIndex: 10,
   },
-  layer: {
-    ...StyleSheet.absoluteFillObject,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   logo: {
-    width: 180,
-    height: 180,
+    width: 112,
+    height: 111,
+  },
+  wordmark: {
+    fontFamily: LATIN_FONTS.bold,
+    fontSize: 26,
+    letterSpacing: 2.2,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 21,
+    paddingHorizontal: 24,
   },
 });

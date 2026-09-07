@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme/provider';
+import { useSettingsStore } from '../../stores/settings-store';
+import { formatDigits } from '../../utils/numerals';
 
 interface AdherenceRingProps {
   percentage: number;
@@ -16,11 +18,9 @@ export function AdherenceRing({
   label,
 }: AdherenceRingProps) {
   const { colors, typography } = useTheme();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
 
   const clampedPercentage = Math.min(100, Math.max(0, percentage));
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (clampedPercentage / 100) * circumference;
 
   const ringColor =
     clampedPercentage >= 80 ? colors.success
@@ -61,18 +61,32 @@ export function AdherenceRing({
         <View style={styles.center}>
           <Text
             style={[
-              typography.heading.lg,
-              { color: colors.text.primary, textAlign: 'center' },
+              typography.heading.h2,
+              {
+                color: colors.text.primary,
+                textAlign: 'center',
+                // Compact, ring-relative sizing so both the percentage and the
+                // label fit inside the circle. Line boxes get extra headroom
+                // so tall Nastaliq glyphs and the % sign never clip at the top.
+                fontSize: size * 0.2,
+                lineHeight: size * 0.32,
+              },
             ]}
             accessibilityLabel={`${clampedPercentage}% adherence`}
           >
-            {Math.round(clampedPercentage)}%
+            {formatDigits(Math.round(clampedPercentage), easternNumerals)}%
           </Text>
           {label && (
             <Text
               style={[
                 typography.body.xs,
-                { color: colors.text.secondary, textAlign: 'center', marginTop: 2 },
+                {
+                  color: colors.text.secondary,
+                  textAlign: 'center',
+                  marginTop: 0,
+                  fontSize: Math.max(8, size * 0.11),
+                  lineHeight: Math.max(12, size * 0.22),
+                },
               ]}
             >
               {label}
@@ -98,6 +112,10 @@ const styles = StyleSheet.create({
   },
   center: {
     position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -1,0 +1,5 @@
+{
+  "negative": true,
+  "medicines": [],
+  "_comment": "Negative sample: a photographed sheet of blank paper. Any medicine returned here is a hallucination, the worst failure mode the harness tracks."
+}

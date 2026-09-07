@@ -1,4 +1,3 @@
-import { useWindowDimensions } from 'react-native';
 import { useSettingsStore } from '../stores/settings-store';
 
 /**

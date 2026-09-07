@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Progress dot for a dose still pending today -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#2A3B6B" />
+    <size android:width="6dp" android:height="6dp" />
+</shape>

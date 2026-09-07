@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Medicine } from '../../types/models';
 
@@ -18,11 +19,17 @@ function parseMedicine(row: Record<string, unknown>): Medicine {
     side_effects: JSON.parse((row.side_effects as string) || '[]'),
     food_interactions: JSON.parse((row.food_interactions as string) || '[]'),
     storage: row.storage as string | null,
+    purpose_ur: (row.purpose_ur as string | null) ?? null,
+    side_effects_ur: JSON.parse((row.side_effects_ur as string) || '[]'),
+    food_interactions_ur: JSON.parse((row.food_interactions_ur as string) || '[]'),
+    storage_ur: (row.storage_ur as string | null) ?? null,
+    warnings_ur: JSON.parse((row.warnings_ur as string) || '[]'),
     confidence: row.confidence as number,
     warnings: JSON.parse((row.warnings as string) || '[]'),
     verification_status: row.verification_status as Medicine['verification_status'],
     initial_quantity: row.initial_quantity as number | null,
     remaining_quantity: row.remaining_quantity as number | null,
+    deleted_at: (row.deleted_at as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -63,10 +70,34 @@ export async function getMedicine(id: string): Promise<Medicine | null> {
 export async function getMedicinesByPrescription(prescriptionId: string): Promise<Medicine[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    'SELECT * FROM medicines WHERE prescription_id = ? ORDER BY created_at ASC;',
+    'SELECT * FROM medicines WHERE prescription_id = ? AND deleted_at IS NULL ORDER BY created_at ASC;',
     [prescriptionId]
   );
   return rows.map(parseMedicine);
+}
+
+/** Batch fetch by ids in a single query (kills per-medicine N+1 loops) */
+export async function getMedicinesByIds(ids: string[]): Promise<Medicine[]> {
+  const unique = [...new Set(ids)];
+  if (unique.length === 0) return [];
+  const db = getDatabase();
+  const placeholders = unique.map(() => '?').join(', ');
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM medicines WHERE id IN (${placeholders});`,
+    unique
+  );
+  return rows.map(parseMedicine);
+}
+
+/** Medicine count per prescription in ONE query (history list enrichment) */
+export async function getMedicineCountsByPrescription(): Promise<Record<string, number>> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT prescription_id, COUNT(*) AS cnt FROM medicines WHERE deleted_at IS NULL GROUP BY prescription_id;'
+  );
+  const counts: Record<string, number> = {};
+  for (const row of rows) counts[row.prescription_id as string] = row.cnt as number;
+  return counts;
 }
 
 export async function getActiveMedicines(): Promise<Medicine[]> {
@@ -75,7 +106,17 @@ export async function getActiveMedicines(): Promise<Medicine[]> {
     `SELECT m.* FROM medicines m
      INNER JOIN prescriptions p ON m.prescription_id = p.id
      WHERE p.treatment_status = 'active' AND m.verification_status = 'verified'
+       AND m.deleted_at IS NULL
      ORDER BY m.created_at ASC;`
+  );
+  return rows.map(parseMedicine);
+}
+
+/** Every non-deleted medicine across all prescriptions (cleanup passes). */
+export async function getAllMedicines(): Promise<Medicine[]> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM medicines WHERE deleted_at IS NULL ORDER BY created_at ASC;'
   );
   return rows.map(parseMedicine);
 }
@@ -87,15 +128,18 @@ export async function updateMedicine(
   const db = getDatabase();
   const now = new Date().toISOString();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
-    if (key === 'side_effects' || key === 'food_interactions' || key === 'warnings') {
+    if (
+      key === 'side_effects' || key === 'food_interactions' || key === 'warnings' ||
+      key === 'side_effects_ur' || key === 'food_interactions_ur' || key === 'warnings_ur'
+    ) {
       fields.push(`${key} = ?`);
       values.push(JSON.stringify(value));
     } else {
       fields.push(`${key} = ?`);
-      values.push(value);
+      values.push(value as SQLiteBindValue);
     }
   }
 
@@ -108,7 +152,30 @@ export async function updateMedicine(
   );
 }
 
+/**
+ * Soft delete: stamps a tombstone instead of dropping the row, so Undo can
+ * restore the medicine (with schedules + dose history intact) and exports
+ * stay consistent. All list queries filter tombstones out.
+ */
 export async function deleteMedicine(id: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync(
+    'UPDATE medicines SET deleted_at = ?, updated_at = ? WHERE id = ?;',
+    [new Date().toISOString(), new Date().toISOString(), id]
+  );
+}
+
+/** Undo a soft delete — clears the tombstone. */
+export async function restoreMedicine(id: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync(
+    'UPDATE medicines SET deleted_at = NULL, updated_at = ? WHERE id = ?;',
+    [new Date().toISOString(), id]
+  );
+}
+
+/** Hard delete for internal cleanup (dedupe) where undo is not a goal. */
+export async function hardDeleteMedicine(id: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM medicines WHERE id = ?;', [id]);
 }
@@ -127,7 +194,7 @@ export async function updateInventory(
 export async function searchMedicinesByName(query: string): Promise<Medicine[]> {
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
-    `SELECT * FROM medicines WHERE name LIKE ? OR generic_name LIKE ? OR brand_name LIKE ?
+    `SELECT * FROM medicines WHERE deleted_at IS NULL AND (name LIKE ? OR generic_name LIKE ? OR brand_name LIKE ?)
      ORDER BY created_at DESC;`,
     [`%${query}%`, `%${query}%`, `%${query}%`]
   );

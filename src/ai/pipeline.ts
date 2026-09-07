@@ -1,10 +1,31 @@
 import * as FileSystem from 'expo-file-system/legacy';
-import { visionCompletion, chatCompletion, TextProviderKeys } from './client';
-import { OCR_SYSTEM_PROMPT, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
-import { PrescriptionJSON, PipelineStage, ValidationResult } from './types';
-import { LOW_CONFIDENCE_THRESHOLD } from '../constants/config';
+import * as ImageManipulator from 'expo-image-manipulator';
+import { visionCompletion, chatCompletion, TextProviderKeys, AIError } from './client';
+import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
+import { PrescriptionJSON, PipelineStage, ValidationResult, MedicineJSON } from './types';
+import { LOW_CONFIDENCE_THRESHOLD, OCR_MAX_IMAGE_EDGE } from '../constants/config';
+import { resizeToFit } from '../utils/ocr-image';
+import { postProcessPrescription } from './postprocess';
 
 type StageCallback = (stage: PipelineStage) => void;
+
+/** Clamp a raw value to the meal_instruction enum, anything else -> null */
+function parseMealInstruction(value: unknown): MedicineJSON['meal_instruction'] {
+  if (value === 'before' || value === 'after' || value === 'with' || value === 'none') {
+    return value;
+  }
+  return null;
+}
+
+/** Keep only numeric entries — the model may omit or malformed parts */
+function parseFieldConfidence(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object') return {};
+  const out: Record<string, number> = {};
+  for (const [key, num] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof num === 'number' && Number.isFinite(num)) out[key] = num;
+  }
+  return out;
+}
 
 /** Read an image file and convert to base64 */
 async function imageToBase64(uri: string): Promise<string> {
@@ -19,6 +40,45 @@ async function imageToBase64(uri: string): Promise<string> {
     encoding: FileSystem.EncodingType.Base64,
   });
   return base64;
+}
+
+/** Shrink the copy that goes to OCR so its long edge fits OCR_MAX_IMAGE_EDGE.
+ *
+ * Gemini downscales anything larger on its own side, so the extra pixels buy no
+ * accuracy — they only lengthen the upload and the inference that has to fit
+ * inside VISION_TIMEOUT_MS. This returns a separate throwaway file: the image
+ * persisted for the review and history screens keeps its full resolution.
+ *
+ * An image that already fits is returned untouched rather than re-encoded, and
+ * a failed resize falls back to the original. This is an optimization, not a
+ * precondition, so it must never be the reason a scan fails.
+ */
+async function downscaleForOcr(uri: string): Promise<string> {
+  try {
+    // A no-op manipulation reports true pixel dimensions and bakes EXIF
+    // orientation in, so resizeToFit names the axis that is really longer.
+    const probe = await ImageManipulator.manipulateAsync(uri, [], {
+      format: ImageManipulator.SaveFormat.JPEG,
+      compress: 0.95,
+    });
+    const target = resizeToFit(probe.width, probe.height, OCR_MAX_IMAGE_EDGE);
+    if (!target) return uri;
+
+    const resized = await ImageManipulator.manipulateAsync(probe.uri, [{ resize: target }], {
+      format: ImageManipulator.SaveFormat.JPEG,
+      compress: 0.92,
+    });
+    if (__DEV__) {
+      console.log(
+        `[ocr] page downscaled for upload: ${probe.width}x${probe.height} -> ` +
+          `${resized.width}x${resized.height}`
+      );
+    }
+    return resized.uri;
+  } catch (error) {
+    if (__DEV__) console.warn('[ocr] downscale skipped, sending original', error);
+    return uri;
+  }
 }
 
 /** Parse the AI OCR response into structured data */
@@ -36,26 +96,38 @@ function parseOCRResponse(raw: string): PrescriptionJSON {
         source_image_id: null,
         verification_status: 'pending',
       },
-      medicines: (parsed.medicines ?? []).map((m: Record<string, unknown>) => ({
-        name: m.name ?? null,
-        generic_name: m.generic_name ?? null,
-        brand_name: m.brand_name ?? null,
-        strength: m.strength ?? null,
-        form: m.form ?? null,
-        dosage: m.dosage ?? null,
-        frequency: m.frequency ?? null,
-        meal_instruction: m.meal_instruction ?? null,
-        duration: m.duration ?? null,
-        purpose: null,
-        side_effects: [],
-        food_interactions: [],
-        storage: null,
-        confidence: typeof m.confidence === 'number' ? m.confidence : 0,
-        field_sources: {},
-        warnings: Array.isArray(m.warnings) ? m.warnings : [],
-        verification_status: 'pending' as const,
-      })),
-      patient_notes: parsed.raw_notes ?? null,
+      medicines: (parsed.medicines ?? []).map((m: Record<string, unknown>) => {
+        const medicine: MedicineJSON = {
+          name: typeof m.name === 'string' ? m.name : null,
+          generic_name: typeof m.generic_name === 'string' ? m.generic_name : null,
+          brand_name: typeof m.brand_name === 'string' ? m.brand_name : null,
+          strength: typeof m.strength === 'string' ? m.strength : null,
+          form: typeof m.form === 'string' ? m.form : null,
+          dosage: typeof m.dosage === 'string' ? m.dosage : null,
+          frequency: typeof m.frequency === 'string' ? m.frequency : null,
+          meal_instruction: parseMealInstruction(m.meal_instruction),
+          duration: typeof m.duration === 'string' ? m.duration : null,
+          original_text: typeof m.original_text === 'string' ? m.original_text : null,
+          purpose: null,
+          side_effects: [],
+          food_interactions: [],
+          storage: null,
+          confidence: typeof m.confidence === 'number' ? m.confidence : 0,
+          field_confidence: parseFieldConfidence(m.field_confidence),
+          field_sources: {},
+          warnings: Array.isArray(m.warnings) ? m.warnings : [],
+          verification_status: 'pending' as const,
+        };
+        // Every field the model actually read is marked 'ocr'; the
+        // post-processor upgrades changed fields to 'corrected' so the
+        // review screen can tell read values from adjusted ones.
+        for (const field of ['name', 'generic_name', 'brand_name', 'strength', 'form', 'dosage', 'frequency', 'duration']) {
+          if (medicine[field as keyof MedicineJSON]) medicine.field_sources[field] = 'ocr';
+        }
+        if (medicine.meal_instruction) medicine.field_sources['meal_instruction'] = 'ocr';
+        return medicine;
+      }),
+      patient_notes: typeof parsed.raw_notes === 'string' ? parsed.raw_notes : null,
       overall_confidence: typeof parsed.overall_confidence === 'number' ? parsed.overall_confidence : 0,
       verification_status: 'pending',
     };
@@ -112,32 +184,65 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
   };
 }
 
-/** Full prescription processing pipeline */
+/** Full prescription processing pipeline. Accepts one or more images: a
+ * multi-page prescription is read as a single document by the vision model. */
 export async function processPrescription(
-  imageUri: string,
+  imageUris: string[],
   apiKey: string,
   onStageChange?: StageCallback
 ): Promise<{ data: PrescriptionJSON; validation: ValidationResult }> {
   try {
-    // Stage 1: Preparing image
+    if (imageUris.length === 0) {
+      throw new Error('No images provided for processing.');
+    }
+
+    // Stage 1: Preparing images
     onStageChange?.('preparing');
-    const imageBase64 = await imageToBase64(imageUri);
+    // Only the upload copy is downscaled. `imageUris` stay full-resolution:
+    // they are what gets archived and shown on the review screen, and
+    // source_image_id below still records the original.
+    const imagesBase64 = await Promise.all(
+      imageUris.map(async (uri) => imageToBase64(await downscaleForOcr(uri)))
+    );
 
     // Stage 2: Reading prescription (OCR)
     onStageChange?.('reading');
+    const userText =
+      imageUris.length > 1
+        ? `This prescription spans ${imageUris.length} images, provided in order (page 1 to page ${imageUris.length}). Read them as one continuous document and extract all prescription information. Return structured JSON.`
+        : 'Please extract all prescription information from this image. Return structured JSON.';
     const ocrResult = await visionCompletion(
       OCR_SYSTEM_PROMPT,
-      'Please extract all prescription information from this image. Return structured JSON.',
-      imageBase64,
-      apiKey
+      userText,
+      imagesBase64,
+      apiKey,
+      // Temperature 0 + controlled generation keep OCR deterministic and
+      // the JSON shape hard-enforced (see OCR_RESPONSE_SCHEMA).
+      { temperature: 0, responseSchema: OCR_RESPONSE_SCHEMA }
     );
 
-    const prescriptionData = parseOCRResponse(ocrResult);
-    prescriptionData.prescription.source_image_id = imageUri;
+    // The only record of what the model actually returned: an empty
+    // extraction is otherwise indistinguishable from a transport failure.
+    if (__DEV__) {
+      console.log(`[ocr] raw reply (${ocrResult.length} chars): ${ocrResult.slice(0, 400)}`);
+    }
+
+    // Deterministic post-processing (fuzzy name correction, abbreviation
+    // expansion, strength normalization) before validation sees the data.
+    const prescriptionData = postProcessPrescription(parseOCRResponse(ocrResult));
+    prescriptionData.prescription.source_image_id = imageUris[0] ?? null;
 
     // Stage 3: Validating
     onStageChange?.('validating');
     const validation = validatePrescription(prescriptionData);
+
+    // Zero medicines is a failed scan, not a success: the review screen
+    // would have nothing to review and OK would save an empty prescription.
+    // Throwing here routes it through the error stage, whose copy tells the
+    // user to retake the photo instead of retrying the same image.
+    if (prescriptionData.medicines.length === 0) {
+      throw new AIError('OCR extracted no medicines from the image', { code: 'no_medicines' });
+    }
 
     // Stage 4: Complete
     onStageChange?.('complete');

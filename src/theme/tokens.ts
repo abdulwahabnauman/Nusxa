@@ -127,3 +127,20 @@ export const elderlyTokens = {
 } as const;
 
 export type MedicineCategory = keyof typeof categoryColors.light;
+
+const STRENGTH_COLORS = ['#2563EB', '#0891B2', '#B45309', '#B91C1C'];
+
+/**
+ * Deterministic color for a strength label ("500 mg", "10ml", …) so each
+ * strength of the same medicine always renders with the same hue.
+ */
+export function strengthColor(strength: string | null | undefined): string | null {
+  if (!strength) return null;
+  const match = strength.match(/\d+/);
+  if (!match) return STRENGTH_COLORS[0] ?? '#2563EB';
+  const value = parseInt(match[0] ?? '0', 10);
+  if (value < 100) return STRENGTH_COLORS[0] ?? '#2563EB';
+  if (value < 500) return STRENGTH_COLORS[1] ?? '#0891B2';
+  if (value < 1000) return STRENGTH_COLORS[2] ?? '#B45309';
+  return STRENGTH_COLORS[3] ?? '#B91C1C';
+}

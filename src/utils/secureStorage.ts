@@ -30,7 +30,7 @@ export async function resolveApiKey(): Promise<string> {
   return process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
 }
 
-/** Save the OpenRouter API key securely — used for the chat/explain features (Nemotron 3 Ultra) */
+/** Save the OpenRouter API key securely — fallback for the chat/explain features (Nemotron 3 Ultra) when Groq is unavailable */
 export async function saveOpenRouterKey(key: string): Promise<void> {
   await SecureStore.setItemAsync(OPENROUTER_KEY_STORAGE_KEY, key);
 }
@@ -56,7 +56,7 @@ export async function resolveOpenRouterKey(): Promise<string> {
   return process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '';
 }
 
-/** Save the Groq API key securely — used as the fallback for chat/explain when Nemotron's free quota runs out */
+/** Save the Groq API key securely — primary provider for the chat/explain features (gpt-oss-120b) */
 export async function saveGroqKey(key: string): Promise<void> {
   await SecureStore.setItemAsync(GROQ_KEY_STORAGE_KEY, key);
 }

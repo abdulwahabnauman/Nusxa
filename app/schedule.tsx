@@ -4,39 +4,63 @@ import {
   Text,
   ScrollView,
   StyleSheet,
-  Alert,
+  TouchableOpacity,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { MedicineFormIcon } from '../src/components/ui/PillIcon';
 import { useTheme } from '../src/theme/provider';
+import { useI18n } from '../src/i18n';
+import { useSettingsStore } from '../src/stores/settings-store';
+import { formatDigits } from '../src/utils/numerals';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { Input } from '../src/components/ui/Input';
 import { PrescriptionJSON } from '../src/ai/types';
-import { DEFAULT_SCHEDULE_TIMES } from '../src/constants/medical';
-import { createPrescription, updatePrescription } from '../src/db/repositories/prescription';
-import { createMedicine } from '../src/db/repositories/medicine';
-import { createSchedule } from '../src/db/repositories/schedule';
-import { scheduleDoseNotification } from '../src/utils/notifications';
-import { getTodayISO } from '../src/utils/date';
+import {
+  buildDefaultSchedules,
+  savePrescription,
+  ScheduleDraft,
+} from '../src/utils/savePrescription';
+import { syncFollowUpNotifications } from '../src/utils/notifications';
+import { archivePrescriptionImages } from '../src/utils/archiveImages';
+import { isValidTimeFormat, findScheduleConflicts } from '../src/utils/validation';
 
-interface ScheduleItem {
-  medicineIndex: number;
-  medicineName: string;
-  dosage: string;
-  frequency: string;
-  mealInstruction: string;
-  times: string[];
-}
+const WINDOW_OPTIONS = [60, 90, 120, 180];
 
 export default function ScheduleScreen() {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
+  const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const router = useRouter();
-  const { prescriptionData, imageUri } = useLocalSearchParams<{
+  const { prescriptionData, imageUri, imageUris } = useLocalSearchParams<{
     prescriptionData: string;
     imageUri: string;
+    imageUris: string;
   }>();
+
+  // Multi-page sessions arrive as a JSON array of URIs; single scans keep
+  // using the legacy imageUri param.
+  const pageUris = useMemo<string[]>(() => {
+    if (imageUris) {
+      try {
+        const parsed = JSON.parse(imageUris);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((u) => typeof u === 'string' && u.length > 0)
+        ) {
+          return parsed as string[];
+        }
+      } catch {
+        // Fall through to the single-image param
+      }
+    }
+    return imageUri ? [imageUri] : [];
+  }, [imageUri, imageUris]);
 
   const prescription = useMemo(() => {
     try {
@@ -46,27 +70,31 @@ export default function ScheduleScreen() {
     }
   }, [prescriptionData]);
 
-  const [schedules, setSchedules] = useState<ScheduleItem[]>(() => {
-    if (!prescription) return [];
-    return prescription.medicines.map((med, i) => {
-      const freq = (med.frequency ?? 'once daily').toLowerCase();
-      const dailyCount = freq.includes('twice') || freq.includes('bid') ? 2
-        : freq.includes('three') || freq.includes('tid') || freq.includes('tds') ? 3
-        : freq.includes('four') || freq.includes('qid') || freq.includes('qds') ? 4
-        : 1;
-      const times = DEFAULT_SCHEDULE_TIMES[String(dailyCount)] ?? ['08:00'];
-      return {
-        medicineIndex: i,
-        medicineName: med.name ?? `Medicine ${i + 1}`,
-        dosage: med.dosage ?? '',
-        frequency: med.frequency ?? 'Once daily',
-        mealInstruction: med.meal_instruction ?? 'none',
-        times: [...times],
-      };
-    });
-  });
+  const [schedules, setSchedules] = useState<ScheduleDraft[]>(() =>
+    prescription ? buildDefaultSchedules(prescription) : []
+  );
 
   const [confirming, setConfirming] = useState(false);
+
+  // Validation (shared toolkit): a time is only accepted as HH:MM 24-hour.
+  // Same-time doses across medicines are flagged as a soft notice, since
+  // taking several together is common and usually intentional.
+  const timeIsInvalid = (time: string) => time.trim() !== '' && !isValidTimeFormat(time.trim());
+  const hasInvalidOrEmptyTimes = schedules.some((schedule) =>
+    schedule.times.some((time) => time.trim() === '' || timeIsInvalid(time))
+  );
+  const conflicts = useMemo(
+    () =>
+      findScheduleConflicts(
+        schedules.flatMap((schedule) =>
+          schedule.times
+            .map((time) => time.trim())
+            .filter((time) => isValidTimeFormat(time))
+            .map((time) => ({ medicineName: schedule.medicineName, time }))
+        )
+      ),
+    [schedules]
+  );
 
   const updateTime = (medIdx: number, timeIdx: number, value: string) => {
     setSchedules((prev) => {
@@ -79,95 +107,49 @@ export default function ScheduleScreen() {
     });
   };
 
-  const generateId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const updateWindow = (medIdx: number, value: number) => {
+    setSchedules((prev) => {
+      const updated = [...prev];
+      const schedule = { ...updated[medIdx]! };
+      schedule.windowMinutes = value;
+      updated[medIdx] = schedule;
+      return updated;
+    });
+  };
 
   const handleConfirm = async () => {
     if (!prescription) return;
+    if (hasInvalidOrEmptyTimes) {
+      showToast(t.schedule.timeInvalid, 'warning');
+      return;
+    }
     setConfirming(true);
     try {
-      const today = getTodayISO();
-      const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-
-      // 1. Create the prescription record (already verified from review screen)
-      const prescriptionId = generateId();
-      await createPrescription({
-        id: prescriptionId,
-        doctor_name: prescription.prescription?.doctor_name ?? null,
-        hospital: prescription.prescription?.hospital ?? null,
-        date: prescription.prescription?.date ?? null,
-        follow_up_date: prescription.prescription?.follow_up_date ?? null,
-        source_image_uri: imageUri ?? null,
-        verification_status: 'verified',
-        overall_confidence: prescription.overall_confidence ?? 0,
-        patient_notes: null,
-        treatment_status: 'active',
-      });
-
-      // 2. For each medicine, create the medicine record and its schedules
-      for (let i = 0; i < prescription.medicines.length; i++) {
-        const med = prescription.medicines[i]!;
-        const schedule = schedules[i];
-        if (!schedule) continue;
-
-        const medicineId = generateId();
-        await createMedicine({
-          id: medicineId,
-          prescription_id: prescriptionId,
-          name: med.name ?? null,
-          generic_name: med.generic_name ?? null,
-          brand_name: med.brand_name ?? null,
-          strength: med.strength ?? null,
-          form: (med.form as any) ?? null,
-          dosage: med.dosage ?? null,
-          frequency: med.frequency ?? null,
-          meal_instruction: (med.meal_instruction as any) ?? null,
-          duration: med.duration ?? null,
-          purpose: med.purpose ?? null,
-          side_effects: med.side_effects ?? [],
-          food_interactions: med.food_interactions ?? [],
-          storage: med.storage ?? null,
-          confidence: med.confidence ?? 0,
-          warnings: med.warnings ?? [],
-          verification_status: 'verified',
-          initial_quantity: med.initial_quantity ?? null,
-          remaining_quantity: med.remaining_quantity ?? med.initial_quantity ?? null,
-        });
-
-        // 3. Create schedule entries and schedule notifications for each time
-        for (const time of schedule.times) {
-          const scheduleId = generateId();
-          const notificationId = await scheduleDoseNotification({
-            id: scheduleId,
-            medicineName: schedule.medicineName,
-            dosage: schedule.dosage,
-            mealInstruction: schedule.mealInstruction,
-            time,
-            date: new Date(),
-          });
-
-          await createSchedule({
-            id: scheduleId,
-            medicine_id: medicineId,
-            time,
-            timezone,
-            frequency: schedule.frequency,
-            meal_instruction: (schedule.mealInstruction as any) ?? null,
-            start_date: today,
-            end_date: null,
-            is_active: true,
-            notification_id: notificationId,
-          });
-        }
-      }
-
-      Alert.alert(
-        'Schedule confirmed',
-        'Your medication schedule has been set up. You will receive reminders at the scheduled times.',
-        [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      // Archive the source pages durably so the saved prescription keeps
+      // readable originals (working scan files get cleaned up).
+      const archived = await archivePrescriptionImages(pageUris);
+      const outcome = await savePrescription(
+        prescription,
+        schedules,
+        archived[0] ?? imageUri
       );
+
+      // A new/updated prescription may carry a follow-up visit date — arm
+      // its reminder without blocking the navigation back home.
+      void syncFollowUpNotifications();
+
+      // Toast lives in the root layout, so it stays visible after navigating
+      showToast(
+        outcome.updated > 0
+          ? t.toasts.scheduleConfirmedUpdated.replace('{updated}', String(outcome.updated))
+          : t.toasts.scheduleConfirmedDefault,
+        'success',
+        6000,
+      );
+      router.replace('/(tabs)');
     } catch (err) {
       console.error('Schedule confirmation error:', err);
-      Alert.alert('Error', 'Failed to save schedule. Please try again.');
+      showToast(t.toasts.saveScheduleFailed, 'error');
     } finally {
       setConfirming(false);
     }
@@ -188,97 +170,170 @@ export default function ScheduleScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            Confirm your schedule
-          </Text>
-          <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            Review the suggested times. You can adjust them before confirming.
-          </Text>
-        </View>
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
+              {t.schedule.title}
+            </Text>
+            <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+              {t.schedule.subtitle}
+            </Text>
+          </View>
 
-        {/* Important notice */}
-        <View style={[styles.notice, { paddingHorizontal: spacing.base }]}>
-          <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.accent.primary }}>
-            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <MaterialCommunityIcons name="information-outline" size={20} color={colors.info} />
-              <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
-                Reminders will activate after you confirm this schedule. If timing changes could affect treatment safety, please confirm with your doctor.
-              </Text>
-            </View>
-          </Card>
-        </View>
-
-        {/* Schedules */}
-        {schedules.map((schedule, medIdx) => (
-          <View key={medIdx} style={[styles.medicineSchedule, { paddingHorizontal: spacing.base }]}>
-            <Card>
-              <View style={styles.medHeader}>
-                <MaterialCommunityIcons name="pill" size={20} color={colors.accent.primary} />
-                <View style={{ marginLeft: 8, flex: 1 }}>
-                  <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-                    {schedule.medicineName}
-                  </Text>
-                  <Text style={[typography.body.sm, { color: colors.text.secondary }]}>
-                    {schedule.dosage} — {schedule.frequency}
-                    {schedule.mealInstruction !== 'none' && ` — ${schedule.mealInstruction} meals`}
-                  </Text>
-                </View>
+          {/* Important notice */}
+          <View style={[styles.notice, { paddingHorizontal: spacing.base }]}>
+            <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.accent.primary }}>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <MaterialCommunityIcons name="information-outline" size={20} color={colors.info} />
+                <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                  {t.schedule.safetyNotice}
+                </Text>
               </View>
-
-              <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.md }]}>
-                Reminder times
-              </Text>
-
-              {schedule.times.map((time, timeIdx) => (
-                <View key={timeIdx} style={styles.timeRow}>
-                  <MaterialCommunityIcons
-                    name="clock-outline"
-                    size={18}
-                    color={colors.text.secondary}
-                  />
-                  <Input
-                    value={time}
-                    onChangeText={(value) => updateTime(medIdx, timeIdx, value)}
-                    placeholder="HH:MM"
-                    containerStyle={{ flex: 1, marginLeft: 8 }}
-                    keyboardType="numbers-and-punctuation"
-                  />
-                </View>
-              ))}
             </Card>
           </View>
-        ))}
 
-        {/* Actions */}
+          {/* Schedules */}
+          {schedules.map((schedule, medIdx) => (
+            <View key={medIdx} style={[styles.medicineSchedule, { paddingHorizontal: spacing.base }]}>
+              <Card>
+                <View style={styles.medHeader}>
+                  <MedicineFormIcon
+                    form={prescription.medicines[medIdx]?.form}
+                    size={20}
+                    color={colors.accent.primary}
+                    contrastColor={colors.background.primary}
+                  />
+                  <View style={{ marginStart: 8, flex: 1 }}>
+                    <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                      {schedule.medicineName}
+                    </Text>
+                    <Text style={[typography.body.sm, { color: colors.text.secondary }]}>
+                      {schedule.dosage}, {schedule.frequency}
+                      {schedule.mealInstruction !== 'none' &&
+                        `, ${schedule.mealInstruction === 'before' ? t.dose.beforeMeals : schedule.mealInstruction === 'with' ? t.dose.withMeals : t.dose.afterMeals}`}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.md }]}>
+                  {t.schedule.reminderTimes}
+                </Text>
+
+                {schedule.times.map((time, timeIdx) => (
+                  <View key={timeIdx} style={styles.timeRow}>
+                    <MaterialCommunityIcons
+                      name="clock-outline"
+                      size={18}
+                      color={colors.text.secondary}
+                    />
+                    <Input
+                      value={time}
+                      onChangeText={(value) => updateTime(medIdx, timeIdx, value)}
+                      placeholder="HH:MM"
+                      containerStyle={{ flex: 1, marginLeft: 8 }}
+                      keyboardType="numbers-and-punctuation"
+                      error={timeIsInvalid(time) ? t.schedule.timeInvalid : undefined}
+                    />
+                  </View>
+                ))}
+
+                <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.md }]}>
+                  {t.schedule.reminderWindow}
+                </Text>
+                <View style={styles.windowRow}>
+                  {WINDOW_OPTIONS.map((mins) => {
+                    const selected = schedule.windowMinutes === mins;
+                    return (
+                      <TouchableOpacity
+                        key={mins}
+                        style={[
+                          styles.windowChip,
+                          {
+                            backgroundColor: selected ? colors.accent.primary : colors.background.subtle,
+                            borderColor: selected ? colors.accent.primary : colors.border.default,
+                          },
+                        ]}
+                        onPress={() => updateWindow(medIdx, mins)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                      >
+                        <Text
+                          style={[
+                            typography.label.sm,
+                            { color: selected ? '#FFFFFF' : colors.text.primary },
+                          ]}
+                        >
+                          {t.schedule.windowOption.replace('{n}', formatDigits(mins, easternNumerals))}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </Card>
+            </View>
+          ))}
+
+          {/* Same-time doses — informational only, never blocks confirming */}
+          {conflicts.length > 0 && (
+            <View style={[styles.notice, { paddingHorizontal: spacing.base }]}>
+              <Card style={{ backgroundColor: colors.warning + '1A', borderColor: colors.warning }}>
+                {conflicts.map((conflict, i) => (
+                  <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: i === 0 ? 0 : 8 }}>
+                    <MaterialCommunityIcons name="clock-alert-outline" size={18} color={colors.warning} />
+                    <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                      {t.schedule.sameTimeNote
+                        .replace('{first}', conflict.medicine1)
+                        .replace('{second}', conflict.medicine2)
+                        .replace('{time}', formatDigits(conflict.time, easternNumerals))}
+                    </Text>
+                  </View>
+                ))}
+              </Card>
+            </View>
+          )}
+        </ScrollView>
+        {/* Pinned like the onboarding steps' footer so the actions sit in the
+            same spot on every screen of the flow. */}
         <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
           <Button
-            title="Confirm schedule"
+            title={t.schedule.confirmSchedule}
             onPress={handleConfirm}
             loading={confirming}
+            disabled={hasInvalidOrEmptyTimes}
             size="lg"
             icon={<MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />}
           />
           <Button
-            title="Go back"
+            title={t.common.back}
             onPress={() => router.back()}
             variant="ghost"
           />
         </View>
-      </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  inner: { flex: 1 },
   centered: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
-  scrollContent: { paddingBottom: 48 },
+  scrollContent: { paddingBottom: 16 },
   header: { marginTop: 16 },
   notice: { marginTop: 16 },
   medicineSchedule: { marginTop: 16 },
   medHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   timeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  actions: { marginTop: 32, gap: 12, alignItems: 'center' },
+  windowRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
+  windowChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  actions: { paddingTop: 12, paddingBottom: 16, gap: 12, alignItems: 'center' },
 });

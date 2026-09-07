@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Schedule } from '../../types/models';
 
@@ -6,6 +7,7 @@ function parseSchedule(row: Record<string, unknown>): Schedule {
     id: row.id as string,
     medicine_id: row.medicine_id as string,
     time: row.time as string,
+    window_minutes: typeof row.window_minutes === 'number' ? row.window_minutes : 120,
     timezone: row.timezone as string,
     frequency: row.frequency as string,
     meal_instruction: row.meal_instruction as Schedule['meal_instruction'],
@@ -24,10 +26,10 @@ export async function createSchedule(
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO schedules (id, medicine_id, time, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
-      data.id, data.medicine_id, data.time, data.timezone,
+      data.id, data.medicine_id, data.time, data.window_minutes, data.timezone,
       data.frequency, data.meal_instruction, data.start_date, data.end_date,
       data.is_active ? 1 : 0, data.notification_id, now,
     ]
@@ -52,6 +54,7 @@ export async function getActiveSchedules(): Promise<Schedule[]> {
      INNER JOIN medicines m ON s.medicine_id = m.id
      INNER JOIN prescriptions p ON m.prescription_id = p.id
      WHERE s.is_active = 1 AND p.treatment_status = 'active'
+       AND m.deleted_at IS NULL AND p.deleted_at IS NULL
      ORDER BY s.time ASC;`
   );
   return rows.map(parseSchedule);
@@ -68,11 +71,11 @@ export async function getSchedule(id: string): Promise<Schedule | null> {
 
 export async function updateSchedule(
   id: string,
-  data: Partial<Pick<Schedule, 'time' | 'timezone' | 'is_active' | 'notification_id' | 'end_date'>>
+  data: Partial<Pick<Schedule, 'time' | 'window_minutes' | 'timezone' | 'frequency' | 'meal_instruction' | 'is_active' | 'notification_id' | 'end_date'>>
 ): Promise<void> {
   const db = getDatabase();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     if (key === 'is_active') {
@@ -80,7 +83,7 @@ export async function updateSchedule(
       values.push(value ? 1 : 0);
     } else {
       fields.push(`${key} = ?`);
-      values.push(value);
+      values.push(value as SQLiteBindValue);
     }
   }
 
@@ -100,7 +103,27 @@ export async function deactivateSchedulesByMedicine(medicineId: string): Promise
   );
 }
 
+/** Resume a paused course — reactivates all schedules for a medicine. */
+export async function activateSchedulesByMedicine(medicineId: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync(
+    'UPDATE schedules SET is_active = 1 WHERE medicine_id = ?;',
+    [medicineId]
+  );
+}
+
 export async function deleteSchedulesByMedicine(medicineId: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM schedules WHERE medicine_id = ?;', [medicineId]);
+}
+
+/**
+ * Hard delete for cleanup passes (replaced schedules with no dose
+ * history). Callers must check for dose records first — dose_records
+ * cascade-deletes with its schedule, so a row with history must never
+ * go through here.
+ */
+export async function hardDeleteSchedule(id: string): Promise<void> {
+  const db = getDatabase();
+  await db.runAsync('DELETE FROM schedules WHERE id = ?;', [id]);
 }

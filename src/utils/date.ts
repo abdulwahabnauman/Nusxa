@@ -1,4 +1,5 @@
-import { format, parse, isValid, startOfDay, endOfDay, addDays, differenceInDays } from 'date-fns';
+import { format, parse, isValid, startOfDay, endOfDay, addDays, differenceInDays, differenceInYears } from 'date-fns';
+import { toEasternNumerals } from './numerals';
 
 /** Format a date to YYYY-MM-DD */
 export function formatDateISO(date: Date): string {
@@ -10,13 +11,70 @@ export function formatDateReadable(date: Date): string {
   return format(date, 'MMM d, yyyy');
 }
 
+/** Localized human-readable date from a YYYY-MM-DD string (audit UX3) */
+export function formatDateLocalized(isoDate: string, locale = 'en-US'): string {
+  const parsed = parse(isoDate, 'yyyy-MM-dd', new Date());
+  if (!isValid(parsed)) return isoDate;
+  try {
+    return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' }).format(parsed);
+  } catch {
+    return formatDateReadable(parsed);
+  }
+}
+
 /** Format time string (HH:mm) to 12-hour format */
-export function formatTime12h(time24: string): string {
+export function formatTime12h(time24: string, language: 'en' | 'ur' = 'en'): string {
   const [h, m] = time24.split(':').map(Number);
   if (h == null || m == null) return time24;
-  const period = h >= 12 ? 'PM' : 'AM';
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return `${hour12}:${String(m).padStart(2, '0')} ${period}`;
+  const clock = `${hour12}:${String(m).padStart(2, '0')}`;
+  if (language === 'ur') {
+    // Fully-RTL token (Eastern digits + Urdu day-part word) so time ranges
+    // don't get shuffled by bidi inside RTL sentences.
+    return `${toEasternNumerals(clock)} ${urduDayPart(h)}`;
+  }
+  return `${clock} ${h >= 12 ? 'PM' : 'AM'}`;
+}
+
+/** Urdu day-part word from the 24h clock: morning / afternoon / evening */
+function urduDayPart(hour24: number): string {
+  if (hour24 < 12) return 'صبح';
+  if (hour24 < 17) return 'دوپہر';
+  return 'شام';
+}
+
+/** Bucket a 24h hour into the day parts used by the timeline and hints */
+export function getDayPart(hour: number): 'morning' | 'afternoon' | 'night' {
+  if (hour >= 5 && hour <= 11) return 'morning';
+  if (hour >= 12 && hour <= 16) return 'afternoon';
+  return 'night';
+}
+
+/** Local epoch-ms for an "HH:MM" time on today */
+export function getTodayAtMs(time24: string): number {
+  const [h, m] = time24.split(':').map((v) => parseInt(v, 10));
+  const d = new Date();
+  d.setHours(h || 0, m || 0, 0, 0);
+  return d.getTime();
+}
+
+/** Add minutes to an HH:mm time, wrapping past midnight */
+export function addMinutesToTime(time24: string, minutes: number): string {
+  const [h, m] = time24.split(':').map(Number);
+  if (h == null || m == null) return time24;
+  const total = (h * 60 + m + minutes) % (24 * 60);
+  const nh = Math.floor(total / 60);
+  const nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
+}
+
+/** 12-hour [start, end] pair for a reminder window (start time + window minutes) */
+export function getTimeRangeParts(
+  time24: string,
+  windowMinutes: number,
+  language: 'en' | 'ur' = 'en',
+): [string, string] {
+  return [formatTime12h(time24, language), formatTime12h(addMinutesToTime(time24, windowMinutes), language)];
 }
 
 /** Get today's date string in ISO format */
@@ -43,24 +101,35 @@ export function getDateRange(days: number): { start: string; end: string } {
   };
 }
 
-/** Get the last 7 days with label and ISO date */
-export function getLast7Days(): { label: string; iso: string }[] {
+/** Get the last 7 days with label and ISO date (weekday labels localized) */
+export function getLast7Days(locale = 'en-US'): { label: string; iso: string }[] {
   const days: { label: string; iso: string }[] = [];
-  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   for (let i = 6; i >= 0; i--) {
     const d = addDays(new Date(), -i);
     days.push({
-      label: dayLabels[d.getDay()] ?? '',
+      label: d.toLocaleDateString(locale, { weekday: 'short' }),
       iso: formatDateISO(d),
     });
   }
   return days;
 }
 
+/** ISO date string for N days before today */
+export function getDaysAgoISO(days: number): string {
+  return formatDateISO(addDays(new Date(), -days));
+}
+
 /** Check if a date string is valid */
 export function isValidDate(dateStr: string): boolean {
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date());
   return isValid(parsed);
+}
+
+/** Whole-year age from a YYYY-MM-DD date of birth, or null when unparseable */
+export function calculateAge(dateOfBirth: string): number | null {
+  const dob = parse(dateOfBirth, 'yyyy-MM-dd', new Date());
+  if (!isValid(dob)) return null;
+  return differenceInYears(new Date(), dob);
 }
 
 /** Get device timezone */

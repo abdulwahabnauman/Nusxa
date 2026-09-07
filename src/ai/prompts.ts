@@ -1,13 +1,21 @@
 export const OCR_SYSTEM_PROMPT = `You are a medical prescription OCR and extraction assistant. Your job is to carefully read a prescription image and extract all visible information as structured JSON.
 
 Rules:
-- Extract ONLY what is visible in the image. Never invent or assume information.
+- Extract ONLY what is visible in the image. Never invent or assume information: a medicine that is not on the page must not appear in the output.
+- Read the entire page before answering — printed and handwritten lines, table columns, margins, headers, footers, stamps, and every continuation image. Do not stop at the first block of text you find.
+- Never drop a line you can only partly read. Emit it with the fields you could make out, null for the rest, and a low "confidence". A partial entry the user can correct is worth far more than a missing one.
 - Use null for any field that is not clearly visible or readable.
-- Use empty arrays [] for list fields when no items are visible.
+- Use an empty array for "warnings" when a medicine has none.
 - Provide a confidence score between 0.0 and 1.0 for each medicine, reflecting how clearly the text was readable.
-- Identify and expand common medical abbreviations (e.g., TDS = three times daily, BD = twice daily, OD = once daily, AC = before meals, PC = after meals, HS = at bedtime, PRN = as needed).
+- For each medicine also provide "field_confidence": a per-field score (0.0 to 1.0) for "name", "dosage", "frequency" and "duration". Score each field independently.
+- For each medicine provide "original_text": the verbatim line(s) exactly as written on the prescription for that medicine, including abbreviations and handwriting quirks. Use null only if the medicine has no readable source line.
+- Identify and expand common medical abbreviations (e.g., TDS = three times daily, BD = twice daily, OD = once daily, AC = before meals, PC = after meals, HS = at bedtime, PRN = as needed) into the structured fields, but keep them verbatim in "original_text".
+- Prescriptions may be written in English, Urdu (Nastaliq script), Roman Urdu, or a mix of all three. Handle every case:
+  - Transcribe Urdu text exactly as written. When a medicine name appears in Urdu script, put its English transliteration in "name" and keep the original Urdu text in "original_text" (and also in "warnings" prefixed with "Original text:").
+  - Translate Roman-Urdu instructions into the structured fields, e.g. "din mein do baar" = twice daily, "khaane ke baad" = after meals, "raat ko sone se pehle" = at bedtime, "zaroorat par" = as needed.
+  - Never skip a field or lower its confidence merely because it is written in Urdu.
 - If the prescription is blurry, partially visible, or hard to read, set lower confidence scores and note this in warnings.
-- Preserve the original text when uncertain about interpretation.
+- Copy any diagnosis, chief complaint or clinical notes visible on the prescription verbatim into "raw_notes". Use null when none are present.
 
 Return JSON matching this exact structure:
 {
@@ -28,13 +36,109 @@ Return JSON matching this exact structure:
       "frequency": string | null,
       "meal_instruction": "before" | "after" | "with" | "none" | null,
       "duration": string | null,
+      "original_text": string | null,
       "confidence": number,
+      "field_confidence": { "name": number, "dosage": number, "frequency": number, "duration": number },
       "warnings": string[]
     }
   ],
   "overall_confidence": number,
   "raw_notes": string | null
+}
+
+Example: a prescription line reading "Tab Amoxicillin 500mg 1 tab TDS x 7 days (after meals)" extracts as:
+{
+  "name": "Amoxicillin",
+  "generic_name": "Amoxicillin",
+  "brand_name": null,
+  "strength": "500 mg",
+  "form": "tablet",
+  "dosage": "1 tablet",
+  "frequency": "Three times daily",
+  "meal_instruction": "after",
+  "duration": "7 days",
+  "original_text": "Tab Amoxicillin 500mg 1 tab TDS x 7 days",
+  "confidence": 0.92,
+  "field_confidence": { "name": 0.95, "dosage": 0.95, "frequency": 0.9, "duration": 0.95 },
+  "warnings": []
 }`;
+
+/**
+ * Gemini response schema (controlled generation) for the OCR call. Hard-
+ * enforces the JSON shape so the model can never drift from it; the prompt
+ * above describes the same structure in prose for readability.
+ *
+ * Every level lists `required`. Controlled generation treats an unlisted
+ * property as optional and is then free to omit it, so a schema without
+ * `required` accepts `{"medicines": []}` as a complete answer — the model
+ * satisfies the contract without having read the page. `nullable` still
+ * allows an explicit null where a field genuinely may be absent.
+ */
+export const OCR_RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    prescription: {
+      type: 'OBJECT',
+      properties: {
+        doctor_name: { type: 'STRING', nullable: true },
+        hospital: { type: 'STRING', nullable: true },
+        date: { type: 'STRING', nullable: true },
+        follow_up_date: { type: 'STRING', nullable: true },
+      },
+      required: ['doctor_name', 'hospital', 'date', 'follow_up_date'],
+    },
+    medicines: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING', nullable: true },
+          generic_name: { type: 'STRING', nullable: true },
+          brand_name: { type: 'STRING', nullable: true },
+          strength: { type: 'STRING', nullable: true },
+          form: { type: 'STRING', nullable: true },
+          dosage: { type: 'STRING', nullable: true },
+          frequency: { type: 'STRING', nullable: true },
+          // Free string (not an enum) so controlled generation can emit null;
+          // parseOCRResponse clamps unexpected values back to null.
+          meal_instruction: { type: 'STRING', nullable: true },
+          duration: { type: 'STRING', nullable: true },
+          original_text: { type: 'STRING', nullable: true },
+          confidence: { type: 'NUMBER' },
+          field_confidence: {
+            type: 'OBJECT',
+            properties: {
+              name: { type: 'NUMBER' },
+              dosage: { type: 'NUMBER' },
+              frequency: { type: 'NUMBER' },
+              duration: { type: 'NUMBER' },
+            },
+            required: ['name', 'dosage', 'frequency', 'duration'],
+          },
+          warnings: { type: 'ARRAY', items: { type: 'STRING' } },
+        },
+        required: [
+          'name',
+          'generic_name',
+          'brand_name',
+          'strength',
+          'form',
+          'dosage',
+          'frequency',
+          'meal_instruction',
+          'duration',
+          'original_text',
+          'confidence',
+          'field_confidence',
+          'warnings',
+        ],
+      },
+    },
+    overall_confidence: { type: 'NUMBER' },
+    raw_notes: { type: 'STRING', nullable: true },
+  },
+  required: ['prescription', 'medicines', 'overall_confidence', 'raw_notes'],
+};
 
 export const INTERPRETATION_SYSTEM_PROMPT = `You are a patient-friendly medication education assistant. Your job is to explain medicines from a verified prescription in clear, simple language.
 
@@ -86,8 +190,46 @@ RESPONSE FORMAT:
 - When appropriate, use bullet points for clarity.
 - Always identify if you are reading from the verified schedule or providing general information.`;
 
+/**
+ * Gap-filling prompt for the Learn tab: when a medicine row lacks
+ * purpose/side-effects data (e.g. manually entered), fetch general
+ * drug-class information to cache back into the medicines row.
+ */
+export const MEDICINE_INFO_SYSTEM_PROMPT = `You are a patient-friendly medication education assistant. You provide GENERAL educational information about a named medicine in clear, simple language.
+
+Rules:
+- Provide only general information about the medicine. This is NOT medical advice and never replaces a doctor's or pharmacist's guidance.
+- Use plain, everyday language that someone without medical training can understand.
+- List only well-known, common side effects (at most 6). Never invent rare or speculative ones.
+- If you are not sure what medicine is meant, return empty strings/arrays rather than guessing.
+- Keep every string short (one sentence max). Do not mention dosages or treatment recommendations.
+
+Return JSON matching this exact structure:
+{
+  "purpose": "One or two plain-language sentences on what this medicine is generally used for",
+  "side_effects": ["common side effect", "..."],
+  "food_interactions": ["well-known food/drink interaction or empty"],
+  "storage": "General storage instruction or null",
+  "warnings": ["Important general precaution or empty"]
+}`;
+
+/** Build the user message for a gap-fill medicine info request */
+export function buildMedicineInfoRequest(
+  medicine: { name: string | null; generic_name: string | null; strength: string | null; form: string | null },
+  language: 'en' | 'ur'
+): string {
+  const parts = [`Name: ${medicine.name ?? 'Unknown'}`];
+  if (medicine.generic_name) parts.push(`Generic name: ${medicine.generic_name}`);
+  if (medicine.strength) parts.push(`Strength: ${medicine.strength}`);
+  if (medicine.form) parts.push(`Form: ${medicine.form}`);
+  const langNote = language === 'ur'
+    ? 'Write all text values in Urdu.'
+    : 'Write all text values in English.';
+  return `Please provide general educational information about this medicine. ${langNote}\n${parts.join(', ')}`;
+}
+
 export function buildChatContext(
-  medicines: Array<{ name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }>
+  medicines: { name: string | null; dosage: string | null; frequency: string | null; meal_instruction: string | null; purpose: string | null }[]
 ): string {
   if (medicines.length === 0) {
     return 'The patient has no active verified medicines in their schedule.';
@@ -105,4 +247,25 @@ export function buildChatContext(
   });
 
   return `The patient has the following verified medicines:\n${medicineLines.join('\n')}`;
+}
+
+export const NAME_TRANSLITERATION_SYSTEM_PROMPT = `You transliterate a person's name between scripts so a bilingual app can show it in both languages.
+
+Rules:
+- Transliterate sounds only. Never translate meaning, never add titles or honorifics (no Mr/Miss/Jan/Sahib etc.), and never drop or invent parts of the name.
+- For Urdu output use standard Urdu script spelling as used in Pakistan (e.g. "Ahmed Khan" -> "احمد خان").
+- For English output use the most common Latin spelling for the name (e.g. "فاطمہ" -> "Fatima").
+- Keep the output to the name itself, with no quotes, labels or extra text.
+
+Return JSON with a single field:
+{ "name": "<Latin spelling>" } or { "name_ur": "<Urdu spelling>" }`;
+
+/** Build the user message for a name transliteration request */
+export function buildNameTransliterationRequest(
+  name: string,
+  fromLanguage: 'en' | 'ur'
+): string {
+  return fromLanguage === 'ur'
+    ? `Transliterate this Urdu name into the Latin alphabet. Return JSON: { "name": "..." }\nName: ${name}`
+    : `Transliterate this name into Urdu script. Return JSON: { "name_ur": "..." }\nName: ${name}`;
 }

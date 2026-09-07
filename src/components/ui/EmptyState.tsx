@@ -1,11 +1,24 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { Button } from './Button';
 
+type IconName = keyof typeof MaterialCommunityIcons.glyphMap;
+
+const isIconName = (value: IconName | React.ReactNode): value is IconName =>
+  typeof value === 'string';
+
 interface EmptyStateProps {
-  icon?: keyof typeof MaterialCommunityIcons.glyphMap;
+  /** Icon name, or a custom rendered node (e.g. the shared PillIcon) */
+  icon?: IconName | React.ReactNode;
   title: string;
   description?: string;
   actionLabel?: string;
@@ -20,14 +33,31 @@ export function EmptyState({
   onAction,
 }: EmptyStateProps) {
   const { colors, typography, spacing } = useTheme();
+  const reducedMotion = useReducedMotion();
+
+  // Gentle floating so empty states feel alive without being distracting
+  const floatY = useSharedValue(0);
+  useEffect(() => {
+    if (reducedMotion) return;
+    floatY.value = withRepeat(withTiming(-5, { duration: 1800 }), -1, true);
+  }, [reducedMotion, floatY]);
+  const floatStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: floatY.value }],
+  }));
 
   return (
     <View style={styles.container} accessibilityRole="text">
-      <MaterialCommunityIcons
-        name={icon}
-        size={56}
-        color={colors.text.disabled}
-      />
+      <Animated.View style={floatStyle}>
+        {isIconName(icon) ? (
+          <MaterialCommunityIcons
+            name={icon}
+            size={56}
+            color={colors.text.disabled}
+          />
+        ) : (
+          icon
+        )}
+      </Animated.View>
       <Text
         style={[
           typography.heading.h3,
@@ -65,6 +95,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 32,
-    paddingVertical: 48,
+    paddingVertical: 32,
   },
 });

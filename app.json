@@ -8,30 +8,19 @@
     "userInterfaceStyle": "automatic",
     "scheme": "nusxa",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#1B3A7B"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.nusxa.app",
       "infoPlist": {
         "NSCameraUsageDescription": "Nusxa needs camera access to scan your prescriptions.",
         "NSPhotoLibraryUsageDescription": "Nusxa needs photo library access to upload prescription images.",
-        "NSMicrophoneUsageDescription": "Nusxa uses the microphone for voice interaction with your medication companion.",
-        "UIRequiredDeviceCapabilities": ["armv7"]
-      },
-      "fontFamily": {
-        "regular": "NotoNastaliqUrdu-Regular",
-        "bold": "NotoNastaliqUrdu-Bold",
-        "italic": "NotoNastaliqUrdu-Italic"
+        "UIRequiredDeviceCapabilities": ["arm64"]
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1B3A7B"
+        "backgroundColor": "#0EA5E9"
       },
       "package": "com.nusxa.app",
       "permissions": [
@@ -63,7 +52,23 @@
       ],
       "expo-sqlite",
       "expo-secure-store",
-      "expo-asset"
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Allow Nusxa to use Face ID to unlock the app."
+        }
+      ],
+      "expo-asset",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-transparent.png",
+          "backgroundColor": "#000000",
+          "imageWidth": 200
+        }
+      ],
+      "./plugins/with-today-shortcut",
+      "./plugins/with-next-dose-widget"
     ],
     "experiments": {
       "typedRoutes": true

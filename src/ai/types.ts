@@ -24,30 +24,34 @@ export interface MedicineJSON {
   frequency: string | null;
   meal_instruction: 'before' | 'after' | 'with' | 'none' | null;
   duration: string | null;
+  /** Verbatim line text as written on the prescription, for review display */
+  original_text: string | null;
   purpose: string | null;
   side_effects: string[];
   food_interactions: string[];
   storage: string | null;
   confidence: number;
-  field_sources: Record<string, 'ocr' | 'inferred' | 'patient' | 'unknown'>;
+  /** Per-field confidence (0-1) reported by the model; missing = not reported */
+  field_confidence: Record<string, number>;
+  field_sources: Record<string, 'ocr' | 'inferred' | 'patient' | 'corrected' | 'unknown'>;
   warnings: string[];
   verification_status: 'pending' | 'verified' | 'rejected' | 'needs_review';
 }
 
 export interface OCRRawExtraction {
   raw_text: string;
-  medicines: Array<{
+  medicines: {
     name: string | null;
     dosage: string | null;
     frequency: string | null;
     duration: string | null;
     notes: string | null;
     confidence: number;
-  }>;
+  }[];
   doctor_name: string | null;
   hospital: string | null;
   date: string | null;
-  abbreviations_found: Array<{ abbreviation: string; interpretation: string | null }>;
+  abbreviations_found: { abbreviation: string; interpretation: string | null }[];
 }
 
 export interface ValidationResult {

@@ -1,34 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, StyleSheet, Share, Alert, TextInput } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import { withLockExemption } from '../src/utils/appLock';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useTheme } from '../src/theme/provider';
 import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { EmptyState } from '../src/components/ui/EmptyState';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
+import { getActiveSchedules } from '../src/db/repositories/schedule';
 import { getProfile } from '../src/db/repositories/profile';
-import { generateDoctorVisitReport } from '../src/utils/export';
-import type { Medicine } from '../src/types/models';
+import { useI18n } from '../src/i18n';
+import { getLocalizedName } from '../src/utils/profileName';
+import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
-  const { colors, typography, spacing, borderRadius } = useTheme();
-  const router = useRouter();
+  const { colors, typography, spacing } = useTheme();
+  const { t, language } = useI18n();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [, setLoading] = useState(true);
+  const [sharing, setSharing] = useState(false);
   const [questions, setQuestions] = useState('');
   const [profileName, setProfileName] = useState('Patient');
+  const [profileDob, setProfileDob] = useState<string | null>(null);
+  const [profileBloodGroup, setProfileBloodGroup] = useState<string | null>(null);
+  const [profileAllergies, setProfileAllergies] = useState<string[]>([]);
 
   useEffect(() => {
     async function load() {
       try {
-        const [meds, profile] = await Promise.all([
+        const [meds, activeSchedules, profile] = await Promise.all([
           getActiveMedicines(),
+          getActiveSchedules(),
           getProfile(),
         ]);
         setMedicines(meds);
-        if (profile?.name) setProfileName(profile.name);
+        setSchedules(activeSchedules);
+        const localName = getLocalizedName(profile, language === 'ur' ? 'ur' : 'en');
+        if (localName) setProfileName(localName);
+        setProfileDob(profile?.date_of_birth ?? null);
+        setProfileBloodGroup(profile?.blood_group ?? null);
+        setProfileAllergies(profile?.allergies ?? []);
       } catch (err) {
         console.error('Failed to load data:', err);
       } finally {
@@ -36,128 +52,163 @@ export default function DoctorVisitScreen() {
       }
     }
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    let pdfUri: string | null = null;
     try {
-      const report = generateDoctorVisitReport({
+      // Generate a clean PDF on-device, then hand it to the native share sheet.
+      // The PDF stack is heavy, so load it only when the user actually shares.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { generateDoctorVisitPdf } = require('../src/utils/pdf') as typeof import('../src/utils/pdf');
+      pdfUri = await generateDoctorVisitPdf({
         profileName,
         medicines,
-        doseRecords: [],
+        schedules,
         notes: questions || undefined,
+        dateOfBirth: profileDob,
+        bloodGroup: profileBloodGroup,
+        allergies: profileAllergies,
+        // Urdu users get a right-to-localized RTL report (audit UX4)
+        language: language === 'ur' ? 'ur' : 'en',
       });
-      await Share.share({
-        message: report,
-        title: 'Doctor Visit Report — Nusxa',
-      });
+      const shareUri = pdfUri;
+      await withLockExemption(() =>
+        Sharing.shareAsync(shareUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Share doctor visit report',
+          UTI: 'com.adobe.pdf',
+        })
+      );
     } catch {
-      Alert.alert('Error', 'Failed to generate report.');
+      showToast(t.toasts.pdfFailed, 'error');
+    } finally {
+      // The share sheet copies the file out, so the temp PDF can go afterwards
+      if (pdfUri) {
+        try { await FileSystem.deleteAsync(pdfUri, { idempotent: true }); } catch {}
+      }
+      setSharing(false);
     }
   };
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            Doctor Visit Report
-          </Text>
-          <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            A summary to share with your healthcare provider. This is a patient-generated summary, not an official medical record.
-          </Text>
-        </View>
-
-        {medicines.length === 0 ? (
-          <View style={{ paddingHorizontal: spacing.base, marginTop: 32 }}>
-            <EmptyState
-              icon="clipboard-text-outline"
-              title="No active medicines"
-              description="When you have active medicines, a visit report will be generated here."
-            />
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
+              {t.doctorVisit.title}
+            </Text>
+            <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+              {t.doctorVisit.subtitle}
+            </Text>
           </View>
-        ) : (
-          <>
-            {/* Current Medicines */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-                Current medicines
-              </Text>
-              <Card>
-                {medicines.map((med, i) => (
-                  <View
-                    key={med.id}
-                    style={[
-                      styles.medRow,
-                      i > 0 && { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border.default },
-                    ]}
-                  >
-                    <Text style={[typography.body.base, { color: colors.text.primary }]}>
-                      {med.name ?? 'Unknown'} {med.strength ? `(${med.strength})` : ''}
-                    </Text>
-                    <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                      {med.dosage ?? '?'} — {med.frequency ?? '?'} — {med.duration ?? '?'}
-                    </Text>
-                  </View>
-                ))}
-              </Card>
-            </View>
 
-            {/* Questions for doctor */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-                Questions for your doctor
-              </Text>
-              <Card>
-                <TextInput
-                  style={[
-                    typography.body.base,
-                    {
-                      color: colors.text.primary,
-                      minHeight: 80,
-                      textAlignVertical: 'top',
-                      padding: 0,
-                    },
-                  ]}
-                  placeholder="Add questions before your visit so you don't forget to ask them..."
-                  placeholderTextColor={colors.text.disabled}
-                  value={questions}
-                  onChangeText={setQuestions}
-                  multiline
-                  accessibilityLabel="Questions for your doctor"
-                />
-              </Card>
-            </View>
-
-            {/* Disclaimer */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.border.default }}>
-                <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-                  <MaterialCommunityIcons name="information-outline" size={18} color={colors.info} />
-                  <Text style={[typography.body.xs, { color: colors.text.secondary, marginLeft: 8, flex: 1 }]}>
-                    This report is a patient-generated summary and is not an official medical record. Always consult your healthcare provider for medical decisions.
-                  </Text>
-                </View>
-              </Card>
-            </View>
-
-            {/* Share */}
-            <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-              <Button
-                title="Share report"
-                onPress={handleShare}
-                icon={<MaterialCommunityIcons name="share-variant" size={20} color="#FFFFFF" />}
-                size="lg"
+          {medicines.length === 0 ? (
+            <View style={{ paddingHorizontal: spacing.base, marginTop: 32 }}>
+              <EmptyState
+                icon="clipboard-text-outline"
+                title={t.doctorVisit.noMedicines}
+                description={t.doctorVisit.noMedicinesDesc}
               />
             </View>
-          </>
-        )}
-      </ScrollView>
+          ) : (
+            <>
+              {/* Current Medicines */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
+                  {t.doctorVisit.currentMedicines}
+                </Text>
+                <Card>
+                  {medicines.map((med, i) => (
+                    <View
+                      key={med.id}
+                      style={[
+                        styles.medRow,
+                        i > 0 && { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border.default },
+                      ]}
+                    >
+                      <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                        {med.name ?? 'Unknown'} {med.strength ? `(${med.strength})` : ''}
+                      </Text>
+                      <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                        {med.dosage ?? '?'}, {med.frequency ?? '?'}, {med.duration ?? '?'}
+                      </Text>
+                    </View>
+                  ))}
+                </Card>
+              </View>
+
+              {/* Questions for doctor */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
+                  {t.doctorVisit.questions}
+                </Text>
+                <Card>
+                  <TextInput
+                    style={[
+                      typography.body.base,
+                      {
+                        color: colors.text.primary,
+                        minHeight: 80,
+                        textAlignVertical: 'top',
+                        padding: 0,
+                      },
+                    ]}
+                    placeholder={t.doctorVisit.questionsPlaceholder}
+                    placeholderTextColor={colors.text.disabled}
+                    value={questions}
+                    onChangeText={setQuestions}
+                    multiline
+                    accessibilityLabel={t.doctorVisit.questions}
+                  />
+                </Card>
+              </View>
+
+              {/* Disclaimer */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.border.default }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                    <MaterialCommunityIcons name="information-outline" size={18} color={colors.info} />
+                    <Text style={[typography.body.xs, { color: colors.text.secondary, marginStart: 8, flex: 1 }]}>
+                      {t.doctorVisit.disclaimer}
+                    </Text>
+                  </View>
+                </Card>
+              </View>
+
+              {/* Share */}
+              <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+                <Button
+                  title={sharing ? t.doctorVisit.preparing : t.doctorVisit.shareReport}
+                  onPress={handleShare}
+                  loading={sharing}
+                  icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color="#FFFFFF" />}
+                  size="lg"
+                />
+              </View>
+            </>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  inner: { flex: 1 },
   scrollContent: { paddingBottom: 48 },
   header: { marginTop: 16 },
   section: { marginTop: 24 },

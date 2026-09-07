@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useTheme } from '../../theme/provider';
+import { View, StyleSheet } from 'react-native';
 import { Input } from '../ui/Input';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../constants/config';
 
@@ -21,8 +20,6 @@ export function VerificationField({
   placeholder,
   required = false,
 }: VerificationFieldProps) {
-  const { colors, typography, spacing } = useTheme();
-
   const isLowConfidence = confidence !== undefined && confidence < LOW_CONFIDENCE_THRESHOLD;
   const isMissing = required && !value;
 
@@ -36,7 +33,7 @@ export function VerificationField({
         error={isMissing ? `${label} is required` : undefined}
         helper={
           isLowConfidence
-            ? `Low confidence (${Math.round((confidence ?? 0) * 100)}%) — please verify`
+            ? `Low confidence (${Math.round((confidence ?? 0) * 100)}%). Please verify`
             : undefined
         }
       />

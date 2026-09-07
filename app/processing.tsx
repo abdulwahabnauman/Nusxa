@@ -1,51 +1,76 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { ProgressSteps } from '../src/components/ui/ProgressSteps';
 import { Button } from '../src/components/ui/Button';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { processPrescription } from '../src/ai/pipeline';
+import { aiErrorCopyKey } from '../src/ai/client';
 import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
+import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
+import { archivePrescriptionImages } from '../src/utils/archiveImages';
 import { resolveApiKey } from '../src/utils/secureStorage';
+import { isAiProxyConfigured } from '../src/constants/config';
 import { useTranslation } from '../src/i18n';
-import { useSettingsStore } from '../src/stores/settings-store';
 
 export default function ProcessingScreen() {
   const { colors, typography, spacing } = useTheme();
   const t = useTranslation();
-  const currentLanguage = useSettingsStore((s) => s.language);
-  const isRTL = currentLanguage === 'ur';
   const router = useRouter();
-  const { imageUri } = useLocalSearchParams<{ imageUri: string }>();
+  const { imageUri, imageUris } = useLocalSearchParams<{ imageUri: string; imageUris: string }>();
+  // Multi-page sessions arrive as a JSON array of URIs; single scans keep
+  // using the legacy imageUri param.
+  const uris = useMemo<string[]>(() => {
+    if (imageUris) {
+      try {
+        const parsed = JSON.parse(imageUris);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((u) => typeof u === 'string' && u.length > 0)
+        ) {
+          return parsed as string[];
+        }
+      } catch {
+        // Fall through to the single-image param
+      }
+    }
+    return imageUri ? [imageUri] : [];
+  }, [imageUri, imageUris]);
   const [stage, setStage] = useState<PipelineStage>('preparing');
   const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<{
     data: PrescriptionJSON;
     validation: ValidationResult;
   } | null>(null);
 
   useEffect(() => {
-    if (!imageUri) {
-      setError('No image provided.');
+    if (uris.length === 0) {
+      setError(t.aiErrors.generic);
+      setStage('error');
       return;
     }
     runPipeline();
-  }, [imageUri]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uris.join('|')]);
 
   async function runPipeline() {
     try {
-      // Read API key from secure store, then fall back to env variable
+      // Read API key from secure store, then fall back to env variable.
+      // With the serverless proxy configured the key lives server-side.
       const apiKey = await resolveApiKey();
-      if (!apiKey) {
-        setError('AI service key not configured. Add your Gemini API key in Settings.');
+      if (!apiKey && !isAiProxyConfigured()) {
+        setError(t.aiErrors.notConfigured);
         setStage('error');
         return;
       }
       
       // Process with callback to update stages
-      const res = await processPrescription(imageUri!, apiKey, (newStage) => {
+      const res = await processPrescription(uris, apiKey, (newStage) => {
         setStage(newStage);
       });
       
@@ -54,8 +79,10 @@ export default function ProcessingScreen() {
       // Explicitly mark final step as completed
       setStage('complete');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'An unexpected error occurred.';
-      setError(message);
+      // Classified by failure code, never by matching provider prose: the raw
+      // message is an English JSON blob that offers the user nothing to do.
+      if (__DEV__) console.warn('[ocr] pipeline failed', err);
+      setError(t.aiErrors[aiErrorCopyKey(err)]);
       setStage('error');
     }
   }
@@ -67,15 +94,64 @@ export default function ProcessingScreen() {
   };
 
   const handleContinue = () => {
-    if (result && imageUri) {
+    if (result && uris.length > 0) {
       router.replace({
         pathname: '/review',
         params: {
-          imageUri,
+          imageUri: uris[0],
+          // Every page comes along so the review screen can show all of a
+          // multi-page scan, not just the first one.
+          imageUris: JSON.stringify(uris),
           prescriptionData: JSON.stringify(result.data),
           validationData: JSON.stringify(result.validation),
         },
       });
+    }
+  };
+
+  // OK = the user approves the scan as-is: persist medicines + schedules
+  // with sensible default reminder times and land back on Home.
+  const handleApprove = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      const verified: PrescriptionJSON = {
+        ...result.data,
+        verification_status: 'verified',
+        medicines: result.data.medicines.map((m) => ({
+          ...m,
+          verification_status: 'verified' as const,
+        })),
+      };
+      // Archive the source pages durably (working scan files get cleaned
+      // up) so the saved prescription keeps readable originals.
+      const archived = await archivePrescriptionImages(uris);
+      const outcome = await savePrescription(
+        verified,
+        buildDefaultSchedules(verified),
+        archived[0] ?? uris[0]
+      );
+      const bodyParts: string[] = [];
+      if (outcome.updated > 0) {
+        bodyParts.push(t.toasts.approvedUpdatedBody.replace('{updated}', String(outcome.updated)));
+        if (outcome.added > 0) {
+          bodyParts.push(t.toasts.approvedAddedBody.replace('{added}', String(outcome.added)));
+        }
+      } else {
+        bodyParts.push(t.toasts.approvedDefaultBody);
+      }
+      const title =
+        outcome.updated > 0 && outcome.added === 0
+          ? t.toasts.approvedUpdatedTitle
+          : t.toasts.approvedAddedTitle;
+      // Toast lives in the root layout, so it stays visible after navigating
+      showToast(`${title}. ${bodyParts.join(' ')}`, 'success', 6000);
+      router.replace('/(tabs)');
+    } catch (err) {
+      console.error('Approve prescription error:', err);
+      showToast(t.toasts.saveMedicinesFailed, 'error');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -103,7 +179,7 @@ export default function ProcessingScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
           <MaterialCommunityIcons
             name={stage === 'error' ? 'alert-circle-outline' : 'file-document-outline'}
@@ -113,7 +189,7 @@ export default function ProcessingScreen() {
         </View>
 
         <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
-          {stage === 'error' ? 'Processing failed' : 'Reading your prescription'}
+          {stage === 'error' ? t.processing.errorTitle : 'Reading your prescription'}
         </Text>
 
         <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center' }]}>
@@ -128,11 +204,12 @@ export default function ProcessingScreen() {
 
         {stage === 'error' && (
           <View style={styles.errorActions}>
-            <Button title="Try again" onPress={handleRetry} />
+            <Button title={t.common.retry} onPress={handleRetry} style={{ flex: 1 }} />
             <Button
-              title="Go back"
+              title={t.common.back}
               onPress={() => router.back()}
               variant="ghost"
+              style={{ flex: 1 }}
             />
           </View>
         )}
@@ -142,20 +219,23 @@ export default function ProcessingScreen() {
             <Text style={[typography.body.sm, { color: colors.success, textAlign: 'center', marginBottom: spacing.base }]}>
               {result.data.medicines.length} medicine{result.data.medicines.length !== 1 ? 's' : ''} detected
               {result.validation.warnings.length > 0 &&
-                ` — ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
+                `, ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
             </Text>
-            <View style={{ width: '100%', flexDirection: isRTL ? 'row-reverse' : 'row', gap: spacing.md }}>
-              <Button title="Review prescription" onPress={handleContinue} size="lg" />
-              <Button 
-                title="OK" 
-                onPress={() => router.back()} 
+            <View style={styles.successButtons}>
+              <Button
+                title="OK"
+                onPress={handleApprove}
+                loading={saving}
+              />
+              <Button
+                title="Review & adjust"
+                onPress={handleContinue}
                 variant="ghost"
-                size="lg"
               />
             </View>
           </View>
         )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -165,10 +245,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
+    paddingVertical: 24,
   },
   iconContainer: {
     width: 96,
@@ -180,12 +261,17 @@ const styles = StyleSheet.create({
   errorActions: {
     marginTop: 32,
     width: '100%',
+    flexDirection: 'row',
     gap: 12,
-    alignItems: 'center',
   },
   successActions: {
     marginTop: 32,
     width: '100%',
     alignItems: 'center',
+  },
+  successButtons: {
+    width: '100%',
+    alignItems: 'center',
+    gap: 12,
   },
 });

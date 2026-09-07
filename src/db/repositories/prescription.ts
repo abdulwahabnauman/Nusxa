@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { Prescription, PrescriptionWithMedicines } from '../../types/models';
 import { getMedicinesByPrescription } from './medicine';
@@ -14,6 +15,7 @@ function parsePrescription(row: Record<string, unknown>): Prescription {
     overall_confidence: row.overall_confidence as number,
     patient_notes: row.patient_notes as string | null,
     treatment_status: row.treatment_status as Prescription['treatment_status'],
+    deleted_at: (row.deleted_at as string | null) ?? null,
     created_at: row.created_at as string,
     updated_at: row.updated_at as string,
   };
@@ -66,11 +68,11 @@ export async function getPrescriptionWithMedicines(id: string): Promise<Prescrip
 
 export async function getAllPrescriptions(status?: string): Promise<Prescription[]> {
   const db = getDatabase();
-  let query = 'SELECT * FROM prescriptions';
-  const params: unknown[] = [];
+  let query = 'SELECT * FROM prescriptions WHERE deleted_at IS NULL';
+  const params: SQLiteBindValue[] = [];
 
   if (status) {
-    query += ' WHERE treatment_status = ?';
+    query += ' AND treatment_status = ?';
     params.push(status);
   }
 
@@ -87,11 +89,11 @@ export async function updatePrescription(
   const db = getDatabase();
   const now = new Date().toISOString();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     fields.push(`${key} = ?`);
-    values.push(value);
+    values.push(value as SQLiteBindValue);
   }
 
   fields.push('updated_at = ?');
@@ -103,7 +105,40 @@ export async function updatePrescription(
   );
 }
 
+/**
+ * Soft delete: tombstones the prescription and every medicine on it (their
+ * schedules and dose history survive underneath). Undo restores everything
+ * via restorePrescription(); exports never include tombstoned rows.
+ */
 export async function deletePrescription(id: string): Promise<void> {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE prescriptions SET deleted_at = ?, updated_at = ? WHERE id = ?;',
+    [now, now, id]
+  );
+  await db.runAsync(
+    'UPDATE medicines SET deleted_at = ?, updated_at = ? WHERE prescription_id = ?;',
+    [now, now, id]
+  );
+}
+
+/** Undo a soft delete — clears the tombstone on the prescription + medicines. */
+export async function restorePrescription(id: string): Promise<void> {
+  const db = getDatabase();
+  const now = new Date().toISOString();
+  await db.runAsync(
+    'UPDATE prescriptions SET deleted_at = NULL, updated_at = ? WHERE id = ?;',
+    [now, id]
+  );
+  await db.runAsync(
+    'UPDATE medicines SET deleted_at = NULL, updated_at = ? WHERE prescription_id = ?;',
+    [now, id]
+  );
+}
+
+/** Hard delete for internal cleanup (dedupe) where undo is not a goal. */
+export async function hardDeletePrescription(id: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM prescriptions WHERE id = ?;', [id]);
 }
@@ -116,7 +151,7 @@ export async function searchPrescriptions(query: string): Promise<Prescription[]
   const db = getDatabase();
   const rows = await db.getAllAsync<Record<string, unknown>>(
     `SELECT * FROM prescriptions
-     WHERE doctor_name LIKE ? OR hospital LIKE ? OR date LIKE ?
+     WHERE deleted_at IS NULL AND (doctor_name LIKE ? OR hospital LIKE ? OR date LIKE ?)
      ORDER BY created_at DESC;`,
     [`%${query}%`, `%${query}%`, `%${query}%`]
   );

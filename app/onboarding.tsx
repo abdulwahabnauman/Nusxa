@@ -4,32 +4,50 @@ import {
   Text,
   StyleSheet,
   KeyboardAvoidingView,
-  Platform,
   ScrollView,
-  Alert,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { PillIcon } from '../src/components/ui/PillIcon';
 import * as Notifications from 'expo-notifications';
+import { useCameraPermissions } from 'expo-camera';
 import { useTheme } from '../src/theme/provider';
 import { useAuthStore } from '../src/stores/auth-store';
-import { useThemeStore } from '../src/stores/theme-store';
-import { createProfile, completeOnboarding } from '../src/db/repositories/profile';
+import { useSettingsStore } from '../src/stores/settings-store';
+import { upsertProfileForOnboarding } from '../src/db/repositories/profile';
+import { syncOtherLanguageName } from '../src/utils/profileName';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
+import { showToast } from '../src/components/ui/GlobalToast';
 import { useI18n } from '../src/i18n';
+import { isValidDate } from '../src/utils/date';
 
-type OnboardingStep = 'welcome' | 'profile' | 'permissions' | 'done';
+// No 'done' step: setup finishes on the permissions step and navigates
+// straight into the app (the old 'done' branch was dead code).
+type OnboardingStep = 'welcome' | 'profile' | 'health' | 'permissions';
+
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+const LANGUAGE_OPTIONS = [
+  { lang: 'en' as const, label: 'English' },
+  { lang: 'ur' as const, label: 'اردو' },
+];
 
 export default function OnboardingScreen() {
-  const { colors, typography, spacing } = useTheme();
+  const { colors, typography, spacing, borderRadius } = useTheme();
   const router = useRouter();
   const { setProfile } = useAuthStore();
   const [step, setStep] = useState<OnboardingStep>('welcome');
   const [name, setName] = useState('');
+  const [dob, setDob] = useState('');
+  const [bloodGroup, setBloodGroup] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const { t } = useI18n();
+  // Same expo-camera permission API the scan screen uses — requested here so
+  // the camera note above matches what actually happens on this step.
+  const [, requestCameraPermission] = useCameraPermissions();
+  const { t, language, setLanguage } = useI18n();
 
   const handleWelcome = () => {
     setStep('profile');
@@ -37,54 +55,69 @@ export default function OnboardingScreen() {
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
-      Alert.alert(t.common.error, t.onboarding.nameRequired || 'Name required');
+      showToast(t.onboarding.nameRequired || 'Name required', 'warning');
       return;
     }
     // Don't save yet - wait until permissions step
+    setStep('health');
+  };
+
+  // Optional health step: both fields can be left empty / skipped entirely
+  const handleHealthSave = () => {
+    const trimmedDob = dob.trim();
+    if (trimmedDob && !isValidDate(trimmedDob)) {
+      showToast(t.onboarding.dobInvalid, 'warning');
+      return;
+    }
     setStep('permissions');
   };
 
   const handlePermissions = async () => {
     setLoading(true);
     try {
-      // Request notification permission first
-      const permResult = await Notifications.requestPermissionsAsync({
-        ios: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-          allowAnnouncements: true,
-        },
-        android: {
-          allowAlert: true,
-          allowBadge: true,
-          allowSound: true,
-          allowVibrate: true,
-          allowWarning: true,
-          importance: Notifications.AndroidImportance.HIGH,
-        },
-        web: { vibrate: false },
-      });
+      // Request notification AND camera permission together on this step
+      // (sequentially, so the OS dialogs never overlap). Either failure —
+      // denied, or unavailable on some devices — must never block profile
+      // creation: reminders can be enabled and the camera re-requested later
+      // (the scan screen re-prompts every time while the OS allows it).
+      try {
+        const notifResult = await Notifications.requestPermissionsAsync();
+        console.log('Notification permission granted:', notifResult.granted);
 
-      console.log('Notification permission granted:', permResult.granted);
+        const cameraResult = await requestCameraPermission();
+        console.log('Camera permission granted:', cameraResult.granted);
+      } catch (permError) {
+        console.warn('Permission request failed, continuing:', permError);
+      }
 
-      // Only create profile after successful permission request
-      const profile = await createProfile({ 
-        name: name.trim(),
-        language: 'en' // Default to English for now
+      // Create or update the profile (upsert — a row may already exist on
+      // upgrade installs), then mark onboarding complete. Keep whatever
+      // language is active right now so a chosen language survives setup.
+      // DOB/blood group come from the optional health step (empty = not set).
+      const currentLanguage = useSettingsStore.getState().language;
+      const trimmedDob = dob.trim();
+      const profile = await upsertProfileForOnboarding(name.trim(), currentLanguage, {
+        date_of_birth: trimmedDob || null,
+        blood_group: bloodGroup,
       });
-      
-      await completeOnboarding();
-      setProfile({ ...profile, onboarding_complete: true });
-      
-      // Navigate to main tabs after successful setup
-      router.replace('/(tabs)/index');
+      setProfile(profile);
+
+      // Fill the other language's name column in the background (best-effort
+      // AI transliteration; never blocks setup and silently no-ops without
+      // AI keys).
+      void syncOtherLanguageName(name.trim(), currentLanguage);
+
+      // Navigate to main tabs after successful setup. When onboarding is
+      // rendered as the root gate (stack not mounted yet), setProfile alone
+      // swaps the gate for the stack — the replace is best-effort there.
+      try {
+        router.replace('/');
+      } catch {
+        // gate swap handles navigation when the stack mounts
+      }
     } catch (error) {
       console.error('Onboarding error:', error);
-      Alert.alert(
-        t.common.error, 
-        'Failed to set up your profile. Please try again.'
-      );
+      showToast(t.toasts.profileSetupFailed, 'error');
     } finally {
       setLoading(false);
     }
@@ -92,9 +125,45 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
+      {/* Language switch — visible on every step so the whole flow can be
+          read in Urdu from the start; setLanguage flips copy + RTL live and
+          the permissions step persists the choice into the new profile. */}
+      <View style={styles.languageBar}>
+        <View
+          style={[
+            styles.languagePill,
+            { backgroundColor: colors.background.surface, borderColor: colors.border.default, borderRadius: borderRadius.lg },
+          ]}
+        >
+          {LANGUAGE_OPTIONS.map(({ lang, label }) => {
+            const selected = language === lang;
+            return (
+              <TouchableOpacity
+                key={lang}
+                onPress={() => { if (!selected) setLanguage(lang); }}
+                style={[
+                  styles.languageChip,
+                  {
+                    borderRadius: borderRadius.md,
+                    backgroundColor: selected ? colors.accent.primary : 'transparent',
+                  },
+                ]}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={`Set language to ${label}`}
+              >
+                <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </View>
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior="padding"
         style={styles.inner}
+        keyboardVerticalOffset={0}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
@@ -103,10 +172,10 @@ export default function OnboardingScreen() {
           {step === 'welcome' && (
             <View style={styles.stepContainer}>
               <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
-                <MaterialCommunityIcons
-                  name="pill"
+                <PillIcon
                   size={56}
                   color={colors.accent.primary}
+                  contrastColor={colors.accent.subtle}
                 />
               </View>
               <Text style={[typography.heading.h1, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
@@ -130,9 +199,6 @@ export default function OnboardingScreen() {
                   </View>
                 ))}
               </View>
-              <View style={styles.buttonContainer}>
-                <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
-              </View>
             </View>
           )}
 
@@ -155,9 +221,54 @@ export default function OnboardingScreen() {
                   onSubmitEditing={handleProfileSave}
                 />
               </View>
-              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button title={t.common.continue} onPress={handleProfileSave} size="lg" />
-                <Button title={t.common.back} onPress={() => setStep('welcome')} variant="ghost" />
+            </View>
+          )}
+
+          {step === 'health' && (
+            <View style={styles.stepContainer}>
+              <Text style={[typography.heading.h2, { color: colors.text.primary, textAlign: 'center' }]}>
+                {t.onboarding.healthTitle}
+              </Text>
+              <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center' }]}>
+                {t.onboarding.healthDesc}
+              </Text>
+              <View style={{ marginTop: spacing.xl, width: '100%' }}>
+                <Input
+                  label={t.onboarding.dobLabel}
+                  value={dob}
+                  onChangeText={setDob}
+                  placeholder={t.onboarding.dobPlaceholder}
+                  keyboardType="numbers-and-punctuation"
+                />
+                <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
+                  {t.onboarding.bloodGroupLabel}
+                </Text>
+                <View style={styles.bloodGroupGrid}>
+                  {BLOOD_GROUPS.map((group) => {
+                    const selected = bloodGroup === group;
+                    return (
+                      <TouchableOpacity
+                        key={group}
+                        onPress={() => setBloodGroup(selected ? null : group)}
+                        style={[
+                          styles.bloodGroupChip,
+                          {
+                            borderRadius: borderRadius.md,
+                            borderColor: selected ? colors.accent.primary : colors.border.default,
+                            backgroundColor: selected ? colors.accent.subtle : colors.background.surface,
+                          },
+                        ]}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected }}
+                        accessibilityLabel={group}
+                      >
+                        <Text style={[typography.label.base, { color: selected ? colors.accent.primary : colors.text.primary }]}>
+                          {group}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
               </View>
             </View>
           )}
@@ -183,17 +294,38 @@ export default function OnboardingScreen() {
                   {t.onboarding.cameraNote}
                 </Text>
               </View>
-              <View style={[styles.buttonContainer, { marginTop: spacing.xl }]}>
-                <Button
-                  title={t.onboarding.setUp}
-                  onPress={handlePermissions}
-                  loading={loading}
-                  size="lg"
-                />
-              </View>
             </View>
           )}
         </ScrollView>
+        {/* Actions pinned to the bottom on every step so Continue/Back never
+            float mid-screen on short content. Inside the KeyboardAvoidingView
+            so the bar rides above the keyboard on the name step. */}
+        <View style={styles.footer}>
+          {step === 'welcome' && (
+            <Button title={t.onboarding.getStarted} onPress={handleWelcome} size="lg" />
+          )}
+          {step === 'profile' && (
+            <>
+              <Button title={t.common.next} onPress={handleProfileSave} size="lg" />
+              <Button title={t.common.back} onPress={() => setStep('welcome')} variant="ghost" />
+            </>
+          )}
+          {step === 'health' && (
+            <>
+              <Button title={t.common.next} onPress={handleHealthSave} size="lg" />
+              {/* The whole step is optional — skip keeps DOB/blood unset */}
+              <Button title={t.onboarding.skipStep} onPress={() => setStep('permissions')} variant="ghost" />
+            </>
+          )}
+          {step === 'permissions' && (
+            <Button
+              title={t.onboarding.setUp}
+              onPress={handlePermissions}
+              loading={loading}
+              size="lg"
+            />
+          )}
+        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -205,6 +337,25 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
+  },
+  languageBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  languagePill: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    padding: 3,
+    gap: 2,
+  },
+  languageChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   scrollContent: {
     flexGrow: 1,
@@ -233,6 +384,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  bloodGroupGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  bloodGroupChip: {
+    minWidth: 64,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    alignItems: 'center',
+  },
   permissionNote: {
     flexDirection: 'row',
     padding: 16,
@@ -240,8 +403,10 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     width: '100%',
   },
-  buttonContainer: {
-    width: '100%',
+  footer: {
+    paddingHorizontal: 24,
+    paddingTop: 12,
+    paddingBottom: 16,
     gap: 12,
     alignItems: 'center',
   },

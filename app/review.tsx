@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Image,
   Alert,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,17 +16,53 @@ import { Card } from '../src/components/ui/Card';
 import { Button } from '../src/components/ui/Button';
 import { Input } from '../src/components/ui/Input';
 import { Badge } from '../src/components/ui/Badge';
+import { showToast } from '../src/components/ui/GlobalToast';
+import { useI18n } from '../src/i18n';
 import { PrescriptionJSON, MedicineJSON, ValidationResult } from '../src/ai/types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../src/constants/config';
+import {
+  analyzePrescriptionDuplicates,
+  DuplicateAnalysis,
+} from '../src/utils/savePrescription';
+import {
+  findInteractionPairs,
+  findCrossInteractions,
+} from '../src/utils/interactions';
+import { getActiveMedicines } from '../src/db/repositories/medicine';
+import { getMissingFields, findDuplicateMedicines, isMedicineComplete } from '../src/utils/validation';
+import type { Medicine } from '../src/types/models';
 
 export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const router = useRouter();
-  const { imageUri, prescriptionData, validationData } = useLocalSearchParams<{
+  const { imageUri, imageUris, prescriptionData, validationData } = useLocalSearchParams<{
     imageUri: string;
+    imageUris: string;
     prescriptionData: string;
     validationData: string;
   }>();
+
+  // Multi-page sessions arrive as a JSON array of URIs; single scans keep
+  // using the legacy imageUri param. Review shows every page, not just the
+  // first one, so each part of a long prescription stays checkable.
+  const pageUris = useMemo<string[]>(() => {
+    if (imageUris) {
+      try {
+        const parsed = JSON.parse(imageUris);
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed.every((u) => typeof u === 'string' && u.length > 0)
+        ) {
+          return parsed as string[];
+        }
+      } catch {
+        // Fall through to the single-image param
+      }
+    }
+    return imageUri ? [imageUri] : [];
+  }, [imageUri, imageUris]);
 
   const initialData = useMemo(() => {
     try {
@@ -45,6 +82,45 @@ export default function ReviewScreen() {
 
   const [data, setData] = useState<PrescriptionJSON | null>(initialData);
   const [saving, setSaving] = useState(false);
+  const [dupes, setDupes] = useState<DuplicateAnalysis | null>(null);
+  const [existingMeds, setExistingMeds] = useState<Medicine[]>([]);
+
+  useEffect(() => {
+    getActiveMedicines()
+      .then(setExistingMeds)
+      .catch(() => {});
+  }, []);
+
+  // Safety check: interactions within the incoming batch and against the
+  // user's current regimen, re-evaluated as the user edits medicine names.
+  const interactions = useMemo(() => {
+    const incoming = data?.medicines ?? [];
+    return [
+      ...findInteractionPairs(incoming),
+      ...findCrossInteractions(incoming, existingMeds),
+    ];
+  }, [data, existingMeds]);
+
+  // Flag re-scans up front so the user knows these medicines already exist.
+  useEffect(() => {
+    let cancelled = false;
+    if (initialData) {
+      analyzePrescriptionDuplicates(initialData)
+        .then((result) => {
+          if (!cancelled) setDupes(result);
+        })
+        .catch(() => {});
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [initialData]);
+
+  // Same name listed twice on one prescription — usually an OCR double-read
+  const duplicateNames = useMemo(
+    () => findDuplicateMedicines(data?.medicines ?? []),
+    [data]
+  );
 
   if (!data) {
     return (
@@ -68,33 +144,23 @@ export default function ReviewScreen() {
     });
   };
 
-  const isFieldLowConfidence = (medicine: MedicineJSON, field: string) => {
-    const source = medicine.field_sources?.[field];
-    return medicine.confidence < LOW_CONFIDENCE_THRESHOLD || source === 'unknown';
-  };
-
   const handleVerify = async () => {
-    // Check required fields
+    // Check required fields via the shared validation toolkit
     const missing: string[] = [];
     data.medicines.forEach((med, i) => {
-      if (!med.name) missing.push(`Medicine ${i + 1}: name`);
-      if (!med.dosage) missing.push(`Medicine ${i + 1}: dosage`);
-      if (!med.frequency) missing.push(`Medicine ${i + 1}: frequency`);
-      if (!med.duration) missing.push(`Medicine ${i + 1}: duration`);
+      for (const field of getMissingFields(med)) {
+        missing.push(`Medicine ${i + 1}: ${field}`);
+      }
     });
 
     if (missing.length > 0) {
-      Alert.alert(
-        'Required fields missing',
-        `Please fill in these fields before verifying:\n\n${missing.join('\n')}`,
-        [{ text: 'OK' }]
-      );
+      showToast(t.toasts.requiredFieldsMissing.replace('{fields}', missing.join(', ')), 'warning', 5000);
       return;
     }
 
     setSaving(true);
     try {
-      // Mark all medicines as verified
+      // Mark all medicines as verified before handing off to scheduling.
       const verifiedData: PrescriptionJSON = {
         ...data,
         verification_status: 'verified',
@@ -104,17 +170,18 @@ export default function ReviewScreen() {
         })),
       };
 
-      // Save to database (will be connected in Phase 5/6)
-      // For now, pass data to schedule screen
+      // Hand the verified prescription over to the schedule screen, which
+      // persists everything via savePrescription().
       router.replace({
         pathname: '/schedule',
         params: {
           prescriptionData: JSON.stringify(verifiedData),
           imageUri: imageUri ?? '',
+          imageUris: JSON.stringify(pageUris),
         },
       });
-    } catch (err) {
-      Alert.alert('Error', 'Failed to save prescription. Please try again.');
+    } catch {
+      showToast(t.toasts.savePrescriptionFailed, 'error');
     } finally {
       setSaving(false);
     }
@@ -133,179 +200,312 @@ export default function ReviewScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Header */}
-        <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-            Review prescription
-          </Text>
-          <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-            Verify the extracted information before creating your schedule.
-          </Text>
-        </View>
-
-        {/* Image Preview */}
-        {imageUri && (
-          <View style={[styles.imageSection, { paddingHorizontal: spacing.base }]}>
-            <Image
-              source={{ uri: imageUri }}
-              style={[styles.prescriptionImage, { borderRadius: borderRadius.md }]}
-              resizeMode="cover"
-            />
+      <KeyboardAvoidingView
+        behavior="padding"
+        style={styles.inner}
+        keyboardVerticalOffset={0}
+      >
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+        >
+          {/* Header */}
+          <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
+              Review prescription
+            </Text>
+            <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+              Verify the extracted information before creating your schedule.
+            </Text>
           </View>
-        )}
 
-        {/* Warnings */}
-        {validation?.warnings && validation.warnings.length > 0 && (
-          <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
-            <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.accent.primary }}>
-              {validation.warnings.map((warning, i) => (
-                <View key={i} style={styles.warningRow}>
-                  <MaterialCommunityIcons name="alert-outline" size={18} color={colors.warning} />
+          {/* Image Preview — all pages of a multi-page scan, not just the first */}
+          {pageUris.length > 1 ? (
+            <View style={[styles.imageSection, { paddingHorizontal: spacing.base }]}>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pagesStrip}>
+                {pageUris.map((uri, idx) => (
+                  <View key={uri} style={styles.pageThumbWrap}>
+                    <Image
+                      source={{ uri }}
+                      style={[styles.pageThumbnail, { borderRadius: borderRadius.sm, borderColor: colors.border.default }]}
+                      resizeMode="cover"
+                    />
+                    <Text style={[typography.body.xs, { color: colors.text.secondary, textAlign: 'center', marginTop: 4 }]}>
+                      {idx + 1}
+                    </Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          ) : pageUris.length === 1 ? (
+            <View style={[styles.imageSection, { paddingHorizontal: spacing.base }]}>
+              <Image
+                source={{ uri: pageUris[0] }}
+                style={[styles.prescriptionImage, { borderRadius: borderRadius.md }]}
+                resizeMode="cover"
+              />
+            </View>
+          ) : null}
+
+          {/* Duplicate prescription banner */}
+          {dupes?.isFullDuplicate && (
+            <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+              <Card style={{ backgroundColor: colors.warning + '1A', borderColor: colors.warning }}>
+                <View style={styles.warningRow}>
+                  <MaterialCommunityIcons name="check-decagram-outline" size={20} color={colors.warning} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                      Already in your list
+                    </Text>
+                    <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                      {dupes.samePrescriptionOnRecord
+                        ? 'This prescription was scanned before and all of its medicines are already being tracked. Continuing will refresh their reminders. Nothing will be added twice.'
+                        : `All ${dupes.total} medicine${dupes.total === 1 ? '' : 's'} on this prescription ${dupes.total === 1 ? 'is' : 'are'} already in your list. Continuing will refresh ${dupes.total === 1 ? 'its' : 'their'} reminders. Nothing will be added twice.`}
+                    </Text>
+                  </View>
+                </View>
+                <Button
+                  title="Keep current schedule"
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.replace('/(tabs)')}
+                  style={{ marginTop: 10, alignSelf: 'flex-start' }}
+                />
+              </Card>
+            </View>
+          )}
+
+          {/* Duplicate names within this prescription */}
+          {duplicateNames.length > 0 && (
+            <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+              <Card style={{ backgroundColor: colors.warning + '1A', borderColor: colors.warning }}>
+                <View style={styles.warningRow}>
+                  <MaterialCommunityIcons name="content-copy" size={20} color={colors.warning} />
                   <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
-                    {warning}
+                    {t.review.duplicateNames.replace('{names}', duplicateNames.join(', '))}
                   </Text>
                 </View>
-              ))}
+              </Card>
+            </View>
+          )}
+
+          {/* Warnings */}
+          {validation?.warnings && validation.warnings.length > 0 && (
+            <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+              <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.accent.primary }}>
+                {validation.warnings.map((warning, i) => (
+                  <View key={i} style={styles.warningRow}>
+                    <MaterialCommunityIcons name="alert-outline" size={18} color={colors.warning} />
+                    <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                      {warning}
+                    </Text>
+                  </View>
+                ))}
+              </Card>
+            </View>
+          )}
+
+          {/* Medicine interaction warnings */}
+          {interactions.length > 0 && (
+            <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+              <Card style={{ backgroundColor: colors.error + '0D', borderColor: colors.error }}>
+                <View style={styles.warningRow}>
+                  <MaterialCommunityIcons name="pill-multiple" size={20} color={colors.error} />
+                  <View style={{ marginLeft: 8, flex: 1 }}>
+                    <Text style={[typography.label.base, { color: colors.text.primary }]}>
+                      Possible medicine interactions
+                    </Text>
+                    <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                      {interactions.length === 1
+                        ? '1 combination below may interact. Please review it before saving.'
+                        : `${interactions.length} combinations below may interact. Please review them before saving.`}
+                    </Text>
+                  </View>
+                </View>
+                {interactions.map((hit, i) => {
+                  const tone = hit.severity === 'high' ? colors.error : colors.warning;
+                  return (
+                    <View key={`${hit.first}-${hit.second}-${i}`} style={[styles.warningRow, { marginTop: 10 }]}>
+                      <MaterialCommunityIcons
+                        name={hit.severity === 'high' ? 'alert-octagon' : 'alert-outline'}
+                        size={16}
+                        color={tone}
+                        style={{ marginTop: 2 }}
+                      />
+                      <View style={{ marginLeft: 8, flex: 1 }}>
+                        <Text style={[typography.label.sm, { color: colors.text.primary }]}>
+                          {hit.first} + {hit.second}
+                        </Text>
+                        <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
+                          {hit.description}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })}
+                <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 10 }]}>
+                  Automated guidance only — always confirm combinations with your doctor or pharmacist.
+                </Text>
+              </Card>
+            </View>
+          )}
+
+          {/* Prescription Info */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
+              Prescription details
+            </Text>
+            <Card>
+              <Input
+                label="Doctor name"
+                value={data.prescription.doctor_name ?? ''}
+                onChangeText={(text) =>
+                  setData((prev) =>
+                    prev ? { ...prev, prescription: { ...prev.prescription, doctor_name: text || null } } : prev
+                  )
+                }
+                placeholder="Not detected"
+                containerStyle={{ marginBottom: spacing.md }}
+              />
+              <Input
+                label="Hospital / Clinic"
+                value={data.prescription.hospital ?? ''}
+                onChangeText={(text) =>
+                  setData((prev) =>
+                    prev ? { ...prev, prescription: { ...prev.prescription, hospital: text || null } } : prev
+                  )
+                }
+                placeholder="Not detected"
+                containerStyle={{ marginBottom: spacing.md }}
+              />
+              <Input
+                label="Date"
+                value={data.prescription.date ?? ''}
+                onChangeText={(text) =>
+                  setData((prev) =>
+                    prev ? { ...prev, prescription: { ...prev.prescription, date: text || null } } : prev
+                  )
+                }
+                placeholder="Not detected"
+              />
             </Card>
           </View>
-        )}
 
-        {/* Prescription Info */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-            Prescription details
-          </Text>
-          <Card>
-            <Input
-              label="Doctor name"
-              value={data.prescription.doctor_name ?? ''}
-              onChangeText={(text) =>
-                setData((prev) =>
-                  prev ? { ...prev, prescription: { ...prev.prescription, doctor_name: text || null } } : prev
-                )
-              }
-              placeholder="Not detected"
-              containerStyle={{ marginBottom: spacing.md }}
+          {/* Medicines */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
+              Medicines ({data.medicines.length})
+            </Text>
+
+            {data.medicines.map((medicine, index) => (
+              <Card key={index} style={{ marginBottom: spacing.md }}>
+                <View style={styles.medicineHeader}>
+                  <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                    {medicine.name ?? `Medicine ${index + 1}`}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    {dupes?.matched[index] && <Badge label="Already added" variant="verified" />}
+                    {!isMedicineComplete(medicine) && (
+                      <Badge label={t.review.incomplete} variant="needs_review" />
+                    )}
+                    <Badge
+                      label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'Good read' : 'Low confidence'}
+                      variant={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'verified' : 'needs_review'}
+                    />
+                  </View>
+                </View>
+
+                <Input
+                  label="Medicine name"
+                  value={medicine.name ?? ''}
+                  onChangeText={(text) => updateMedicine(index, 'name', text || null)}
+                  placeholder="Enter medicine name"
+                  containerStyle={{ marginTop: spacing.md }}
+                />
+
+                <View style={styles.row}>
+                  <Input
+                    label="Dosage"
+                    value={medicine.dosage ?? ''}
+                    onChangeText={(text) => updateMedicine(index, 'dosage', text || null)}
+                    placeholder="e.g. 1 tablet"
+                    containerStyle={{ flex: 1, marginRight: spacing.sm }}
+                  />
+                  <Input
+                    label="Form"
+                    value={medicine.form ?? ''}
+                    onChangeText={(text) => updateMedicine(index, 'form', text || null)}
+                    placeholder="e.g. tablet"
+                    containerStyle={{ flex: 1 }}
+                  />
+                </View>
+
+                <Input
+                  label="Frequency"
+                  value={medicine.frequency ?? ''}
+                  onChangeText={(text) => updateMedicine(index, 'frequency', text || null)}
+                  placeholder="e.g. Three times daily"
+                  containerStyle={{ marginTop: spacing.sm }}
+                />
+
+                <View style={styles.row}>
+                  <Input
+                    label="Duration"
+                    value={medicine.duration ?? ''}
+                    onChangeText={(text) => updateMedicine(index, 'duration', text || null)}
+                    placeholder="e.g. 7 days"
+                    containerStyle={{ flex: 1, marginRight: spacing.sm }}
+                  />
+                  <Input
+                    label="Meal instruction"
+                    value={medicine.meal_instruction ?? ''}
+                    onChangeText={(text) => updateMedicine(index, 'meal_instruction', text || null)}
+                    placeholder="after / before / with"
+                    containerStyle={{ flex: 1 }}
+                  />
+                </View>
+
+                <Input
+                  label="Strength"
+                  value={medicine.strength ?? ''}
+                  onChangeText={(text) => updateMedicine(index, 'strength', text || null)}
+                  placeholder="e.g. 500mg"
+                  containerStyle={{ marginTop: spacing.sm }}
+                />
+
+                {/* Verbatim source line: lets the user compare every field
+                    against what was actually written on the prescription */}
+                {medicine.original_text ? (
+                  <View style={[styles.originalTextBlock, { backgroundColor: colors.background.subtle, borderColor: colors.border.default, marginTop: spacing.sm }]}>
+                    <Text style={[typography.label.sm, { color: colors.text.secondary }]}>
+                      {t.review.asWritten}
+                    </Text>
+                    <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: 2 }]}>
+                      {medicine.original_text}
+                    </Text>
+                  </View>
+                ) : null}
+              </Card>
+            ))}
+          </View>
+
+          {/* Actions */}
+          <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
+            <Button
+              title={dupes?.isFullDuplicate ? 'Update reminders' : 'Verify and continue'}
+              onPress={handleVerify}
+              loading={saving}
+              size="lg"
             />
-            <Input
-              label="Hospital / Clinic"
-              value={data.prescription.hospital ?? ''}
-              onChangeText={(text) =>
-                setData((prev) =>
-                  prev ? { ...prev, prescription: { ...prev.prescription, hospital: text || null } } : prev
-                )
-              }
-              placeholder="Not detected"
-              containerStyle={{ marginBottom: spacing.md }}
+            <Button
+              title="Discard prescription"
+              onPress={handleDiscard}
+              variant="ghost"
             />
-            <Input
-              label="Date"
-              value={data.prescription.date ?? ''}
-              onChangeText={(text) =>
-                setData((prev) =>
-                  prev ? { ...prev, prescription: { ...prev.prescription, date: text || null } } : prev
-                )
-              }
-              placeholder="Not detected"
-            />
-          </Card>
-        </View>
-
-        {/* Medicines */}
-        <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
-          <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-            Medicines ({data.medicines.length})
-          </Text>
-
-          {data.medicines.map((medicine, index) => (
-            <Card key={index} style={{ marginBottom: spacing.md }}>
-              <View style={styles.medicineHeader}>
-                <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-                  {medicine.name ?? `Medicine ${index + 1}`}
-                </Text>
-                <Badge
-                  label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'Good read' : 'Low confidence'}
-                  variant={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'verified' : 'needs_review'}
-                />
-              </View>
-
-              <Input
-                label="Medicine name"
-                value={medicine.name ?? ''}
-                onChangeText={(text) => updateMedicine(index, 'name', text || null)}
-                placeholder="Enter medicine name"
-                containerStyle={{ marginTop: spacing.md }}
-              />
-
-              <View style={styles.row}>
-                <Input
-                  label="Dosage"
-                  value={medicine.dosage ?? ''}
-                  onChangeText={(text) => updateMedicine(index, 'dosage', text || null)}
-                  placeholder="e.g. 1 tablet"
-                  containerStyle={{ flex: 1, marginRight: spacing.sm }}
-                />
-                <Input
-                  label="Form"
-                  value={medicine.form ?? ''}
-                  onChangeText={(text) => updateMedicine(index, 'form', text || null)}
-                  placeholder="e.g. tablet"
-                  containerStyle={{ flex: 1 }}
-                />
-              </View>
-
-              <Input
-                label="Frequency"
-                value={medicine.frequency ?? ''}
-                onChangeText={(text) => updateMedicine(index, 'frequency', text || null)}
-                placeholder="e.g. Three times daily"
-                containerStyle={{ marginTop: spacing.sm }}
-              />
-
-              <View style={styles.row}>
-                <Input
-                  label="Duration"
-                  value={medicine.duration ?? ''}
-                  onChangeText={(text) => updateMedicine(index, 'duration', text || null)}
-                  placeholder="e.g. 7 days"
-                  containerStyle={{ flex: 1, marginRight: spacing.sm }}
-                />
-                <Input
-                  label="Meal instruction"
-                  value={medicine.meal_instruction ?? ''}
-                  onChangeText={(text) => updateMedicine(index, 'meal_instruction', text || null)}
-                  placeholder="after / before / with"
-                  containerStyle={{ flex: 1 }}
-                />
-              </View>
-
-              <Input
-                label="Strength"
-                value={medicine.strength ?? ''}
-                onChangeText={(text) => updateMedicine(index, 'strength', text || null)}
-                placeholder="e.g. 500mg"
-                containerStyle={{ marginTop: spacing.sm }}
-              />
-            </Card>
-          ))}
-        </View>
-
-        {/* Actions */}
-        <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
-          <Button
-            title="Verify and continue"
-            onPress={handleVerify}
-            loading={saving}
-            size="lg"
-          />
-          <Button
-            title="Discard prescription"
-            onPress={handleDiscard}
-            variant="ghost"
-          />
-        </View>
-      </ScrollView>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -314,6 +514,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  inner: { flex: 1 },
   centered: {
     flex: 1,
     alignItems: 'center',
@@ -332,6 +533,24 @@ const styles = StyleSheet.create({
   prescriptionImage: {
     width: '100%',
     height: 200,
+  },
+  pagesStrip: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  pageThumbWrap: {
+    alignItems: 'center',
+  },
+  pageThumbnail: {
+    width: 96,
+    height: 128,
+    borderWidth: 1,
+  },
+  originalTextBlock: {
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   warningsSection: {
     marginTop: 16,

@@ -1,3 +1,4 @@
+import type { SQLiteBindValue } from 'expo-sqlite';
 import { getDatabase } from '../database';
 import type { DoseRecord, DoseStatus } from '../../types/models';
 
@@ -86,6 +87,36 @@ export async function getDoseRecordsForDateRange(
   return rows.map(parseDoseRecord);
 }
 
+/** Every dose record ever recorded (used by the full backup export). */
+export async function getAllDoseRecords(): Promise<DoseRecord[]> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM dose_records ORDER BY scheduled_time ASC;'
+  );
+  return rows.map(parseDoseRecord);
+}
+
+/**
+ * Per-day adherence rollup in a single query (replaces N per-day stat
+ * queries). Returns rows oldest-first since `fromDate` (YYYY-MM-DD).
+ */
+export async function getDailyAdherence(
+  fromDate: string
+): Promise<{ date: string; taken: number; total: number }[]> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<{ day: string; taken: number; total: number }>(
+    `SELECT substr(scheduled_time, 1, 10) AS day,
+            SUM(CASE WHEN status = 'taken' THEN 1 ELSE 0 END) AS taken,
+            COUNT(*) AS total
+     FROM dose_records
+     WHERE scheduled_time >= ?
+     GROUP BY day
+     ORDER BY day ASC;`,
+    [`${fromDate}T00:00:00`]
+  );
+  return rows.map((r) => ({ date: r.day, taken: r.taken, total: r.total }));
+}
+
 export async function updateDoseRecord(
   id: string,
   data: Partial<Pick<DoseRecord, 'actual_time' | 'status' | 'notes'>>
@@ -93,11 +124,11 @@ export async function updateDoseRecord(
   const db = getDatabase();
   const now = new Date().toISOString();
   const fields: string[] = [];
-  const values: unknown[] = [];
+  const values: SQLiteBindValue[] = [];
 
   for (const [key, value] of Object.entries(data)) {
     fields.push(`${key} = ?`);
-    values.push(value);
+    values.push(value as SQLiteBindValue);
   }
 
   fields.push('updated_at = ?');
@@ -128,6 +159,38 @@ export async function recordDoseTaken(
   });
 }
 
+/**
+ * Record a taken/skipped decision for a schedule slot, one record per day.
+ * Re-tapping Taken/Skip (or undoing) updates the existing record instead of
+ * inserting duplicates that would inflate adherence stats.
+ */
+export async function upsertDoseStatus(
+  scheduleId: string,
+  medicineId: string,
+  scheduledTime: string,
+  status: 'taken' | 'skipped'
+): Promise<DoseRecord> {
+  const db = getDatabase();
+  const day = scheduledTime.slice(0, 10);
+  const existing = await db.getFirstAsync<{ id: string }>(
+    'SELECT id FROM dose_records WHERE schedule_id = ? AND scheduled_time LIKE ? LIMIT 1;',
+    [scheduleId, `${day}%`]
+  );
+
+  if (existing) {
+    await updateDoseRecord(existing.id, {
+      status,
+      actual_time: new Date().toISOString(),
+    });
+    const updated = await getDoseRecord(existing.id);
+    if (updated) return updated;
+  }
+
+  return status === 'taken'
+    ? recordDoseTaken(scheduleId, medicineId, scheduledTime)
+    : recordDoseSkipped(scheduleId, medicineId, scheduledTime);
+}
+
 export async function recordDoseSkipped(
   scheduleId: string,
   medicineId: string,
@@ -150,30 +213,4 @@ export async function recordDoseSkipped(
 export async function deleteDoseRecord(id: string): Promise<void> {
   const db = getDatabase();
   await db.runAsync('DELETE FROM dose_records WHERE id = ?;', [id]);
-}
-
-/** Get adherence stats for a date range */
-export async function getAdherenceStats(
-  startDate: string,
-  endDate: string
-): Promise<{ total: number; taken: number; skipped: number; missed: number; pending: number }> {
-  const db = getDatabase();
-  const rows = await db.getAllAsync<{ status: string; count: number }>(
-    `SELECT status, COUNT(*) as count FROM dose_records
-     WHERE scheduled_time >= ? AND scheduled_time <= ?
-     GROUP BY status;`,
-    [startDate, endDate]
-  );
-
-  const stats = { total: 0, taken: 0, skipped: 0, missed: 0, pending: 0 };
-  for (const row of rows) {
-    const count = row.count as number;
-    stats.total += count;
-    if (row.status === 'taken') stats.taken = count;
-    else if (row.status === 'skipped') stats.skipped = count;
-    else if (row.status === 'missed') stats.missed = count;
-    else if (row.status === 'pending') stats.pending = count;
-  }
-
-  return stats;
 }
