@@ -34,6 +34,8 @@ const NAME_MATCH_THRESHOLD = 0.9;
 
 const GOLDEN_DIR = path.join(__dirname, 'golden');
 const RESULTS_CSV = path.join(__dirname, 'results.csv');
+/** Raw model responses are cached here so re-scoring never re-spends quota. */
+const CACHE_DIR = path.join(__dirname, 'cache');
 const CSV_HEADER =
   'timestamp,sample,is_negative,expected,extracted,matched,name_accuracy,dosage_accuracy,frequency_accuracy,duration_accuracy,false_rate,missing_rate,hallucination';
 
@@ -174,29 +176,45 @@ async function callProxy(proxyUrl: string, appKey: string, imageB64: string): Pr
   return data.content;
 }
 
-async function extractMedicines(sample: Sample): Promise<ExtractedMedicine[]> {
-  const imageB64 = toBase64(sample.imagePath);
-  const proxyUrl = (process.env.EXPO_PUBLIC_AI_PROXY_URL ?? '').replace(/\/+$/, '');
-  const geminiKey = process.env.GEMINI_API_KEY ?? '';
+interface ExtractResult {
+  medicines: ExtractedMedicine[];
+  cached: boolean;
+}
+
+async function extractMedicines(sample: Sample, fresh: boolean): Promise<ExtractResult> {
+  const cachePath = path.join(CACHE_DIR, `${sample.name}.json`);
 
   let raw: string;
-  if (proxyUrl) {
-    raw = await callProxy(proxyUrl, process.env.EXPO_PUBLIC_AI_PROXY_APP_KEY ?? '', imageB64);
-  } else if (geminiKey) {
-    raw = await callDirectGemini(geminiKey, imageB64);
+  let cached = false;
+  if (!fresh && fs.existsSync(cachePath)) {
+    raw = fs.readFileSync(cachePath, 'utf8');
+    cached = true;
   } else {
-    throw new Error(
-      'No credentials: set GEMINI_API_KEY or EXPO_PUBLIC_AI_PROXY_URL (+EXPO_PUBLIC_AI_PROXY_APP_KEY)'
-    );
+    const imageB64 = toBase64(sample.imagePath);
+    const proxyUrl = (process.env.EXPO_PUBLIC_AI_PROXY_URL ?? '').replace(/\/+$/, '');
+    const geminiKey = process.env.GEMINI_API_KEY ?? '';
+
+    if (geminiKey) {
+      raw = await callDirectGemini(geminiKey, imageB64);
+    } else if (proxyUrl) {
+      raw = await callProxy(proxyUrl, process.env.EXPO_PUBLIC_AI_PROXY_APP_KEY ?? '', imageB64);
+    } else {
+      throw new Error(
+        'No credentials: set GEMINI_API_KEY or EXPO_PUBLIC_AI_PROXY_URL (+EXPO_PUBLIC_AI_PROXY_APP_KEY)'
+      );
+    }
+    fs.mkdirSync(CACHE_DIR, { recursive: true });
+    fs.writeFileSync(cachePath, raw);
   }
 
   const parsed = JSON.parse(raw) as { medicines?: Array<Record<string, unknown>> };
-  return (parsed.medicines ?? []).map((m) => ({
+  const medicines = (parsed.medicines ?? []).map((m) => ({
     name: typeof m.name === 'string' ? m.name : null,
     dosage: typeof m.dosage === 'string' ? m.dosage : null,
     frequency: typeof m.frequency === 'string' ? m.frequency : null,
     duration: typeof m.duration === 'string' ? m.duration : null,
   }));
+  return { medicines, cached };
 }
 
 // ---- Metrics ---------------------------------------------------------------
@@ -204,11 +222,54 @@ async function extractMedicines(sample: Sample): Promise<ExtractedMedicine[]> {
 const compact = (s: string | null | undefined) =>
   (s ?? '').toLowerCase().replace(/[^a-z0-9]+/g, '');
 
+/** Form/prefix tokens doctors write around brand names; stripped before comparison */
+const NAME_FORM_TOKENS = [
+  'suspension', 'injection', 'solution', 'syrup', 'tablet', 'capsule',
+  'drops', 'syp', 'tab', 'cap', 'inj', 'eye', 'dr', 'ds', 'sy', 'sp',
+];
+
+function normalizeName(value: string | null | undefined): string {
+  let c = compact(value);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const token of NAME_FORM_TOKENS) {
+      if (c.length > token.length + 3 && c.startsWith(token)) {
+        c = c.slice(token.length);
+        changed = true;
+      }
+      if (c.length > token.length + 3 && c.endsWith(token)) {
+        c = c.slice(0, -token.length);
+        changed = true;
+      }
+    }
+  }
+  return c;
+}
+
+/** Doses-per-day behind label shorthand vs model phrasing; null when not derivable */
+function freqPerDay(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  const plus = raw.split('+').map((p) => p.trim()).filter(Boolean);
+  if (plus.length >= 2 && plus.every((p) => p === '1')) return plus.length;
+  const dayParts = ['صبح', 'دوپہر', 'شام', 'رات'].filter((w) => raw.includes(w));
+  if (dayParts.length >= 2) return dayParts.length;
+  const c = compact(raw);
+  if (!c) return null;
+  const words: Array<[string, number]> = [
+    ['threetimes', 3], ['fourtimes', 4], ['twotimes', 2], ['onetime', 1],
+    ['once', 1], ['twice', 2], ['thrice', 3],
+  ];
+  for (const [word, n] of words) if (c.startsWith(word)) return n;
+  const m = c.match(/^(\d+)(?:times|x)/);
+  return m ? parseInt(m[1]!, 10) : null;
+}
+
 /** Fuzzy name similarity: normalized Levenshtein plus a containment rule for
  * brand/generic pairs like "amoxicillin" inside "amoxicillintrihydrate" */
 function nameSimilarity(a: string | null, b: string | null): number {
-  const ca = compact(a);
-  const cb = compact(b);
+  const ca = normalizeName(a);
+  const cb = normalizeName(b);
   if (!ca || !cb) return 0;
   if (ca === cb) return 1;
   if (Math.min(ca.length, cb.length) >= 8 && (ca.includes(cb) || cb.includes(ca))) return 0.95;
@@ -216,9 +277,22 @@ function nameSimilarity(a: string | null, b: string | null): number {
 }
 
 /** Exact-or-normalized field match ("500 mg" and "500mg" compare equal) */
-function fieldMatch(actual: string | null, expected: string | null | undefined): boolean {
+function fieldMatch(
+  actual: string | null,
+  expected: string | null | undefined,
+  field: 'dosage' | 'frequency' | 'duration',
+): boolean {
   if (!expected) return true; // not labeled -> nothing to check
-  return compact(actual) === compact(expected);
+  if (field === 'frequency') {
+    const pa = freqPerDay(actual);
+    const pe = freqPerDay(expected);
+    if (pa !== null && pe !== null) return pa === pe;
+  }
+  const ca = compact(actual);
+  const ce = compact(expected);
+  if (!ce) return true; // script-only label (e.g. Urdu) -> nothing comparable
+  if (field === 'dosage' && /^\d+$/.test(ce) && ca.startsWith(ce)) return true;
+  return ca === ce;
 }
 
 interface SampleResult {
@@ -273,9 +347,9 @@ function evaluateSample(sample: Sample, extracted: ExtractedMedicine[]): SampleR
 
   const fieldScores = { dosage: 0, frequency: 0, duration: 0 };
   for (const { exp, ext } of matches) {
-    if (fieldMatch(extracted[ext]!.dosage, expected[exp]!.dosage)) fieldScores.dosage++;
-    if (fieldMatch(extracted[ext]!.frequency, expected[exp]!.frequency)) fieldScores.frequency++;
-    if (fieldMatch(extracted[ext]!.duration, expected[exp]!.duration)) fieldScores.duration++;
+    if (fieldMatch(extracted[ext]!.dosage, expected[exp]!.dosage, 'dosage')) fieldScores.dosage++;
+    if (fieldMatch(extracted[ext]!.frequency, expected[exp]!.frequency, 'frequency')) fieldScores.frequency++;
+    if (fieldMatch(extracted[ext]!.duration, expected[exp]!.duration, 'duration')) fieldScores.duration++;
   }
 
   const n = matches.length;
@@ -324,7 +398,17 @@ const pct = (v: number | null) => (v === null ? '  n/a ' : `${(v * 100).toFixed(
 
 async function main(): Promise<void> {
   loadDotEnv(path.join(__dirname, '..'));
-  const samples = discoverSamples();
+  const discovered = discoverSamples();
+  // Optional positional filter so a run can cover only part of the set —
+  // free-tier Gemini quota (20 requests/day/project) rarely fits the whole set.
+  // `--fresh` bypasses the response cache and re-calls the model.
+  const args = process.argv.slice(2);
+  const fresh = args.includes('--fresh');
+  const only = new Set(args.filter((a) => a !== '--fresh'));
+  for (const name of only) {
+    if (!discovered.some((s) => s.name === name)) console.warn(`  [skip] unknown sample: ${name}`);
+  }
+  const samples = only.size > 0 ? discovered.filter((s) => only.has(s.name)) : discovered;
   if (samples.length === 0) {
     console.log('No golden samples found in eval/golden/.');
     console.log('Add a photo plus a hand-labeled <name>.expected.json — see eval/README.md.');
@@ -335,11 +419,11 @@ async function main(): Promise<void> {
   const results: SampleResult[] = [];
   for (const sample of samples) {
     try {
-      const extracted = await extractMedicines(sample);
+      const { medicines: extracted, cached } = await extractMedicines(sample, fresh);
       const result = evaluateSample(sample, extracted);
       results.push(result);
       console.log(
-        `${sample.isNegative ? '[NEGATIVE] ' : ''}${sample.name}: ` +
+        `${cached ? '[cached] ' : ''}${sample.isNegative ? '[NEGATIVE] ' : ''}${sample.name}: ` +
           `extracted=${result.extractedCount} matched=${result.matched} ` +
           `name=${pct(result.nameAccuracy)} dosage=${pct(result.dosageAccuracy)} ` +
           `freq=${pct(result.frequencyAccuracy)} dur=${pct(result.durationAccuracy)} ` +
