@@ -1,0 +1,24 @@
+{
+  "medicines": [
+    {
+      "name": "Syp. Raditin",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Syp. Cegidox",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Syp. Welton",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Syp. Maxiplex",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Inj. Triject",
+      "frequency": "1 stat (I/M)"
+    }
+  ]
+}

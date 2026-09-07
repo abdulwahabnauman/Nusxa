@@ -1,0 +1,14 @@
+{
+  "medicines": [
+    {
+      "name": "Panadol gel",
+      "frequency": "1 ٹیبلٹ صبح - دوپہر - شام"
+    },
+    {
+      "name": "Tab Cefiget",
+      "dosage": "200",
+      "frequency": "ایک گولی صبح و شام",
+      "duration": "5 دن"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "medicines": [
+    {
+      "name": "Curezole-c",
+      "frequency": "رات کو لگائیں",
+      "duration": "10 دن"
+    },
+    {
+      "name": "Dermospor-c",
+      "frequency": "صبح کو لگائیں",
+      "duration": "20 دن"
+    }
+  ]
+}

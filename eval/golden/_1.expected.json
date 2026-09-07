@@ -1,0 +1,21 @@
+{
+  "medicines": [
+    {
+      "name": "Zorix",
+      "dosage": "250mg",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Zarex",
+      "frequency": "1 + 0"
+    },
+    {
+      "name": "Calcifast",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Cifran",
+      "frequency": "1 + 0"
+    }
+  ]
+}

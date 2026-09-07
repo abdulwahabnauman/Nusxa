@@ -1,0 +1,15 @@
+{
+  "medicines": [
+    {
+      "name": "Tab. Calamox BD",
+      "dosage": "1 Gm",
+      "frequency": "1/2 صبح - 1/2 شام",
+      "duration": "5 دن"
+    },
+    {
+      "name": "Fudic-cream",
+      "frequency": "صبح - شام لگائیں",
+      "duration": "10 دن"
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "medicines": [
+    {
+      "name": "Tab. Adoxa-100",
+      "dosage": "100",
+      "frequency": "ایک رات کو",
+      "duration": "10 دن"
+    },
+    {
+      "name": "A Clinncin-gel",
+      "frequency": "صبح ۔ شام لگائیں",
+      "duration": "20 دن"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "medicines": [
+    {
+      "name": "Zantac Drip Fusion"
+    },
+    {
+      "name": "Tres Orix-F",
+      "dosage": "5ml",
+      "frequency": "ایک چمچ صبح ۔ رات"
+    },
+    {
+      "name": "Inj Ringer"
+    },
+    {
+      "name": "Fericure",
+      "dosage": "5ml",
+      "frequency": "ایک چمچ ناشتے کے بعد"
+    }
+  ]
+}

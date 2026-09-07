@@ -1,0 +1,20 @@
+{
+  "medicines": [
+    {
+      "name": "Syp Ceroxit D-S",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Syp Raditin"
+    },
+    {
+      "name": "Inj Triject",
+      "dosage": "500mg",
+      "frequency": "1 stat I/M"
+    },
+    {
+      "name": "Syp Maxiplex",
+      "frequency": "1 + 1"
+    }
+  ]
+}

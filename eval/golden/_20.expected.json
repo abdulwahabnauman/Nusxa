@@ -1,0 +1,14 @@
+{
+  "medicines": [
+    {
+      "name": "Syp Spasler-P",
+      "frequency": "ایک چمچ صبح - شام",
+      "duration": "2 دن"
+    },
+    {
+      "name": "Enflor Sachet",
+      "frequency": "صبح - شام",
+      "duration": "5 دن"
+    }
+  ]
+}

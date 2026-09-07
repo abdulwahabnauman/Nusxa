@@ -1,0 +1,38 @@
+{
+  "medicines": [
+    {
+      "name": "Inj Vomiferon"
+    },
+    {
+      "name": "Syp Roside"
+    },
+    {
+      "name": "Inf N.S.",
+      "dosage": "100ml"
+    },
+    {
+      "name": "Inj Cefotaxime sodium",
+      "dosage": "500mg"
+    },
+    {
+      "name": "Inj Bikacin",
+      "dosage": "100mg"
+    },
+    {
+      "name": "Inf MTZ"
+    },
+    {
+      "name": "Syp Attifast"
+    },
+    {
+      "name": "Syp MTZ"
+    },
+    {
+      "name": "Syp Rascodyl"
+    },
+    {
+      "name": "Syp Acecef DS",
+      "frequency": "1 + 0 + 1"
+    }
+  ]
+}

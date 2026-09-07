@@ -1,0 +1,14 @@
+{
+  "medicines": [
+    {
+      "name": "Augmentin DS Syp.",
+      "frequency": "1 + 1",
+      "duration": "5 days"
+    },
+    {
+      "name": "Flagyl Syp.",
+      "frequency": "1 + 1",
+      "duration": "5 days"
+    }
+  ]
+}

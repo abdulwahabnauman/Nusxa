@@ -1,0 +1,29 @@
+{
+  "medicines": [
+    {
+      "name": "Tab Daflon",
+      "dosage": "500mg",
+      "frequency": "1 + 0 + 1"
+    },
+    {
+      "name": "Tab Zoclin",
+      "dosage": "20mg",
+      "frequency": "روزانہ صبح ناشتہ سے پہلے",
+      "duration": "دو ماہ"
+    },
+    {
+      "name": "Tab. Folic Acid",
+      "frequency": "1 + 0"
+    },
+    {
+      "name": "Tab Loxoni",
+      "frequency": "درد کے لئے"
+    },
+    {
+      "name": "Cap Transamido",
+      "dosage": "500",
+      "frequency": "1 + 1 + 1",
+      "duration": "دس دن"
+    }
+  ]
+}

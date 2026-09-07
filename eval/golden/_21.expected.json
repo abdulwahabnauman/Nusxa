@@ -1,0 +1,10 @@
+{
+  "medicines": [
+    {
+      "name": "Amoxicillin (Himox)",
+      "dosage": "500mg, 1 cap",
+      "frequency": "3x a day",
+      "duration": "7 days"
+    }
+  ]
+}

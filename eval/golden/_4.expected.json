@@ -1,0 +1,21 @@
+{
+  "medicines": [
+    {
+      "name": "Syp Fixval 200",
+      "frequency": "1/2 صبح 1/2 شام"
+    },
+    {
+      "name": "Syp Metrozine",
+      "dosage": "1 1/2 چمچ",
+      "frequency": "صبح 2 شام"
+    },
+    {
+      "name": "Syp Acicon",
+      "frequency": "1 چمچ صبح ، 1 شام",
+      "duration": "x دن"
+    },
+    {
+      "name": "Tab Nospa"
+    }
+  ]
+}

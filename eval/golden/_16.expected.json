@@ -1,0 +1,23 @@
+{
+  "medicines": [
+    {
+      "name": "Tab. Nise",
+      "dosage": "100mg",
+      "frequency": "1 + 0 + 1"
+    },
+    {
+      "name": "Tab Mont-Fex",
+      "frequency": "1 رات کو"
+    },
+    {
+      "name": "Tab Azomax (Azithromycin)",
+      "dosage": "500",
+      "frequency": "1/2 + 0 + 1/2",
+      "duration": "3 day"
+    },
+    {
+      "name": "Syp Hydrixin",
+      "frequency": "1 چمچ صبح ، 1 شام"
+    }
+  ]
+}

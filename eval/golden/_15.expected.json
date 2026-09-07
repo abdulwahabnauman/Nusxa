@@ -1,0 +1,22 @@
+{
+  "medicines": [
+    {
+      "name": "Sp Raditin"
+    },
+    {
+      "name": "Gentadox Eye dr",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Sp Multingo",
+      "frequency": "1 + 1"
+    },
+    {
+      "name": "Serox DS Syp"
+    },
+    {
+      "name": "Sy Clabion",
+      "frequency": "1 + 1"
+    }
+  ]
+}
