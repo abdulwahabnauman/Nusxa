@@ -812,3 +812,11 @@ User-selected items 2–13, 16–18, 20, 22, 23 from the 25-item improvement lis
 ---
 
 **Version Status: v1.0.0 — production-ready, latest hardening pass applied Aug 26**
+
+---
+
+## License
+
+Copyright (c) 2026 Abdul Wahab Nauman. All Rights Reserved.
+
+This project is proprietary. No one may copy, modify, distribute or reuse any part of it without prior written permission. See the [LICENSE](./LICENSE) file.
