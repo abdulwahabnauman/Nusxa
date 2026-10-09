@@ -1,4 +1,4 @@
-# Nusxa — Developer Handoff Guide
+# Nusxa — Developer Handoff Guide 
 
 ## What Is Nusxa?
 
