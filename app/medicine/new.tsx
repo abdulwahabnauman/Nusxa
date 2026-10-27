@@ -325,7 +325,7 @@ export default function NewMedicineScreen() {
                     <Input
                       value={time}
                       onChangeText={(value) => updateTime(index, value)}
-                      placeholder="HH:MM"
+                      placeholder={t.common.timeFormatHint}
                       keyboardType="numbers-and-punctuation"
                       containerStyle={{ flex: 1, marginStart: spacing.sm }}
                       error={invalid ? t.schedule.timeInvalid : undefined}

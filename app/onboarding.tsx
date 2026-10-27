@@ -82,10 +82,10 @@ export default function OnboardingScreen() {
       // (the scan screen re-prompts every time while the OS allows it).
       try {
         const notifResult = await Notifications.requestPermissionsAsync();
-        console.log('Notification permission granted:', notifResult.granted);
+        if (__DEV__) console.log('Notification permission granted:', notifResult.granted);
 
         const cameraResult = await requestCameraPermission();
-        console.log('Camera permission granted:', cameraResult.granted);
+        if (__DEV__) console.log('Camera permission granted:', cameraResult.granted);
       } catch (permError) {
         console.warn('Permission request failed, continuing:', permError);
       }

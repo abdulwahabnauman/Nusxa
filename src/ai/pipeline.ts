@@ -139,11 +139,9 @@ function parseOCRResponse(raw: string): PrescriptionJSON {
 /** Validate extracted prescription data */
 function validatePrescription(data: PrescriptionJSON): ValidationResult {
   const flags: ValidationFlag[] = [];
-  const errors: string[] = [];
 
   if (data.medicines.length === 0) {
     flags.push({ code: 'no_medicines' });
-    errors.push('No medicines were detected in the prescription.');
   }
 
   for (let i = 0; i < data.medicines.length; i++) {
@@ -175,10 +173,8 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
   }
 
   return {
-    isValid: errors.length === 0,
     warnings: data.medicines.flatMap((m) => m.warnings),
     flags,
-    errors,
   };
 }
 

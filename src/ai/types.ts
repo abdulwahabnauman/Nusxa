@@ -72,11 +72,9 @@ export type ValidationFlag =
   | { code: 'duplicate_names' };
 
 export interface ValidationResult {
-  isValid: boolean;
   /** Raw warnings reported by the model (kept verbatim) */
   warnings: string[];
   flags: ValidationFlag[];
-  errors: string[];
 }
 
 export type PipelineStage =

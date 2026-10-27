@@ -13,6 +13,7 @@ export const ur: TranslationKeys = {
     error: 'خرابی',
     ok: 'ٹھیک',
     retry: 'دوبارہ کوشش',
+    timeFormatHint: 'HH:MM',
     confirm: 'تصدیق',
     discard: 'مسترد کریں',
     edit: 'ترمیم',

@@ -12,6 +12,7 @@ export const en = {
     error: 'Error',
     ok: 'OK',
     retry: 'Retry',
+    timeFormatHint: 'HH:MM',
     confirm: 'Confirm',
     discard: 'Discard',
     edit: 'Edit',

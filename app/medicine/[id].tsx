@@ -660,7 +660,7 @@ export default function MedicineDetailScreen() {
                 label={`${t.medicine.timeLabel} (${formatTime12h(sch.time, language)})`}
                 value={val}
                 onChangeText={(text) => setEditTimes((prev) => ({ ...prev, [sch.id]: text }))}
-                placeholder="HH:MM"
+                placeholder={t.common.timeFormatHint}
                 error={invalid ? t.schedule.timeInvalid : undefined}
               />
             );

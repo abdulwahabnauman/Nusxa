@@ -169,7 +169,7 @@ function AppContent() {
         // Check if we have a profile record at all
         if (!existingProfile) {
           // New user - no profile exists, show onboarding
-          console.log('[Init] No profile found, showing onboarding');
+          if (__DEV__) console.log('[Init] No profile found, showing onboarding');
           return;
         }
         
@@ -182,7 +182,7 @@ function AppContent() {
           (!existingProfile.name && !existingProfile.name_ur) || !existingProfile.onboarding_complete;
         
         if (needsOnboarding) {
-          console.log('[Init] Missing name or incomplete onboarding - showing onboarding');
+          if (__DEV__) console.log('[Init] Missing name or incomplete onboarding - showing onboarding');
           try {
             await updateProfile({ onboarding_complete: false });
           } catch (error) {

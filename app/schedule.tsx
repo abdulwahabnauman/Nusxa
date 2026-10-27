@@ -252,7 +252,7 @@ export default function ScheduleScreen() {
                     <Input
                       value={time}
                       onChangeText={(value) => updateTime(medIdx, timeIdx, value)}
-                      placeholder="HH:MM"
+                      placeholder={t.common.timeFormatHint}
                       containerStyle={{ flex: 1, marginLeft: 8 }}
                       keyboardType="numbers-and-punctuation"
                       error={timeIsInvalid(time) ? t.schedule.timeInvalid : undefined}
