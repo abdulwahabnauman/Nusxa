@@ -61,7 +61,7 @@ const EducationRow = memo(function EducationRow({
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[typ.label.base, { color: colors.text.primary }]}>
-              {medicine.name ?? 'Unknown'}
+              {medicine.name ?? t.common.unknown}
             </Text>
             {!!medicine.dosage && (
               <Text style={[typ.body.sm, { color: colors.text.secondary }]}>

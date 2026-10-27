@@ -100,6 +100,8 @@ export interface InteractionRule {
   b: string[];
   severity: InteractionSeverity;
   description: string;
+  /** Urdu copy for the same guidance; UI picks by active language */
+  description_ur: string;
 }
 
 /**
@@ -121,12 +123,14 @@ export const MEDICINE_INTERACTIONS: InteractionRule[] = [
     ],
     severity: 'high',
     description: 'Combining blood thinners, antiplatelets or multiple NSAID painkillers raises the risk of bleeding.',
+    description_ur: 'خون پتلا کرنے والی ادویات، اینٹی پلیٹلیٹ یا متعدد NSAID درد کش ادویات ملانے سے خون بہنے کا خطرہ بڑھتا ہے۔',
   },
   {
     a: ['warfarin'],
     b: ['amiodarone'],
     severity: 'high',
     description: 'Amiodarone can strengthen warfarin\'s effect and raise bleeding risk. Dosing may need medical review.',
+    description_ur: 'امیوڈیرون وارفارن کا اثر بڑھا کر خون بہنے کا خطرہ بڑھا سکتا ہے۔ خوراک کا طبی جائزہ ضروری ہو سکتا ہے۔',
   },
   {
     // ACE inhibitors / ARBs / potassium-sparing drugs / potassium (symmetric)
@@ -142,30 +146,35 @@ export const MEDICINE_INTERACTIONS: InteractionRule[] = [
     ],
     severity: 'medium',
     description: 'Risk of hyperkalemia (high potassium levels) when these blood-pressure medicines are combined with potassium-sparing drugs or supplements.',
+    description_ur: 'جب یہ بلڈ پریشر کی ادویات پوٹاشیم رکھنے والی ادویات یا سپلیمنٹس کے ساتھ لی جائیں تو ہائپرکلیمیا (پوٹاشیم کی زیادہ سطح) کا خطرہ ہوتا ہے۔',
   },
   {
     a: ['simvastatin', 'atorvastatin', 'lovastatin', 'rosuvastatin'],
     b: ['clarithromycin', 'erythromycin', 'itraconazole', 'ketoconazole', 'gemfibrozil', 'niacin'],
     severity: 'high',
     description: 'Increased risk of muscle damage (rhabdomyolysis) when statins are combined with these antibiotics, antifungals or other cholesterol drugs.',
+    description_ur: 'اسٹیٹنز کو ان اینٹی بایوٹکس، اینٹی فنگل یا دیگر کولیسٹرول ادویات کے ساتھ لینے سے پٹھوں کو نقصان (رابڈومائیولائسس) کا خطرہ بڑھتا ہے۔',
   },
   {
     a: ['ciprofloxacin', 'levofloxacin', 'ofloxacin', 'norfloxacin', 'doxycycline', 'tetracycline', 'minocycline'],
     b: ['calcium', 'iron', 'zinc', 'magnesium', 'antacid'],
     severity: 'medium',
     description: 'Antacids, calcium, iron, zinc or magnesium can block absorption of these antibiotics. Doses are usually spaced at least 2 hours apart.',
+    description_ur: 'اینٹاسڈز، کیلشیم، آئرن، زنک یا میگنیشیم ان اینٹی بایوٹکس کے جذب کو روک سکتے ہیں۔ خوراکوں میں عموماً کم از کم 2 گھنٹے کا وقفہ رکھا جاتا ہے۔',
   },
   {
     a: ['levothyroxine', 'thyroxine'],
     b: ['calcium', 'iron'],
     severity: 'medium',
     description: 'Calcium and iron reduce levothyroxine absorption. Doses are usually spaced about 4 hours apart.',
+    description_ur: 'کیلشیم اور آئرن لیووتھائروکسین کے جذب کو کم کرتے ہیں۔ خوراکوں میں عموماً تقریباً 4 گھنٹے کا وقفہ رکھا جاتا ہے۔',
   },
   {
     a: ['sildenafil', 'tadalafil', 'vardenafil'],
     b: ['nitroglycerin', 'isosorbide', 'nitrate'],
     severity: 'high',
     description: 'Combining nitrates with these medicines can cause a dangerous drop in blood pressure.',
+    description_ur: 'نائٹریٹس کو ان ادویات کے ساتھ ملانے سے بلڈ پریشر خطرناک حد تک گر سکتا ہے۔',
   },
   {
     // Serotonergic combinations (symmetric)
@@ -179,125 +188,63 @@ export const MEDICINE_INTERACTIONS: InteractionRule[] = [
     ],
     severity: 'high',
     description: 'Risk of serotonin syndrome, a serious reaction, when these medicines are combined.',
+    description_ur: 'ان ادویات کو ملانے سے سیروٹونن سنڈروم، ایک سنگین ردعمل، کا خطرہ ہوتا ہے۔',
   },
   {
     a: ['methotrexate'],
     b: ['ibuprofen', 'naproxen', 'diclofenac', 'aspirin'],
     severity: 'high',
     description: 'NSAID painkillers can let methotrexate build up in the body, raising toxicity risk.',
+    description_ur: 'NSAID درد کش ادویات میتھوٹریکسیٹ کو جسم میں جمع ہونے دیتی ہیں، جس سے زہریلے اثرات کا خطرہ بڑھتا ہے۔',
   },
   {
     a: ['methotrexate'],
     b: ['amoxicillin', 'penicillin', 'ampicillin'],
     severity: 'medium',
     description: 'Penicillin antibiotics can slow the body\'s clearance of methotrexate.',
+    description_ur: 'پینسلن اینٹی بایوٹکس میتھوٹریکسیٹ کے جسم سے اخراج کو سست کر سکتی ہیں۔',
   },
   {
     a: ['amoxicillin'],
     b: ['tetracycline'],
     severity: 'medium',
     description: 'These antibiotics can reduce each other\'s effectiveness when taken together.',
+    description_ur: 'یہ اینٹی بایوٹکس ایک ساتھ لینے پر ایک دوسرے کی افادیت کم کر سکتی ہیں۔',
   },
   {
     a: ['digoxin'],
     b: ['amiodarone'],
     severity: 'high',
     description: 'Amiodarone raises digoxin levels in the blood, risking toxicity.',
+    description_ur: 'امیوڈیرون خون میں ڈائیگوکسین کی سطح بڑھاتا ہے، جس سے زہریلے اثرات کا خطرہ ہوتا ہے۔',
   },
   {
     a: ['digoxin'],
     b: ['furosemide', 'hydrochlorothiazide', 'bumetanide'],
     severity: 'medium',
     description: 'Water tablets can lower potassium, which increases the risk of digoxin side effects.',
+    description_ur: 'پانی خارج کرنے والی گولیاں پوٹاشیم کم کر سکتی ہیں، جس سے ڈائیگوکسین کے ضمنی اثرات کا خطرہ بڑھتا ہے۔',
   },
   {
     a: ['clopidogrel'],
     b: ['omeprazole', 'esomeprazole'],
     severity: 'medium',
     description: 'These stomach-acid medicines can reduce clopidogrel\'s effectiveness.',
+    description_ur: 'معدے کی تیزابیت کی یہ ادویات کلوپیڈوگریل کی افادیت کم کر سکتی ہیں۔',
   },
   {
     a: ['lithium'],
     b: ['ibuprofen', 'naproxen', 'diclofenac', 'lisinopril', 'enalapril'],
     severity: 'high',
     description: 'NSAIDs and ACE-inhibitor blood-pressure drugs can push lithium levels into the toxic range.',
+    description_ur: 'NSAIDs اور ACE- inhibitor بلڈ پریشر کی ادویات لیتھیم کی سطح کو زہریلی حد تک بڑھا سکتی ہیں۔',
   },
   {
     a: ['prednisone', 'prednisolone', 'dexamethasone', 'hydrocortisone'],
     b: ['ibuprofen', 'naproxen', 'diclofenac'],
     severity: 'medium',
     description: 'Combining steroids with NSAID painkillers raises the risk of stomach ulcers and bleeding.',
+    description_ur: 'سٹیرائیڈز کو NSAID درد کش ادویات کے ساتھ ملانے سے معدے کے السر اور خون بہنے کا خطرہ بڑھتا ہے۔',
   },
 ];
 
-/** Check if any two medicines interact */
-export function checkMedicineInteraction(medicine1: string, medicine2: string): {
-  hasInteraction: boolean;
-  interaction?: {
-    severity: 'low' | 'medium' | 'high';
-    description: string;
-  };
-} {
-  const m1Lower = medicine1.toLowerCase();
-  const m2Lower = medicine2.toLowerCase();
-
-  for (const rule of MEDICINE_INTERACTIONS) {
-    const m1InA = rule.a.some((m) => m1Lower.includes(m));
-    const m2InB = rule.b.some((m) => m2Lower.includes(m));
-    const m2InA = rule.a.some((m) => m2Lower.includes(m));
-    const m1InB = rule.b.some((m) => m1Lower.includes(m));
-
-    if ((m1InA && m2InB) || (m2InA && m1InB)) {
-      return {
-        hasInteraction: true,
-        interaction: {
-          severity: rule.severity as 'low' | 'medium' | 'high',
-          description: rule.description,
-        },
-      };
-    }
-  }
-
-  return { hasInteraction: false };
-}
-
-/** Find all potential interactions in a list of medicines */
-export function findAllInteractions(medicines: string[]): {
-  medicine1: string;
-  medicine2: string;
-  interaction: {
-    severity: 'low' | 'medium' | 'high';
-    description: string;
-  };
-}[] {
-  const interactions: {
-    medicine1: string;
-    medicine2: string;
-    interaction: {
-      severity: 'low' | 'medium' | 'high';
-      description: string;
-    };
-  }[] = [];
-  
-  for (let i = 0; i < medicines.length; i++) {
-    const m1 = medicines[i];
-    if (!m1) continue;
-    
-    for (let j = i + 1; j < medicines.length; j++) {
-      const m2 = medicines[j];
-      if (!m2) continue;
-      
-      const result = checkMedicineInteraction(m1, m2);
-      
-      if (result.hasInteraction && result.interaction) {
-        interactions.push({
-          medicine1: m1,
-          medicine2: m2,
-          interaction: result.interaction,
-        });
-      }
-    }
-  }
-  
-  return interactions;
-}

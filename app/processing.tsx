@@ -219,11 +219,14 @@ export default function ProcessingScreen() {
                 ? t.processing.detectedOne
                 : t.processing.detectedMany
               ).replace('{n}', String(result.data.medicines.length))}
-              {result.validation.warnings.length > 0 &&
-                `, ${(result.validation.warnings.length === 1
+              {(() => {
+                const reviewCount = result.validation.flags.length + result.validation.warnings.length;
+                if (reviewCount === 0) return null;
+                return `, ${(reviewCount === 1
                   ? t.processing.toReviewOne
                   : t.processing.toReviewMany
-                ).replace('{n}', String(result.validation.warnings.length))}`}
+                ).replace('{n}', String(reviewCount))}`;
+              })()}
             </Text>
             <View style={styles.successButtons}>
               <Button

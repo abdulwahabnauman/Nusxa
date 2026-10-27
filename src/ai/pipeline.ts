@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import * as ImageManipulator from 'expo-image-manipulator';
 import { visionCompletion, chatCompletion, TextProviderKeys, AIError } from './client';
 import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
-import { PrescriptionJSON, PipelineStage, ValidationResult, MedicineJSON } from './types';
+import { PrescriptionJSON, PipelineStage, ValidationResult, ValidationFlag, MedicineJSON } from './types';
 import { LOW_CONFIDENCE_THRESHOLD, OCR_MAX_IMAGE_EDGE } from '../constants/config';
 import { resizeToFit } from '../utils/ocr-image';
 import { postProcessPrescription } from './postprocess';
@@ -138,32 +138,30 @@ function parseOCRResponse(raw: string): PrescriptionJSON {
 
 /** Validate extracted prescription data */
 function validatePrescription(data: PrescriptionJSON): ValidationResult {
-  const warnings: string[] = [];
+  const flags: ValidationFlag[] = [];
   const errors: string[] = [];
-  const missingRequiredFields: string[] = [];
 
   if (data.medicines.length === 0) {
+    flags.push({ code: 'no_medicines' });
     errors.push('No medicines were detected in the prescription.');
   }
 
   for (let i = 0; i < data.medicines.length; i++) {
     const med = data.medicines[i]!;
-    const prefix = med.name ? `"${med.name}"` : `Medicine ${i + 1}`;
 
-    // Check required fields
-    if (!med.name) missingRequiredFields.push(`${prefix}: name is missing`);
-    if (!med.dosage) missingRequiredFields.push(`${prefix}: dosage is missing`);
-    if (!med.frequency) missingRequiredFields.push(`${prefix}: frequency is missing`);
-    if (!med.duration) missingRequiredFields.push(`${prefix}: duration is missing`);
-
-    // Check confidence
-    if (med.confidence < LOW_CONFIDENCE_THRESHOLD) {
-      warnings.push(`${prefix}: Low confidence extraction. Please verify all fields carefully.`);
+    // Required fields are tracked as codes so the review screen can name
+    // each one in the active language.
+    for (const field of ['name', 'dosage', 'frequency', 'duration'] as const) {
+      if (!med[field]) {
+        flags.push({ code: 'missing_field', medicine: med.name, index: i, field });
+      }
     }
 
-    // Check for potential issues
+    if (med.confidence < LOW_CONFIDENCE_THRESHOLD) {
+      flags.push({ code: 'low_confidence', medicine: med.name, index: i });
+    }
     if (med.confidence === 0) {
-      warnings.push(`${prefix}: Could not read this medicine clearly. Please enter the details manually.`);
+      flags.push({ code: 'unreadable', medicine: med.name, index: i });
     }
   }
 
@@ -173,14 +171,14 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
     .filter(Boolean);
   const uniqueNames = new Set(names);
   if (names.length !== uniqueNames.size) {
-    warnings.push('Duplicate medicine names detected. Please check if these are the same medicine.');
+    flags.push({ code: 'duplicate_names' });
   }
 
   return {
     isValid: errors.length === 0,
-    warnings: [...warnings, ...data.medicines.flatMap((m) => m.warnings)],
+    warnings: data.medicines.flatMap((m) => m.warnings),
+    flags,
     errors,
-    missingRequiredFields,
   };
 }
 

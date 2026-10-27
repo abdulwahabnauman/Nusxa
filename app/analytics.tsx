@@ -239,7 +239,7 @@ export default function AnalyticsScreen() {
       const skipped = adherenceData.reduce((sum, d) => sum + d.skipped, 0);
 
       const uri = await generateAnalyticsReportPdf({
-        profileName: getLocalizedName(profile, language) ?? 'Patient',
+        profileName: getLocalizedName(profile, language) ?? t.common.patient,
         // Patient identifiers from the profile, same as the doctor-visit PDF
         dateOfBirth: profile?.date_of_birth ?? null,
         bloodGroup: profile?.blood_group ?? null,

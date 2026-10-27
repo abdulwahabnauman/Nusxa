@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -13,6 +13,7 @@ import { Badge } from '../../src/components/ui/Badge';
 import { Button } from '../../src/components/ui/Button';
 import { Input } from '../../src/components/ui/Input';
 import { Modal } from '../../src/components/ui/Modal';
+import { MarkdownText } from '../../src/components/ui/MarkdownText';
 import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { EmptyState } from '../../src/components/ui/EmptyState';
@@ -25,6 +26,8 @@ import {
   deactivateSchedulesByMedicine,
   activateSchedulesByMedicine,
 } from '../../src/db/repositories/schedule';
+import { resolveTextProviderKeys } from '../../src/utils/secureStorage';
+import { isAiProxyConfigured } from '../../src/constants/config';
 import { syncDoseNotifications } from '../../src/utils/notifications';
 import { isValidTimeFormat } from '../../src/utils/validation';
 import { useInvalidateData } from '../../src/hooks/queries';
@@ -60,6 +63,13 @@ export default function MedicineDetailScreen() {
   // Refill ordering is planned but not yet built (audit Feature 10) — the
   // entry point lives in the inventory card and opens a "coming soon" sheet.
   const [refillSoonVisible, setRefillSoonVisible] = useState(false);
+
+  // Plain-language AI explanation (H3) is opt-in per tap: the text provider
+  // is only called when the user asks, and the answer is never cached.
+  const [explainVisible, setExplainVisible] = useState(false);
+  const [explaining, setExplaining] = useState(false);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [explainFailed, setExplainFailed] = useState(false);
 
   const nf = useCallback(
     (v: string | number) => formatDigits(v, easternNumerals),
@@ -155,6 +165,40 @@ export default function MedicineDetailScreen() {
   // every row greyed out — there the inactive rows ARE the pause state.
   const visibleSchedules = isPaused ? schedules : schedules.filter((s) => s.is_active);
 
+  const handleExplain = useCallback(async () => {
+    if (!medicine) return;
+    setExplainVisible(true);
+    setExplaining(true);
+    setExplainFailed(false);
+    setExplanation(null);
+    try {
+      const keys = await resolveTextProviderKeys();
+      if (!isAiProxyConfigured() && !keys.openRouterKey && !keys.groqKey) {
+        throw new Error('No API key configured');
+      }
+      // Lazy-load the AI client so opening this screen never pays for the
+      // network stack unless the user actually asks for an explanation.
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { explainMedicine } = require('../../src/ai/pipeline') as typeof import('../../src/ai/pipeline');
+      const text = await explainMedicine(
+        {
+          name: medicine.name,
+          dosage: medicine.dosage,
+          frequency: medicine.frequency,
+          meal_instruction: medicine.meal_instruction,
+          duration: medicine.duration,
+        },
+        keys,
+      );
+      setExplanation(text.trim());
+    } catch (err) {
+      console.error('Failed to explain medicine:', err);
+      setExplainFailed(true);
+    } finally {
+      setExplaining(false);
+    }
+  }, [medicine]);
+
   const handleTogglePause = useCallback(async () => {
     if (!medicine) return;
     try {
@@ -242,16 +286,16 @@ export default function MedicineDetailScreen() {
   }
 
   const fields = [
-    { label: 'Generic name', value: medicine.generic_name },
-    { label: 'Brand name', value: medicine.brand_name },
-    { label: 'Strength', value: medicine.strength },
-    { label: 'Form', value: medicine.form },
-    { label: 'Dosage', value: medicine.dosage },
-    { label: 'Frequency', value: medicine.frequency },
-    { label: 'Duration', value: medicine.duration },
-    { label: 'Meal instruction', value: medicine.meal_instruction },
-    { label: 'Purpose', value: medicine.purpose },
-    { label: 'Storage', value: medicine.storage },
+    { label: t.medicine.genericName, value: medicine.generic_name },
+    { label: t.medicine.brandName, value: medicine.brand_name },
+    { label: t.medicine.strength, value: medicine.strength },
+    { label: t.medicine.form, value: medicine.form },
+    { label: t.medicine.dosage, value: medicine.dosage },
+    { label: t.medicine.frequency, value: medicine.frequency },
+    { label: t.medicine.duration, value: medicine.duration },
+    { label: t.medicine.mealInstruction, value: medicine.meal_instruction },
+    { label: t.medicine.purpose, value: medicine.purpose },
+    { label: t.medicine.storage, value: medicine.storage },
   ].filter((f) => f.value);
 
   const activeSchedules = schedules.filter((s) => s.is_active);
@@ -289,7 +333,7 @@ export default function MedicineDetailScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-                {medicine.name ?? 'Unknown medicine'}
+                {medicine.name ?? t.common.unknownMedicine}
               </Text>
               {(medicine.strength || medicine.form) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
@@ -499,6 +543,20 @@ export default function MedicineDetailScreen() {
             icon={<MaterialCommunityIcons name="message-outline" size={20} color={colors.accent.primary} />}
             onPress={() => router.push({ pathname: '/chat', params: { medicineId: medicine.id, medicineName: medicine.name ?? '' } })}
           />
+          <Button
+            title={t.medicine.explainSimple}
+            variant="secondary"
+            icon={<MaterialCommunityIcons name="text-box-outline" size={20} color={colors.accent.primary} />}
+            onPress={handleExplain}
+            style={{ marginTop: spacing.sm }}
+          />
+          <Button
+            title={t.medicine.learnAbout}
+            variant="secondary"
+            icon={<MaterialCommunityIcons name="book-open-outline" size={20} color={colors.accent.primary} />}
+            onPress={() => router.push(`/education/${medicine.id}`)}
+            style={{ marginTop: spacing.sm }}
+          />
           {schedules.length > 0 && (
             <Card style={{ marginTop: spacing.sm }}>
               <View style={styles.fieldRow}>
@@ -624,6 +682,36 @@ export default function MedicineDetailScreen() {
             />
           </View>
         </View>
+      </Modal>
+
+      {/* Plain-language explanation (H3) */}
+      <Modal
+        visible={explainVisible}
+        onClose={() => setExplainVisible(false)}
+        title={t.medicine.explanationTitle}
+      >
+        {explaining ? (
+          <View style={{ alignItems: 'center', gap: spacing.sm, paddingVertical: spacing.xl }}>
+            <ActivityIndicator size="large" color={colors.accent.primary} />
+            <Text style={[typography.body.sm, { color: colors.text.secondary }]}>
+              {t.medicine.explaining}
+            </Text>
+          </View>
+        ) : explainFailed ? (
+          <View style={{ gap: spacing.md }}>
+            <Text style={[typography.body.base, { color: colors.text.secondary }]}>
+              {t.medicine.explainFailed}
+            </Text>
+            <Button title={t.common.retry} variant="secondary" onPress={handleExplain} />
+          </View>
+        ) : (
+          <View style={{ gap: spacing.md }}>
+            <MarkdownText content={explanation ?? ''} />
+            <Text style={[typography.body.xs, { color: colors.text.disabled }]}>
+              {t.chat.disclaimer}
+            </Text>
+          </View>
+        )}
       </Modal>
 
       {/* Refill ordering — coming soon sheet (audit Feature 10) */}

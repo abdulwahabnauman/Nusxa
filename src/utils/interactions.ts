@@ -24,17 +24,21 @@ export interface InteractionPair {
   second: string;
   severity: InteractionSeverity;
   description: string;
+  descriptionUr: string;
 }
 
 const normalize = (s?: string | null): string =>
   (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
-export function medicineLabel(m: MedicineLike): string {
+export function medicineLabel(
+  m: MedicineLike,
+  fallback = 'Unknown medicine'
+): string {
   return (
     m.name?.trim() ||
     m.generic_name?.trim() ||
     m.brand_name?.trim() ||
-    'Unknown medicine'
+    fallback
   );
 }
 
@@ -74,24 +78,33 @@ function strongestSharedRule(a: MedicineLike, b: MedicineLike): InteractionRule 
   return best;
 }
 
-function toPair(a: MedicineLike, b: MedicineLike, rule: InteractionRule): InteractionPair {
+function toPair(
+  a: MedicineLike,
+  b: MedicineLike,
+  rule: InteractionRule,
+  unknownLabel: string
+): InteractionPair {
   return {
-    first: medicineLabel(a),
-    second: medicineLabel(b),
+    first: medicineLabel(a, unknownLabel),
+    second: medicineLabel(b, unknownLabel),
     severity: rule.severity,
     description: rule.description,
+    descriptionUr: rule.description_ur,
   };
 }
 
 /** All interaction pairs within a single list (e.g. the current regimen) */
-export function findInteractionPairs(list: MedicineLike[]): InteractionPair[] {
+export function findInteractionPairs(
+  list: MedicineLike[],
+  unknownLabel = 'Unknown medicine'
+): InteractionPair[] {
   const pairs: InteractionPair[] = [];
   for (let i = 0; i < list.length; i++) {
     for (let j = i + 1; j < list.length; j++) {
       const a = list[i]!;
       const b = list[j]!;
       const rule = strongestSharedRule(a, b);
-      if (rule) pairs.push(toPair(a, b, rule));
+      if (rule) pairs.push(toPair(a, b, rule, unknownLabel));
     }
   }
   return pairs;
@@ -100,13 +113,14 @@ export function findInteractionPairs(list: MedicineLike[]): InteractionPair[] {
 /** Interactions between an incoming batch and an existing regimen */
 export function findCrossInteractions(
   incoming: MedicineLike[],
-  existing: MedicineLike[]
+  existing: MedicineLike[],
+  unknownLabel = 'Unknown medicine'
 ): InteractionPair[] {
   const pairs: InteractionPair[] = [];
   for (const a of incoming) {
     for (const b of existing) {
       const rule = strongestSharedRule(a, b);
-      if (rule) pairs.push(toPair(a, b, rule));
+      if (rule) pairs.push(toPair(a, b, rule, unknownLabel));
     }
   }
   return pairs;

@@ -18,7 +18,7 @@ import { Input } from '../src/components/ui/Input';
 import { Badge } from '../src/components/ui/Badge';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { useI18n } from '../src/i18n';
-import { PrescriptionJSON, MedicineJSON, ValidationResult } from '../src/ai/types';
+import { PrescriptionJSON, MedicineJSON, ValidationResult, ValidationFlag } from '../src/ai/types';
 import { LOW_CONFIDENCE_THRESHOLD } from '../src/constants/config';
 import {
   analyzePrescriptionDuplicates,
@@ -34,7 +34,7 @@ import type { Medicine } from '../src/types/models';
 
 export default function ReviewScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const router = useRouter();
   const { imageUri, imageUris, prescriptionData, validationData } = useLocalSearchParams<{
     imageUri: string;
@@ -96,10 +96,10 @@ export default function ReviewScreen() {
   const interactions = useMemo(() => {
     const incoming = data?.medicines ?? [];
     return [
-      ...findInteractionPairs(incoming),
-      ...findCrossInteractions(incoming, existingMeds),
+      ...findInteractionPairs(incoming, t.common.unknownMedicine),
+      ...findCrossInteractions(incoming, existingMeds, t.common.unknownMedicine),
     ];
-  }, [data, existingMeds]);
+  }, [data, existingMeds, t]);
 
   // Flag re-scans up front so the user knows these medicines already exist.
   useEffect(() => {
@@ -139,9 +139,54 @@ export default function ReviewScreen() {
     setData((prev) => {
       if (!prev) return prev;
       const medicines = [...prev.medicines];
-      medicines[index] = { ...medicines[index]!, [field]: value };
+      const current = medicines[index]!;
+      medicines[index] = {
+        ...current,
+        [field]: value,
+        // Record that the value is now human-checked so the low-confidence
+        // hint stops asking, while the original score is kept for context.
+        field_sources: { ...current.field_sources, [field]: 'corrected' },
+      };
       return { ...prev, medicines };
     });
+  };
+
+  // Per-field OCR confidence (UX14): only surfaces for fields the model read
+  // below the threshold, and switches to a "corrected" note once edited.
+  const fieldHint = (medicine: MedicineJSON, field: string): string | undefined => {
+    const confidence = medicine.field_confidence[field];
+    if (typeof confidence !== 'number' || confidence >= LOW_CONFIDENCE_THRESHOLD) return undefined;
+    if (medicine.field_sources[field] === 'corrected') return t.review.fieldCorrected;
+    return t.review.fieldConfidenceLow.replace('{n}', String(Math.round(confidence * 100)));
+  };
+
+  const flagLabel = (flag: ValidationFlag): string => {
+    const name =
+      flag.code === 'no_medicines' || flag.code === 'duplicate_names'
+        ? ''
+        : flag.medicine ?? t.review.medicineFallback.replace('{n}', String(flag.index + 1));
+
+    switch (flag.code) {
+      case 'no_medicines':
+        return t.review.noMedicinesDetected;
+      case 'duplicate_names':
+        return t.review.duplicateNamesWarning;
+      case 'missing_field': {
+        const fieldLabels: Record<typeof flag.field, string> = {
+          name: t.review.fieldName,
+          dosage: t.review.fieldDosage,
+          frequency: t.review.fieldFrequency,
+          duration: t.review.fieldDuration,
+        };
+        return t.review.missingFieldWarning
+          .replace('{medicine}', name)
+          .replace('{field}', fieldLabels[flag.field]);
+      }
+      case 'low_confidence':
+        return t.review.lowConfidenceWarning.replace('{medicine}', name);
+      case 'unreadable':
+        return t.review.unreadableWarning.replace('{medicine}', name);
+    }
   };
 
   const handleVerify = async () => {
@@ -301,11 +346,22 @@ export default function ReviewScreen() {
           )}
 
           {/* Warnings */}
-          {validation?.warnings && validation.warnings.length > 0 && (
+          {((validation?.flags?.length ?? 0) > 0 || (validation?.warnings?.length ?? 0) > 0) && (
             <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
               <Card style={{ backgroundColor: colors.accent.subtle, borderColor: colors.accent.primary }}>
-                {validation.warnings.map((warning, i) => (
-                  <View key={i} style={styles.warningRow}>
+                <Text style={[typography.label.base, { color: colors.text.primary, marginBottom: 8 }]}>
+                  {t.review.warningsTitle}
+                </Text>
+                {validation?.flags?.map((flag, i) => (
+                  <View key={`flag-${i}`} style={styles.warningRow}>
+                    <MaterialCommunityIcons name="alert-outline" size={18} color={colors.warning} />
+                    <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
+                      {flagLabel(flag)}
+                    </Text>
+                  </View>
+                ))}
+                {validation?.warnings?.map((warning, i) => (
+                  <View key={`warning-${i}`} style={styles.warningRow}>
                     <MaterialCommunityIcons name="alert-outline" size={18} color={colors.warning} />
                     <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
                       {warning}
@@ -348,7 +404,7 @@ export default function ReviewScreen() {
                           {hit.first} + {hit.second}
                         </Text>
                         <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                          {hit.description}
+                          {language === 'ur' ? hit.descriptionUr : hit.description}
                         </Text>
                       </View>
                     </View>
@@ -436,6 +492,7 @@ export default function ReviewScreen() {
                   value={medicine.name ?? ''}
                   onChangeText={(text) => updateMedicine(index, 'name', text || null)}
                   placeholder={t.review.placeholderName}
+                  helper={fieldHint(medicine, 'name')}
                   containerStyle={{ marginTop: spacing.md }}
                 />
 
@@ -445,6 +502,7 @@ export default function ReviewScreen() {
                     value={medicine.dosage ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'dosage', text || null)}
                     placeholder={t.review.placeholderDosage}
+                    helper={fieldHint(medicine, 'dosage')}
                     containerStyle={{ flex: 1 }}
                   />
                   <Input
@@ -461,6 +519,7 @@ export default function ReviewScreen() {
                   value={medicine.frequency ?? ''}
                   onChangeText={(text) => updateMedicine(index, 'frequency', text || null)}
                   placeholder={t.review.placeholderFrequency}
+                  helper={fieldHint(medicine, 'frequency')}
                   containerStyle={{ marginTop: spacing.sm }}
                 />
 
@@ -470,6 +529,7 @@ export default function ReviewScreen() {
                     value={medicine.duration ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'duration', text || null)}
                     placeholder={t.review.placeholderDuration}
+                    helper={fieldHint(medicine, 'duration')}
                     containerStyle={{ flex: 1 }}
                   />
                   <Input

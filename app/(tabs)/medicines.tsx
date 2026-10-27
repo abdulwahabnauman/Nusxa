@@ -29,12 +29,13 @@ const MedicineRow = memo(function MedicineRow({
   med: MedicineWithInfo;
   onPress: (id: string) => void;
 }) {
+  const { t } = useI18n();
   // MedicineCard already owns its own TouchableOpacity — passing onPress
   // straight in avoids a nested touchable swallowing the tap.
   return (
     <View style={{ marginBottom: 16 }}>
       <MedicineCard
-        name={med.name ?? 'Unknown'}
+        name={med.name ?? t.common.unknown}
         dosage={med.dosage}
         frequency={med.frequency}
         form={med.form}
@@ -50,7 +51,7 @@ const MedicineRow = memo(function MedicineRow({
 
 export default function MedicinesScreen() {
   const { colors, typography, spacing } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   // react-query owns the list (Perf 2); schedules are grouped from one batch
@@ -92,7 +93,10 @@ export default function MedicinesScreen() {
     (med) => med.daysUntilRefill !== null && med.daysUntilRefill <= 7,
   ).length;
 
-  const interactions = useMemo(() => findInteractionPairs(medicines), [medicines]);
+  const interactions = useMemo(
+    () => findInteractionPairs(medicines, t.common.unknownMedicine),
+    [medicines, t]
+  );
 
   const listHeader = (
     <>
@@ -162,7 +166,7 @@ export default function MedicinesScreen() {
                     {hit.first} + {hit.second}
                   </Text>
                   <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
-                    {hit.description}
+                    {language === 'ur' ? hit.descriptionUr : hit.description}
                   </Text>
                 </View>
               </View>

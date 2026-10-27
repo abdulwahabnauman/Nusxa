@@ -54,11 +54,29 @@ export interface OCRRawExtraction {
   abbreviations_found: { abbreviation: string; interpretation: string | null }[];
 }
 
+/**
+ * Structured validation findings. The review screen renders these with
+ * localized copy instead of the pipeline baking English strings into the
+ * result (which also travel through route params).
+ */
+export type ValidationFlag =
+  | { code: 'no_medicines' }
+  | {
+      code: 'missing_field';
+      medicine: string | null;
+      index: number;
+      field: 'name' | 'dosage' | 'frequency' | 'duration';
+    }
+  | { code: 'low_confidence'; medicine: string | null; index: number }
+  | { code: 'unreadable'; medicine: string | null; index: number }
+  | { code: 'duplicate_names' };
+
 export interface ValidationResult {
   isValid: boolean;
+  /** Raw warnings reported by the model (kept verbatim) */
   warnings: string[];
+  flags: ValidationFlag[];
   errors: string[];
-  missingRequiredFields: string[];
 }
 
 export type PipelineStage =
@@ -68,15 +86,6 @@ export type PipelineStage =
   | 'validating'
   | 'complete'
   | 'error';
-
-export const PIPELINE_STAGE_LABELS: Record<PipelineStage, string> = {
-  preparing: 'Preparing image',
-  reading: 'Reading prescription',
-  interpreting: 'Interpreting medical information',
-  validating: 'Checking extracted information',
-  complete: 'Preparing review screen',
-  error: 'Something went wrong',
-};
 
 export interface ChatMessage {
   id: string;

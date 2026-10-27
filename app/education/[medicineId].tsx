@@ -200,7 +200,7 @@ export default function MedicineEducationScreen() {
 
           <View style={{ flex: 1, marginHorizontal: spacing.md }}>
             <Text numberOfLines={2} style={[typ.heading.h4, { color: colors.text.primary }]}>
-              {medicine.name ?? 'Unknown'}
+              {medicine.name ?? t.common.unknown}
             </Text>
             {!!medicine.dosage && (
               <Text style={[typ.body.sm, { color: colors.text.secondary }]}>{medicine.dosage}</Text>
