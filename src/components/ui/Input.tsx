@@ -94,8 +94,11 @@ export function Input({
 }
 
 const styles = StyleSheet.create({
+  // alignSelf (not width: '100%') so a containerStyle={{ flex: 1 }} can make
+  // two inputs sit side by side as equal columns instead of both claiming
+  // the full row width and overflowing.
   container: {
-    width: '100%',
+    alignSelf: 'stretch',
   },
   input: {
     borderWidth: 1,

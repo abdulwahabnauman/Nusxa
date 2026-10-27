@@ -275,7 +275,7 @@ const styles = StyleSheet.create({
   },
   successButtons: {
     width: '100%',
-    alignItems: 'center',
+    alignItems: 'stretch',
     gap: 12,
   },
 });

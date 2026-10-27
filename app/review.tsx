@@ -411,10 +411,15 @@ export default function ReviewScreen() {
             {data.medicines.map((medicine, index) => (
               <Card key={index} style={{ marginBottom: spacing.md }}>
                 <View style={styles.medicineHeader}>
-                  <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                  <Text
+                    style={[
+                      typography.heading.h4,
+                      { color: colors.text.primary, flex: 1, marginEnd: spacing.sm },
+                    ]}
+                  >
                     {medicine.name ?? t.review.medicineFallback.replace('{n}', String(index + 1))}
                   </Text>
-                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                  <View style={{ flexDirection: 'row', gap: 6, flexShrink: 0 }}>
                     {dupes?.matched[index] && <Badge label={t.review.alreadyAdded} variant="verified" />}
                     {!isMedicineComplete(medicine) && (
                       <Badge label={t.review.incomplete} variant="needs_review" />
@@ -440,7 +445,7 @@ export default function ReviewScreen() {
                     value={medicine.dosage ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'dosage', text || null)}
                     placeholder={t.review.placeholderDosage}
-                    containerStyle={{ flex: 1, marginRight: spacing.sm }}
+                    containerStyle={{ flex: 1 }}
                   />
                   <Input
                     label={t.review.fieldForm}
@@ -465,7 +470,7 @@ export default function ReviewScreen() {
                     value={medicine.duration ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'duration', text || null)}
                     placeholder={t.review.placeholderDuration}
-                    containerStyle={{ flex: 1, marginRight: spacing.sm }}
+                    containerStyle={{ flex: 1 }}
                   />
                   <Input
                     label={t.review.fieldMeal}
@@ -586,6 +591,6 @@ const styles = StyleSheet.create({
   actions: {
     marginTop: 32,
     gap: 12,
-    alignItems: 'center',
+    alignItems: 'stretch',
   },
 });
