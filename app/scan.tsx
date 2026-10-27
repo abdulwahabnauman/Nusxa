@@ -37,6 +37,10 @@ import { MAX_PRESCRIPTION_PAGES } from '../src/constants/config';
 const SCAN_FRAME_WIDTH = 280;
 const SCAN_FRAME_HEIGHT = 320;
 
+// Camera chrome renders on a dark scrim over the live feed, so it stays
+// white in every theme — palette tokens would vanish or invert there.
+const CAMERA_CHROME = '#FFFFFF';
+
 // Vision models degrade sharply below ~1500px on handwriting, so small
 // crops are upscaled toward ~2000px on the long edge before sending.
 const MIN_LONG_EDGE = 1500;
@@ -369,7 +373,7 @@ export default function ScanScreen() {
               height: canvasHeight,
               originX,
               originY,
-              backgroundColor: '#FFFFFF',
+              backgroundColor: colors.background.surface,
             },
           }],
           { format: ImageManipulator.SaveFormat.JPEG, compress: 0.95 }
@@ -547,7 +551,7 @@ export default function ScanScreen() {
       <View key={uri} style={styles.pageThumbWrap}>
         <Image source={{ uri }} style={[styles.pageThumb, { borderColor: colors.border.default }]} />
         <TouchableOpacity
-          style={styles.pageRemoveBtn}
+          style={[styles.pageRemoveBtn, { backgroundColor: colors.background.surface }]}
           onPress={() => handleRemovePage(idx)}
           accessibilityLabel={t.scanner.removePage}
         >
@@ -671,7 +675,11 @@ export default function ScanScreen() {
                     <View
                       style={[
                         styles.cropHandle,
-                        { left: handlePos[id].x - HANDLE_SIZE / 2, top: handlePos[id].y - HANDLE_SIZE / 2 },
+                        {
+                          left: handlePos[id].x - HANDLE_SIZE / 2,
+                          top: handlePos[id].y - HANDLE_SIZE / 2,
+                          backgroundColor: colors.background.surface,
+                        },
                       ]}
                     />
                   </GestureDetector>
@@ -829,8 +837,8 @@ export default function ScanScreen() {
             {/* One-shot guidance: steady + good light + tap to focus */}
             {showFocusHint && (
               <View style={styles.hintBar} pointerEvents="none">
-                <MaterialCommunityIcons name="image-filter-center-focus" size={16} color="#FFFFFF" />
-                <Text style={[styles.focusHintText, { fontFamily: typography.families.regular }]}>{t.scanner.focusHint}</Text>
+                <MaterialCommunityIcons name="image-filter-center-focus" size={16} color={CAMERA_CHROME} />
+                <Text style={[styles.focusHintText, { color: CAMERA_CHROME, fontFamily: typography.families.regular }]}>{t.scanner.focusHint}</Text>
               </View>
             )}
           </View>
@@ -838,11 +846,11 @@ export default function ScanScreen() {
             <View style={styles.overlaySide} />
             <View style={[styles.scanFrame, { borderColor: colors.accent.primary }]}>
               {/* Corner guides — classic scanner brackets at each corner */}
-              <View style={[styles.cornerGuide, styles.cornerTL, { borderColor: '#FFFFFF' }]} />
-              <View style={[styles.cornerGuide, styles.cornerTR, { borderColor: '#FFFFFF' }]} />
-              <View style={[styles.cornerGuide, styles.cornerBL, { borderColor: '#FFFFFF' }]} />
-              <View style={[styles.cornerGuide, styles.cornerBR, { borderColor: '#FFFFFF' }]} />
-              <Text style={[styles.scanHint, { color: '#FFFFFF', fontFamily: typography.families.regular }]}>
+              <View style={[styles.cornerGuide, styles.cornerTL, { borderColor: CAMERA_CHROME }]} />
+              <View style={[styles.cornerGuide, styles.cornerTR, { borderColor: CAMERA_CHROME }]} />
+              <View style={[styles.cornerGuide, styles.cornerBL, { borderColor: CAMERA_CHROME }]} />
+              <View style={[styles.cornerGuide, styles.cornerBR, { borderColor: CAMERA_CHROME }]} />
+              <Text style={[styles.scanHint, { color: CAMERA_CHROME, fontFamily: typography.families.regular }]}>
                 {t.scanner.alignGuide}
               </Text>
             </View>
@@ -861,7 +869,7 @@ export default function ScanScreen() {
               <MaterialCommunityIcons
                 name={flashMode === 'off' ? 'flash-off' : flashMode === 'auto' ? 'flash-auto' : 'flash'}
                 size={22}
-                color="#FFFFFF"
+                color={CAMERA_CHROME}
               />
             </TouchableOpacity>
             <TouchableOpacity
@@ -869,14 +877,14 @@ export default function ScanScreen() {
               onPress={handleTakePhoto}
               accessibilityLabel={t.scanner.capture}
             >
-              <MaterialCommunityIcons name="camera" size={32} color="#FFFFFF" />
+              <MaterialCommunityIcons name="camera" size={32} color={colors.onAccent} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setCameraActive(false)}
               accessibilityLabel="Close camera"
             >
-              <MaterialCommunityIcons name="close" size={28} color="#FFFFFF" />
+              <MaterialCommunityIcons name="close" size={28} color={CAMERA_CHROME} />
             </TouchableOpacity>
           </View>
         </View>
@@ -975,7 +983,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 24,
   },
   focusHintText: {
-    color: '#FFFFFF',
     fontSize: 13,
     flexShrink: 1,
     textAlign: 'center',
@@ -1106,7 +1113,6 @@ const styles = StyleSheet.create({
     width: HANDLE_SIZE,
     height: HANDLE_SIZE,
     borderRadius: 6,
-    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.3)',
   },
@@ -1161,7 +1167,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -8,
     right: -8,
-    backgroundColor: '#FFFFFF',
     borderRadius: 11,
   },
   focusOverlay: {
@@ -1179,7 +1184,6 @@ const styles = StyleSheet.create({
     height: 80,
     borderRadius: 40,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
