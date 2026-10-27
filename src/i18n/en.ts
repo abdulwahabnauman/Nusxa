@@ -22,6 +22,7 @@ export const en = {
     search: 'Search',
     undo: 'Undo',
     notSet: 'Not set',
+    goBack: 'Go back',
   },
   // Navigation
   nav: {
@@ -159,6 +160,7 @@ export const en = {
     appLockDesc: 'Require PIN or biometric to open Nusxa',
     useBiometric: 'Unlock with biometrics',
     useBiometricDesc: 'Use fingerprint or face instead of your PIN',
+    confirmBiometric: 'Confirm biometric unlock',
     enterNewPin: 'Choose a 4-digit PIN',
     confirmPin: 'Re-enter your PIN to confirm',
     enterCurrentPin: 'Enter your current PIN',
@@ -186,6 +188,12 @@ export const en = {
     encryptedBackupReady: 'Encrypted backup ready to share',
     about: 'Nusxa v1.0.0',
     aboutDesc: 'AI Medication Companion',
+    clearDataMsg: 'This will permanently delete your profile, all prescriptions, medicines, schedules, dose records, chat history, and saved prescription images.',
+    deleteEverything: 'Delete everything',
+    importDataTitle: 'Import data',
+    importDataMsg: 'Importing restores a previously exported JSON file and REPLACES all current data (profile, prescriptions, medicines, schedules, dose records). Continue?',
+    chooseFile: 'Choose file',
+    importFileFailed: 'The file could not be imported.',
   },
   // Scanner
   scanner: {
@@ -217,6 +225,7 @@ export const en = {
     cropHint: 'Drag the edges or corners to frame what you need, then apply the crop.',
     applyCrop: 'Apply crop',
     resetCrop: 'Reset',
+    closeCamera: 'Close camera',
   },
   // Processing
   processing: {
@@ -226,6 +235,12 @@ export const en = {
     validating: 'Checking extracted information',
     complete: 'Preparing review screen',
     errorTitle: 'Something went wrong',
+    waitDesc: 'Please wait while Nusxa reads and processes your prescription image.',
+    detectedOne: '{n} medicine detected',
+    detectedMany: '{n} medicines detected',
+    toReviewOne: '{n} item to review',
+    toReviewMany: '{n} items to review',
+    reviewAdjust: 'Review & adjust',
   },
   // AI failure copy, keyed by AiErrorCopyKey in src/ai/retry-after.ts. The raw
   // provider message is never shown to the user: it is an English JSON blob
@@ -250,6 +265,43 @@ export const en = {
     duplicateNames: '{names} appears more than once on this prescription. Please confirm they are not the same medicine.',
     incomplete: 'Missing details',
     asWritten: 'As written on the prescription',
+    subtitle: 'Verify the extracted information before creating your schedule.',
+    noData: 'No prescription data available.',
+    alreadyAdded: 'Already added',
+    goodRead: 'Good read',
+    lowConfidenceBadge: 'Low confidence',
+    alreadyInList: 'Already in your list',
+    duplicateSamePrescription: 'This prescription was scanned before and all of its medicines are already being tracked. Continuing will refresh their reminders. Nothing will be added twice.',
+    duplicateAllOne: 'The only medicine on this prescription is already in your list. Continuing will refresh its reminders. Nothing will be added twice.',
+    duplicateAllMany: 'All {n} medicines on this prescription are already in your list. Continuing will refresh their reminders. Nothing will be added twice.',
+    keepCurrentSchedule: 'Keep current schedule',
+    interactionsTitle: 'Possible medicine interactions',
+    interactionsOne: '1 combination below may interact. Please review it before saving.',
+    interactionsMany: '{n} combinations below may interact. Please review them before saving.',
+    interactionsDisclaimer: 'Automated guidance only — always confirm combinations with your doctor or pharmacist.',
+    details: 'Prescription details',
+    doctorName: 'Doctor name',
+    hospital: 'Hospital / Clinic',
+    dateLabel: 'Date',
+    notDetected: 'Not detected',
+    medicinesCount: 'Medicines ({n})',
+    medicineFallback: 'Medicine {n}',
+    fieldName: 'Medicine name',
+    placeholderName: 'Enter medicine name',
+    fieldDosage: 'Dosage',
+    placeholderDosage: 'e.g. 1 tablet',
+    fieldForm: 'Form',
+    placeholderForm: 'e.g. tablet',
+    fieldFrequency: 'Frequency',
+    placeholderFrequency: 'e.g. Three times daily',
+    fieldDuration: 'Duration',
+    placeholderDuration: 'e.g. 7 days',
+    fieldMeal: 'Meal instruction',
+    placeholderMeal: 'after / before / with',
+    fieldStrength: 'Strength',
+    placeholderStrength: 'e.g. 500mg',
+    updateReminders: 'Update reminders',
+    discardPrescription: 'Discard prescription',
   },
   // Schedule
   schedule: {
@@ -344,6 +396,14 @@ export const en = {
     call: 'Call',
     dobHint: 'Add your date of birth in Settings → Profile',
     saved: 'Your emergency card has been updated.',
+    discardTitle: 'Discard changes?',
+    discardMsg: 'You have unsaved changes. Are you sure you want to cancel?',
+    keepEditing: 'Keep editing',
+    allergiesPlaceholder: 'Comma-separated',
+    contactNamePlaceholder: 'Contact name',
+    phonePlaceholder: 'Phone number',
+    physicianPlaceholder: 'Doctor name',
+    setBloodGroup: 'Set blood group to {group}',
   },
   // Doctor visit
   doctorVisit: {
@@ -395,6 +455,8 @@ export const en = {
     dosageInfo: 'Dosage info',
     frequency: 'Frequency',
     duration: 'Duration',
+    lowStockOne: '1 medicine is running low. Plan a refill soon.',
+    lowStockMany: '{n} medicines are running low. Plan a refill soon.',
   },
   // Repeat schedule (weekly / alternate days)
   repeat: {
@@ -478,12 +540,29 @@ export const en = {
     clearMsg: 'This permanently deletes the chat history on this device.',
     errorNoKey: 'I am unable to connect to the AI service right now. Please configure your API key in Settings to use the companion feature.',
     errorRetryMsg: 'I had trouble responding. Please try again in a moment.',
+    clearHistory: 'Clear chat history',
+    typeQuestion: 'Type your question',
+    sendMessage: 'Send message',
   },
   errorBoundary: {
     title: 'Something went wrong',
     message: 'The app hit an unexpected error. Your data is safe on this device.',
     retry: 'Try again',
     shareDetails: 'Share error details',
+  },
+  // App lock gate
+  lock: {
+    title: 'Nusxa is locked',
+    enterPin: 'Enter your PIN to continue',
+    tooManyAttempts: 'Too many attempts. Try again in {s}s',
+    misconfigured: 'Biometric unlock needs an app update. Enter your PIN.',
+    biometricFailed: 'Biometric check did not succeed. Enter your PIN.',
+    wrongPin: 'Wrong PIN. {remaining} attempts left.',
+    wrongPinOne: 'Wrong PIN. 1 attempt left.',
+    unlockWith: 'Unlock with {label}',
+    useBiometric: 'Use {label}',
+    biometrics: 'biometrics',
+    unlockPrompt: 'Unlock Nusxa',
   },
   // Analytics screen
   analytics: {
@@ -535,6 +614,9 @@ export const en = {
     mediumSeverity: 'Medium Risk',
     lowSeverity: 'Low Risk',
     consultDoctor: 'Consult your doctor immediately if you experience:',
+    regimenTitle: 'Possible interactions in your regimen',
+    regimenCount: '{n} possible medicine interactions in your regimen',
+    regimenCountOne: '1 possible medicine interaction in your regimen',
   },
   // Toast messages
   toasts: {

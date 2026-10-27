@@ -9,7 +9,7 @@ import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { processPrescription } from '../src/ai/pipeline';
 import { aiErrorCopyKey } from '../src/ai/client';
-import { PrescriptionJSON, PipelineStage, PIPELINE_STAGE_LABELS, ValidationResult } from '../src/ai/types';
+import { PrescriptionJSON, PipelineStage, ValidationResult } from '../src/ai/types';
 import { buildDefaultSchedules, savePrescription } from '../src/utils/savePrescription';
 import { archivePrescriptionImages } from '../src/utils/archiveImages';
 import { resolveApiKey } from '../src/utils/secureStorage';
@@ -156,10 +156,10 @@ export default function ProcessingScreen() {
   };
 
   const steps = [
-    { label: PIPELINE_STAGE_LABELS.preparing, status: getStepStatus('preparing') },
-    { label: PIPELINE_STAGE_LABELS.reading, status: getStepStatus('reading') },
-    { label: PIPELINE_STAGE_LABELS.validating, status: getStepStatus('validating') },
-    { label: PIPELINE_STAGE_LABELS.complete, status: getStepStatus('complete') },
+    { label: t.processing.preparing, status: getStepStatus('preparing') },
+    { label: t.processing.reading, status: getStepStatus('reading') },
+    { label: t.processing.validating, status: getStepStatus('validating') },
+    { label: t.processing.complete, status: getStepStatus('complete') },
   ];
 
   function getStepStatus(
@@ -189,13 +189,11 @@ export default function ProcessingScreen() {
         </View>
 
         <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
-          {stage === 'error' ? t.processing.errorTitle : 'Reading your prescription'}
+          {stage === 'error' ? t.processing.errorTitle : t.processing.reading}
         </Text>
 
         <Text style={[typography.body.base, { color: colors.text.secondary, marginTop: spacing.sm, textAlign: 'center' }]}>
-          {stage === 'error'
-            ? error
-            : 'Please wait while Nusxa reads and processes your prescription image.'}
+          {stage === 'error' ? error : t.processing.waitDesc}
         </Text>
 
         <View style={{ marginTop: spacing.xl, width: '100%', paddingHorizontal: 32 }}>
@@ -217,18 +215,24 @@ export default function ProcessingScreen() {
         {stage === 'complete' && result && (
           <View style={styles.successActions}>
             <Text style={[typography.body.sm, { color: colors.success, textAlign: 'center', marginBottom: spacing.base }]}>
-              {result.data.medicines.length} medicine{result.data.medicines.length !== 1 ? 's' : ''} detected
+              {(result.data.medicines.length === 1
+                ? t.processing.detectedOne
+                : t.processing.detectedMany
+              ).replace('{n}', String(result.data.medicines.length))}
               {result.validation.warnings.length > 0 &&
-                `, ${result.validation.warnings.length} item${result.validation.warnings.length !== 1 ? 's' : ''} to review`}
+                `, ${(result.validation.warnings.length === 1
+                  ? t.processing.toReviewOne
+                  : t.processing.toReviewMany
+                ).replace('{n}', String(result.validation.warnings.length))}`}
             </Text>
             <View style={styles.successButtons}>
               <Button
-                title="OK"
+                title={t.common.ok}
                 onPress={handleApprove}
                 loading={saving}
               />
               <Button
-                title="Review & adjust"
+                title={t.processing.reviewAdjust}
                 onPress={handleContinue}
                 variant="ghost"
               />

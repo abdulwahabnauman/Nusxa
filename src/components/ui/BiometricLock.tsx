@@ -9,6 +9,7 @@ import { View, Text, StyleSheet, TouchableOpacity, AppState } from 'react-native
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { spacing } from '../../theme/spacing';
+import { useI18n } from '../../i18n';
 import { PinKeypad } from './PinKeypad';
 import {
   PIN_LENGTH,
@@ -24,6 +25,7 @@ const LOCKOUT_SECONDS = 30;
 
 export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const { colors, typography: typ } = useTheme();
+  const { t } = useI18n();
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
@@ -49,6 +51,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   }, []);
 
   const lockedOut = lockoutUntil !== null && lockoutUntil > now;
+  const biometricName = biometricLabel ?? t.lock.biometrics;
   const lockoutRemaining = lockoutUntil
     ? Math.max(0, Math.ceil((lockoutUntil - now) / 1000))
     : 0;
@@ -82,7 +85,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       // explicit tap on a visible button bypasses this: the button only
       // renders when biometrics are preferred.
       if (!bypassPrefCheck && !(await isBiometricPreferred())) return;
-      const authPromise = authenticateWithBiometrics('Unlock Nusxa');
+      const authPromise = authenticateWithBiometrics(t.lock.unlockPrompt);
       // Real hardware ALWAYS resolves the prompt (success / cancel / error),
       // however long the user takes placing their finger — so await it fully.
       // The old 8s race timed out first on slow attempts, showed a bogus
@@ -108,7 +111,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       if (result.misconfigured) {
         brokenRef.current = true;
         setBiometricBroken(true);
-        setError('Biometric unlock needs an app update. Enter your PIN.');
+        setError(t.lock.misconfigured);
         return;
       }
       // Simulators have no real biometric hardware — a genuine prompt can
@@ -122,7 +125,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
       // A deliberate cancel just falls back to the PIN pad quietly; only a
       // genuine failure (read errors, lockout) deserves the error text.
       if (!result.cancelled) {
-        setError('Biometric check did not succeed. Enter your PIN.');
+        setError(t.lock.biometricFailed);
       }
     } finally {
       if (mountedRef.current) {
@@ -130,7 +133,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
         setPrompting(false);
       }
     }
-  }, [onUnlock]);
+  }, [onUnlock, t]);
 
   // Auto-prompt biometrics when the hardware exists and the user opted in.
   // Fires on mount IF already in the foreground, and again on every return
@@ -186,7 +189,11 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
           setNow(Date.now());
         } else {
           setAttemptsLeft(remaining);
-          setError(`Wrong PIN. ${remaining} attempt${remaining === 1 ? '' : 's'} left.`);
+          setError(
+            remaining === 1
+              ? t.lock.wrongPinOne
+              : t.lock.wrongPin.replace('{remaining}', String(remaining))
+          );
         }
       } finally {
         verifying.current = false;
@@ -206,11 +213,11 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
         <MaterialCommunityIcons name="lock-outline" size={44} color={colors.accent.primary} />
       </View>
 
-      <Text style={[typ.heading.h3, { color: colors.text.primary }]}>Nusxa is locked</Text>
+      <Text style={[typ.heading.h3, { color: colors.text.primary }]}>{t.lock.title}</Text>
       <Text style={[typ.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
         {lockedOut
-          ? `Too many attempts. Try again in ${lockoutRemaining}s`
-          : 'Enter your PIN to continue'}
+          ? t.lock.tooManyAttempts.replace('{s}', String(lockoutRemaining))
+          : t.lock.enterPin}
       </Text>
 
       {error !== null && !lockedOut && (
@@ -234,7 +241,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
           style={styles.biometricBtn}
           onPress={() => void tryBiometric(true, true)}
           disabled={prompting}
-          accessibilityLabel={`Unlock with ${biometricLabel ?? 'biometrics'}`}
+          accessibilityLabel={t.lock.unlockWith.replace('{label}', biometricName)}
         >
           <MaterialCommunityIcons
             name={biometricLabel === 'Face' ? 'face-recognition' : 'fingerprint'}
@@ -242,7 +249,7 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
             color={colors.accent.primary}
           />
           <Text style={[typ.label.base, { color: colors.accent.primary, marginLeft: 8 }]}>
-            Use {biometricLabel ?? 'biometrics'}
+            {t.lock.useBiometric.replace('{label}', biometricName)}
           </Text>
         </TouchableOpacity>
       )}

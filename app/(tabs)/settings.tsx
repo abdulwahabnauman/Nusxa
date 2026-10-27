@@ -236,11 +236,11 @@ export default function SettingsScreen() {
 
   const handleClearData = () => {
     Alert.alert(
-      'Delete all data',
-      'This will permanently delete your profile, all prescriptions, medicines, schedules, dose records, chat history, and saved prescription images.',
+      t.settings.deleteAllData,
+      t.settings.clearDataMsg,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete everything', style: 'destructive', onPress: async () => {
+        { text: t.common.cancel, style: 'cancel' },
+        { text: t.settings.deleteEverything, style: 'destructive', onPress: async () => {
           setClearing(true);
           try {
             await deleteProfile();
@@ -294,12 +294,12 @@ export default function SettingsScreen() {
 
   const handleImportData = () => {
     Alert.alert(
-      'Import data',
-      'Importing restores a previously exported JSON file and REPLACES all current data (profile, prescriptions, medicines, schedules, dose records). Continue?',
+      t.settings.importDataTitle,
+      t.settings.importDataMsg,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Choose file',
+          text: t.settings.chooseFile,
           onPress: async () => {
             try {
               const result = await withLockExemption(() =>
@@ -327,7 +327,7 @@ export default function SettingsScreen() {
               const counts = await importFromJSON(raw);
               await finishImport(counts);
             } catch (err) {
-              const message = err instanceof Error ? err.message : 'The file could not be imported.';
+              const message = err instanceof Error ? err.message : t.settings.importFileFailed;
               showToast(t.toasts.importFailed.replace('{error}', message), 'error', 6000);
             } finally {
               setImporting(false);
@@ -395,7 +395,7 @@ export default function SettingsScreen() {
       if (err instanceof Error && err.message === 'wrong-password') {
         setEncError(t.settings.wrongBackupPassword);
       } else {
-        const message = err instanceof Error ? err.message : 'The file could not be imported.';
+        const message = err instanceof Error ? err.message : t.settings.importFileFailed;
         closeEncModal();
         showToast(t.toasts.importFailed.replace('{error}', message), 'error', 6000);
       }
@@ -730,21 +730,21 @@ export default function SettingsScreen() {
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.elderlyMode}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.elderlyModeDesc}</Text>
                 </View>
-                <Switch value={elderlyMode} onValueChange={(v) => { selectionHaptic(); setElderlyMode(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle elderly mode" />
+                <Switch value={elderlyMode} onValueChange={(v) => { selectionHaptic(); setElderlyMode(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel={t.settings.elderlyMode} />
               </View>
               <View style={[styles.row, { marginTop: spacing.md }]}>
                 <View>
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.highContrast}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.highContrastDesc}</Text>
                 </View>
-                <Switch value={highContrast} onValueChange={(v) => { selectionHaptic(); setHighContrast(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle high contrast mode" />
+                <Switch value={highContrast} onValueChange={(v) => { selectionHaptic(); setHighContrast(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel={t.settings.highContrast} />
               </View>
               <View style={[styles.row, { marginTop: spacing.md }]}>
                 <View>
                   <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.reducedMotion}</Text>
                   <Text style={[typography.body.xs, { color: colors.text.secondary }]}>{t.settings.reducedMotionDesc}</Text>
                 </View>
-                <Switch value={reducedMotion} onValueChange={(v) => { selectionHaptic(); setReducedMotion(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle reduced motion" />
+                <Switch value={reducedMotion} onValueChange={(v) => { selectionHaptic(); setReducedMotion(v); }} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel={t.settings.reducedMotion} />
               </View>
             </Card>
           </View>
@@ -824,7 +824,7 @@ export default function SettingsScreen() {
                     }
                   }}
                   trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                  accessibilityLabel="Toggle medicine reminders"
+                  accessibilityLabel={t.settings.medicineReminders}
                 />
               </View>
               <View style={[styles.row, { marginTop: spacing.md }]}>
@@ -860,7 +860,7 @@ export default function SettingsScreen() {
                     void syncDoseNotifications();
                   }}
                   trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                  accessibilityLabel="Toggle reminder escalation"
+                  accessibilityLabel={t.settings.reminderEscalation}
                 />
               </View>
             </Card>
@@ -880,7 +880,7 @@ export default function SettingsScreen() {
                     <MaterialCommunityIcons name="check-circle" size={18} color={colors.success} accessibilityLabel={t.settings.appLockEnabled} />
                   )}
                 </View>
-                <Switch value={appLockEnabled} onValueChange={handleLockToggle} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel="Toggle app lock" />
+                <Switch value={appLockEnabled} onValueChange={handleLockToggle} trackColor={{ false: colors.border.default, true: colors.accent.primary }} accessibilityLabel={t.settings.appLock} />
               </View>
               {appLockEnabled && biometricSupport.available && (
                 <View style={[styles.row, { marginTop: spacing.md }]}>
@@ -893,7 +893,7 @@ export default function SettingsScreen() {
                     onValueChange={async (value) => {
                       if (value) {
                         const ok =
-                          (await authenticateWithBiometrics('Confirm biometric unlock')).ok ||
+                          (await authenticateWithBiometrics(t.settings.confirmBiometric)).ok ||
                           biometricDevBypass();
                         if (!ok) {
                           showToast(t.toasts.biometricFallback, 'error');
@@ -908,7 +908,7 @@ export default function SettingsScreen() {
                       }
                     }}
                     trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                    accessibilityLabel="Toggle biometric unlock"
+                    accessibilityLabel={t.settings.useBiometric}
                   />
                 </View>
               )}
@@ -946,7 +946,7 @@ export default function SettingsScreen() {
                       setUseOwnKeys(value);
                     }}
                     trackColor={{ false: colors.border.default, true: colors.accent.primary }}
-                    accessibilityLabel="Toggle use my own keys"
+                    accessibilityLabel={t.settings.ownKeys}
                   />
                 </View>
                 {geminiKeyUnused && (
@@ -1008,7 +1008,7 @@ export default function SettingsScreen() {
                     await withLockExemption(() =>
                       Sharing.shareAsync(fileUri, {
                         mimeType: 'application/json',
-                        dialogTitle: 'Export Nusxa data',
+                        dialogTitle: t.settings.exportData,
                       })
                     );
                   } catch (err) {
@@ -1017,7 +1017,7 @@ export default function SettingsScreen() {
                     showToast(t.toasts.exportFailed.replace('{error}', detail).trim(), 'error', 6000);
                   }
                 }}
-                accessibilityLabel="Export data as JSON"
+                accessibilityLabel={t.settings.exportData}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MaterialCommunityIcons name="download-outline" size={20} color={colors.text.primary} />
@@ -1034,7 +1034,7 @@ export default function SettingsScreen() {
                   setEncError(null);
                   setEncModal('export');
                 }}
-                accessibilityLabel="Create encrypted backup"
+                accessibilityLabel={t.settings.encryptedBackup}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MaterialCommunityIcons name="lock-outline" size={20} color={colors.text.primary} />
@@ -1050,7 +1050,7 @@ export default function SettingsScreen() {
                 style={styles.row}
                 onPress={handleImportData}
                 disabled={importing}
-                accessibilityLabel="Import data from JSON"
+                accessibilityLabel={t.settings.importData}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MaterialCommunityIcons name="upload-outline" size={20} color={colors.text.primary} />
@@ -1061,7 +1061,7 @@ export default function SettingsScreen() {
                 <MaterialCommunityIcons name={isRTL ? 'chevron-left' : 'chevron-right'} size={20} color={colors.text.disabled} />
               </TouchableOpacity>
               <View style={[styles.divider, { backgroundColor: colors.border.default }]} />
-              <TouchableOpacity style={styles.row} onPress={handleClearData} disabled={clearing} accessibilityLabel="Delete all data">
+              <TouchableOpacity style={styles.row} onPress={handleClearData} disabled={clearing} accessibilityLabel={t.settings.deleteAllData}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   <MaterialCommunityIcons name="delete-outline" size={20} color={colors.error} />
                   <Text style={[typography.body.base, { color: colors.error, marginStart: 8 }]}>{clearing ? t.common.loading : t.settings.deleteAllData}</Text>
@@ -1127,7 +1127,7 @@ export default function SettingsScreen() {
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
-          accessibilityLabel="Backup password"
+          accessibilityLabel={t.settings.backupPasswordLabel}
         />
         {encModal === 'export' && (
           <TextInput
@@ -1139,7 +1139,7 @@ export default function SettingsScreen() {
             secureTextEntry
             autoCapitalize="none"
             autoCorrect={false}
-            accessibilityLabel="Confirm backup password"
+            accessibilityLabel={t.settings.backupPasswordConfirmLabel}
           />
         )}
         {encError !== null && (

@@ -127,9 +127,9 @@ export default function ReviewScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={styles.centered}>
           <Text style={[typography.body.base, { color: colors.error }]}>
-            No prescription data available.
+            {t.review.noData}
           </Text>
-          <Button title="Go back" onPress={() => router.back()} style={{ marginTop: 16 }} />
+          <Button title={t.common.goBack} onPress={() => router.back()} style={{ marginTop: 16 }} />
         </View>
       </SafeAreaView>
     );
@@ -146,10 +146,18 @@ export default function ReviewScreen() {
 
   const handleVerify = async () => {
     // Check required fields via the shared validation toolkit
+    const fieldLabels: Record<string, string> = {
+      name: t.review.fieldName,
+      dosage: t.review.fieldDosage,
+      frequency: t.review.fieldFrequency,
+      duration: t.review.fieldDuration,
+    };
     const missing: string[] = [];
     data.medicines.forEach((med, i) => {
       for (const field of getMissingFields(med)) {
-        missing.push(`Medicine ${i + 1}: ${field}`);
+        missing.push(
+          `${t.review.medicineFallback.replace('{n}', String(i + 1))}: ${fieldLabels[field] ?? field}`
+        );
       }
     });
 
@@ -189,11 +197,11 @@ export default function ReviewScreen() {
 
   const handleDiscard = () => {
     Alert.alert(
-      'Discard prescription',
-      'Are you sure you want to discard this prescription? You will need to scan it again.',
+      t.review.discardTitle,
+      t.review.discardMsg,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Discard', style: 'destructive', onPress: () => router.replace('/(tabs)') },
+        { text: t.common.cancel, style: 'cancel' },
+        { text: t.common.discard, style: 'destructive', onPress: () => router.replace('/(tabs)') },
       ]
     );
   };
@@ -213,10 +221,10 @@ export default function ReviewScreen() {
           {/* Header */}
           <View style={[styles.header, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-              Review prescription
+              {t.review.title}
             </Text>
             <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-              Verify the extracted information before creating your schedule.
+              {t.review.subtitle}
             </Text>
           </View>
 
@@ -256,17 +264,19 @@ export default function ReviewScreen() {
                   <MaterialCommunityIcons name="check-decagram-outline" size={20} color={colors.warning} />
                   <View style={{ marginLeft: 8, flex: 1 }}>
                     <Text style={[typography.label.base, { color: colors.text.primary }]}>
-                      Already in your list
+                      {t.review.alreadyInList}
                     </Text>
                     <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
                       {dupes.samePrescriptionOnRecord
-                        ? 'This prescription was scanned before and all of its medicines are already being tracked. Continuing will refresh their reminders. Nothing will be added twice.'
-                        : `All ${dupes.total} medicine${dupes.total === 1 ? '' : 's'} on this prescription ${dupes.total === 1 ? 'is' : 'are'} already in your list. Continuing will refresh ${dupes.total === 1 ? 'its' : 'their'} reminders. Nothing will be added twice.`}
+                        ? t.review.duplicateSamePrescription
+                        : dupes.total === 1
+                          ? t.review.duplicateAllOne
+                          : t.review.duplicateAllMany.replace('{n}', String(dupes.total))}
                     </Text>
                   </View>
                 </View>
                 <Button
-                  title="Keep current schedule"
+                  title={t.review.keepCurrentSchedule}
                   variant="secondary"
                   size="sm"
                   onPress={() => router.replace('/(tabs)')}
@@ -314,12 +324,12 @@ export default function ReviewScreen() {
                   <MaterialCommunityIcons name="pill-multiple" size={20} color={colors.error} />
                   <View style={{ marginLeft: 8, flex: 1 }}>
                     <Text style={[typography.label.base, { color: colors.text.primary }]}>
-                      Possible medicine interactions
+                      {t.review.interactionsTitle}
                     </Text>
                     <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
                       {interactions.length === 1
-                        ? '1 combination below may interact. Please review it before saving.'
-                        : `${interactions.length} combinations below may interact. Please review them before saving.`}
+                        ? t.review.interactionsOne
+                        : t.review.interactionsMany.replace('{n}', String(interactions.length))}
                     </Text>
                   </View>
                 </View>
@@ -345,7 +355,7 @@ export default function ReviewScreen() {
                   );
                 })}
                 <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 10 }]}>
-                  Automated guidance only — always confirm combinations with your doctor or pharmacist.
+                  {t.review.interactionsDisclaimer}
                 </Text>
               </Card>
             </View>
@@ -354,40 +364,40 @@ export default function ReviewScreen() {
           {/* Prescription Info */}
           <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              Prescription details
+              {t.review.details}
             </Text>
             <Card>
               <Input
-                label="Doctor name"
+                label={t.review.doctorName}
                 value={data.prescription.doctor_name ?? ''}
                 onChangeText={(text) =>
                   setData((prev) =>
                     prev ? { ...prev, prescription: { ...prev.prescription, doctor_name: text || null } } : prev
                   )
                 }
-                placeholder="Not detected"
+                placeholder={t.review.notDetected}
                 containerStyle={{ marginBottom: spacing.md }}
               />
               <Input
-                label="Hospital / Clinic"
+                label={t.review.hospital}
                 value={data.prescription.hospital ?? ''}
                 onChangeText={(text) =>
                   setData((prev) =>
                     prev ? { ...prev, prescription: { ...prev.prescription, hospital: text || null } } : prev
                   )
                 }
-                placeholder="Not detected"
+                placeholder={t.review.notDetected}
                 containerStyle={{ marginBottom: spacing.md }}
               />
               <Input
-                label="Date"
+                label={t.review.dateLabel}
                 value={data.prescription.date ?? ''}
                 onChangeText={(text) =>
                   setData((prev) =>
                     prev ? { ...prev, prescription: { ...prev.prescription, date: text || null } } : prev
                   )
                 }
-                placeholder="Not detected"
+                placeholder={t.review.notDetected}
               />
             </Card>
           </View>
@@ -395,82 +405,82 @@ export default function ReviewScreen() {
           {/* Medicines */}
           <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              Medicines ({data.medicines.length})
+              {t.review.medicinesCount.replace('{n}', String(data.medicines.length))}
             </Text>
 
             {data.medicines.map((medicine, index) => (
               <Card key={index} style={{ marginBottom: spacing.md }}>
                 <View style={styles.medicineHeader}>
                   <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-                    {medicine.name ?? `Medicine ${index + 1}`}
+                    {medicine.name ?? t.review.medicineFallback.replace('{n}', String(index + 1))}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: 6 }}>
-                    {dupes?.matched[index] && <Badge label="Already added" variant="verified" />}
+                    {dupes?.matched[index] && <Badge label={t.review.alreadyAdded} variant="verified" />}
                     {!isMedicineComplete(medicine) && (
                       <Badge label={t.review.incomplete} variant="needs_review" />
                     )}
                     <Badge
-                      label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'Good read' : 'Low confidence'}
+                      label={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? t.review.goodRead : t.review.lowConfidenceBadge}
                       variant={medicine.confidence >= LOW_CONFIDENCE_THRESHOLD ? 'verified' : 'needs_review'}
                     />
                   </View>
                 </View>
 
                 <Input
-                  label="Medicine name"
+                  label={t.review.fieldName}
                   value={medicine.name ?? ''}
                   onChangeText={(text) => updateMedicine(index, 'name', text || null)}
-                  placeholder="Enter medicine name"
+                  placeholder={t.review.placeholderName}
                   containerStyle={{ marginTop: spacing.md }}
                 />
 
                 <View style={styles.row}>
                   <Input
-                    label="Dosage"
+                    label={t.review.fieldDosage}
                     value={medicine.dosage ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'dosage', text || null)}
-                    placeholder="e.g. 1 tablet"
+                    placeholder={t.review.placeholderDosage}
                     containerStyle={{ flex: 1, marginRight: spacing.sm }}
                   />
                   <Input
-                    label="Form"
+                    label={t.review.fieldForm}
                     value={medicine.form ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'form', text || null)}
-                    placeholder="e.g. tablet"
+                    placeholder={t.review.placeholderForm}
                     containerStyle={{ flex: 1 }}
                   />
                 </View>
 
                 <Input
-                  label="Frequency"
+                  label={t.review.fieldFrequency}
                   value={medicine.frequency ?? ''}
                   onChangeText={(text) => updateMedicine(index, 'frequency', text || null)}
-                  placeholder="e.g. Three times daily"
+                  placeholder={t.review.placeholderFrequency}
                   containerStyle={{ marginTop: spacing.sm }}
                 />
 
                 <View style={styles.row}>
                   <Input
-                    label="Duration"
+                    label={t.review.fieldDuration}
                     value={medicine.duration ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'duration', text || null)}
-                    placeholder="e.g. 7 days"
+                    placeholder={t.review.placeholderDuration}
                     containerStyle={{ flex: 1, marginRight: spacing.sm }}
                   />
                   <Input
-                    label="Meal instruction"
+                    label={t.review.fieldMeal}
                     value={medicine.meal_instruction ?? ''}
                     onChangeText={(text) => updateMedicine(index, 'meal_instruction', text || null)}
-                    placeholder="after / before / with"
+                    placeholder={t.review.placeholderMeal}
                     containerStyle={{ flex: 1 }}
                   />
                 </View>
 
                 <Input
-                  label="Strength"
+                  label={t.review.fieldStrength}
                   value={medicine.strength ?? ''}
                   onChangeText={(text) => updateMedicine(index, 'strength', text || null)}
-                  placeholder="e.g. 500mg"
+                  placeholder={t.review.placeholderStrength}
                   containerStyle={{ marginTop: spacing.sm }}
                 />
 
@@ -493,13 +503,13 @@ export default function ReviewScreen() {
           {/* Actions */}
           <View style={[styles.actions, { paddingHorizontal: spacing.base }]}>
             <Button
-              title={dupes?.isFullDuplicate ? 'Update reminders' : 'Verify and continue'}
+              title={dupes?.isFullDuplicate ? t.review.updateReminders : t.review.verify}
               onPress={handleVerify}
               loading={saving}
               size="lg"
             />
             <Button
-              title="Discard prescription"
+              title={t.review.discardPrescription}
               onPress={handleDiscard}
               variant="ghost"
             />

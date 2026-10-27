@@ -55,7 +55,7 @@ export default function OnboardingScreen() {
 
   const handleProfileSave = async () => {
     if (!name.trim()) {
-      showToast(t.onboarding.nameRequired || 'Name required', 'warning');
+      showToast(t.onboarding.nameRequired, 'warning');
       return;
     }
     // Don't save yet - wait until permissions step

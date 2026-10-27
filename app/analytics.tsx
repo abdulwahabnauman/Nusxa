@@ -286,7 +286,7 @@ export default function AnalyticsScreen() {
           <TouchableOpacity
             onPress={() => router.back()}
             style={{ marginRight: spacing.sm, padding: 4 }}
-            accessibilityLabel="Go back"
+            accessibilityLabel={t.common.goBack}
           >
             <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
           </TouchableOpacity>

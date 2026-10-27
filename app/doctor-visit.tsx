@@ -79,7 +79,7 @@ export default function DoctorVisitScreen() {
       await withLockExemption(() =>
         Sharing.shareAsync(shareUri, {
           mimeType: 'application/pdf',
-          dialogTitle: 'Share doctor visit report',
+          dialogTitle: t.doctorVisit.shareReport,
           UTI: 'com.adobe.pdf',
         })
       );

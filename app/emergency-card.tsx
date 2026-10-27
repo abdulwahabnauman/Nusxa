@@ -82,12 +82,12 @@ export default function EmergencyCardScreen() {
 
     if (isDirty) {
       Alert.alert(
-        'Discard Changes?',
-        'You have unsaved changes. Are you sure you want to cancel?',
+        t.emergency.discardTitle,
+        t.emergency.discardMsg,
         [
-          { text: 'Keep Editing', style: 'cancel' },
+          { text: t.emergency.keepEditing, style: 'cancel' },
           {
-            text: 'Discard',
+            text: t.common.discard,
             onPress: () => {
               // Reset all fields to original values
               setDob(originalDob);
@@ -230,7 +230,7 @@ export default function EmergencyCardScreen() {
                               borderColor: selected ? colors.error : colors.border.default,
                             }}
                             onPress={() => setBloodGroup(selected ? '' : group)}
-                            accessibilityLabel={`Set blood group to ${group}`}
+                            accessibilityLabel={t.emergency.setBloodGroup.replace('{group}', group)}
                             accessibilityState={{ selected }}
                           >
                             <Text style={[typography.label.sm, { color: selected ? colors.onStatus : colors.text.secondary }]}>{group}</Text>
@@ -249,7 +249,7 @@ export default function EmergencyCardScreen() {
                 <View style={{ marginStart: 12, flex: 1 }}>
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.allergies}</Text>
                   {editing ? (
-                    <Input value={allergies} onChangeText={setAllergies} placeholder="Comma-separated" containerStyle={{ marginTop: 4 }} />
+                    <Input value={allergies} onChangeText={setAllergies} placeholder={t.emergency.allergiesPlaceholder} containerStyle={{ marginTop: 4 }} />
                   ) : (
                     <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>
                       {allergies || t.emergency.noneListed}
@@ -264,8 +264,8 @@ export default function EmergencyCardScreen() {
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.emergencyContact}</Text>
                   {editing ? (
                     <View style={{ gap: 8, marginTop: 4 }}>
-                      <Input value={emergencyName} onChangeText={setEmergencyName} placeholder="Contact name" />
-                      <Input value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder="Phone number" keyboardType="phone-pad" />
+                      <Input value={emergencyName} onChangeText={setEmergencyName} placeholder={t.emergency.contactNamePlaceholder} />
+                      <Input value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder={t.emergency.phonePlaceholder} keyboardType="phone-pad" />
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -301,7 +301,7 @@ export default function EmergencyCardScreen() {
                 <View style={{ marginStart: 12, flex: 1 }}>
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.physician}</Text>
                   {editing ? (
-                    <Input value={physician} onChangeText={setPhysician} placeholder="Doctor name" containerStyle={{ marginTop: 4 }} />
+                    <Input value={physician} onChangeText={setPhysician} placeholder={t.emergency.physicianPlaceholder} containerStyle={{ marginTop: 4 }} />
                   ) : (
                     <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>{physician || t.common.notSet}</Text>
                   )}

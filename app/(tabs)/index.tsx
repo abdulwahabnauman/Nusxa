@@ -465,7 +465,7 @@ export default function HomeScreen() {
           <TouchableOpacity
             onPress={() => router.push('/chat')}
             style={[styles.chatButton, { backgroundColor: colors.accent.subtle }]}
-            accessibilityLabel="Open AI companion"
+            accessibilityLabel={t.chat.title}
           >
             <MaterialCommunityIcons name="message-outline" size={22} color={colors.accent.primary} />
           </TouchableOpacity>
@@ -641,7 +641,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={() => router.push('/emergency-card')}
-                accessibilityLabel="Emergency card"
+                accessibilityLabel={t.home.emergencyCard}
               >
                 <MaterialCommunityIcons name="medical-bag" size={24} color={colors.error} />
                 <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
@@ -653,7 +653,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={() => router.push('/doctor-visit')}
-                accessibilityLabel="Doctor visit report"
+                accessibilityLabel={t.doctorVisit.title}
               >
                 <MaterialCommunityIcons name="clipboard-text-outline" size={24} color={colors.accent.primary} />
                 <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>
@@ -665,7 +665,7 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={styles.quickLink}
                 onPress={() => router.push('/analytics')}
-                accessibilityLabel="Progress analytics"
+                accessibilityLabel={t.analytics.title}
               >
                 <MaterialCommunityIcons name="chart-bar" size={24} color={colors.success} />
                 <Text style={[typography.body.sm, { color: colors.text.primary, marginTop: spacing.xs, textAlign: 'center' }]}>

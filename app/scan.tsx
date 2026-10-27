@@ -882,7 +882,7 @@ export default function ScanScreen() {
             <TouchableOpacity
               style={styles.closeButton}
               onPress={() => setCameraActive(false)}
-              accessibilityLabel="Close camera"
+              accessibilityLabel={t.scanner.closeCamera}
             >
               <MaterialCommunityIcons name="close" size={28} color={CAMERA_CHROME} />
             </TouchableOpacity>

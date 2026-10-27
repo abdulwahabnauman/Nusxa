@@ -174,9 +174,9 @@ export default function ScheduleScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
         <View style={styles.centered}>
           <Text style={[typography.body.base, { color: colors.error }]}>
-            No prescription data available.
+            {t.review.noData}
           </Text>
-          <Button title="Go back" onPress={() => router.back()} style={{ marginTop: 16 }} />
+          <Button title={t.common.goBack} onPress={() => router.back()} style={{ marginTop: 16 }} />
         </View>
       </SafeAreaView>
     );

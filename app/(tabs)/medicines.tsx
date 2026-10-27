@@ -136,12 +136,15 @@ export default function MedicinesScreen() {
             marginTop: 12,
             marginBottom: 16,
           }}
-          accessibilityLabel={`${interactions.length} possible medicine interactions in your regimen`}
+          accessibilityLabel={(interactions.length === 1
+            ? t.interactions.regimenCountOne
+            : t.interactions.regimenCount
+          ).replace('{n}', String(interactions.length))}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <MaterialCommunityIcons name="pill-multiple" size={20} color={colors.error} />
             <Text style={[typography.label.base, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
-              Possible interactions in your regimen
+              {t.interactions.regimenTitle}
             </Text>
           </View>
           {interactions.map((hit, i) => {
@@ -166,7 +169,7 @@ export default function MedicinesScreen() {
             );
           })}
           <Text style={[typography.body.xs, { color: colors.text.disabled, marginTop: 8 }]}>
-            Automated guidance only. Always confirm with your doctor or pharmacist.
+            {t.review.interactionsDisclaimer}
           </Text>
         </View>
       )}
@@ -183,13 +186,15 @@ export default function MedicinesScreen() {
             marginTop: 12,
             marginBottom: 16,
           }}
-          accessibilityLabel={`${lowStockCount} medicines running low on supply`}
+          accessibilityLabel={lowStockCount === 1
+            ? t.medicinesList.lowStockOne
+            : t.medicinesList.lowStockMany.replace('{n}', String(lowStockCount))}
         >
           <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.warning} />
           <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
             {lowStockCount === 1
-              ? '1 medicine is running low. Plan a refill soon.'
-              : `${lowStockCount} medicines are running low. Plan a refill soon.`}
+              ? t.medicinesList.lowStockOne
+              : t.medicinesList.lowStockMany.replace('{n}', String(lowStockCount))}
           </Text>
         </View>
       )}
@@ -205,9 +210,9 @@ export default function MedicinesScreen() {
   ) : (
     <EmptyState
       icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
-      title="No active medicines"
-      description="When you verify a prescription, your medicines will appear here with their schedules."
-      actionLabel="Scan prescription"
+      title={t.medicine.noActiveMedicines}
+      description={t.medicine.noActiveMedicinesDesc}
+      actionLabel={t.home.scanPrescription}
       onAction={() => router.push('/scan')}
     />
   );

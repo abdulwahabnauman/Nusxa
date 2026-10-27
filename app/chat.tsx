@@ -285,7 +285,7 @@ export default function ChatScreen() {
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border.default, paddingHorizontal: spacing.base }]}>
-          <TouchableOpacity onPress={() => router.back()} accessibilityLabel="Go back">
+          <TouchableOpacity onPress={() => router.back()} accessibilityLabel={t.common.goBack}>
             <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <View style={{ marginLeft: 12, flex: 1 }}>
@@ -299,7 +299,7 @@ export default function ChatScreen() {
           {messages.length > 0 && (
             <TouchableOpacity
               onPress={handleClear}
-              accessibilityLabel="Clear chat history"
+              accessibilityLabel={t.chat.clearHistory}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
               <MaterialCommunityIcons name="delete-outline" size={22} color={colors.text.secondary} />
@@ -460,7 +460,7 @@ export default function ChatScreen() {
             maxLength={500}
             onSubmitEditing={handleSend}
             blurOnSubmit={false}
-            accessibilityLabel="Type your question"
+            accessibilityLabel={t.chat.typeQuestion}
           />
           <TouchableOpacity
             style={[
@@ -469,7 +469,7 @@ export default function ChatScreen() {
             ]}
             onPress={handleSend}
             disabled={!input.trim() || loading}
-            accessibilityLabel="Send message"
+            accessibilityLabel={t.chat.sendMessage}
           >
             <MaterialCommunityIcons name="send" size={20} color={input.trim() ? colors.onAccent : colors.text.disabled} />
           </TouchableOpacity>
