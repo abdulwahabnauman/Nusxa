@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { View, ViewStyle } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface SkeletonProps {
@@ -18,6 +19,7 @@ export function Skeleton({
   style,
 }: SkeletonProps) {
   const { colors, borderRadius } = useTheme();
+  const { t } = useI18n();
   const reducedMotion = useReducedMotion();
   const opacity = useSharedValue(reducedMotion ? 0.7 : 0.3);
 
@@ -47,7 +49,7 @@ export function Skeleton({
         animatedStyle,
         style,
       ]}
-      accessibilityLabel="Loading"
+      accessibilityLabel={t.common.loading}
     />
   );
 }

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Input } from '../ui/Input';
+import { useI18n } from '../../i18n';
 import { LOW_CONFIDENCE_THRESHOLD } from '../../constants/config';
 
 interface VerificationFieldProps {
@@ -20,6 +21,7 @@ export function VerificationField({
   placeholder,
   required = false,
 }: VerificationFieldProps) {
+  const { t } = useI18n();
   const isLowConfidence = confidence !== undefined && confidence < LOW_CONFIDENCE_THRESHOLD;
   const isMissing = required && !value;
 
@@ -29,11 +31,16 @@ export function VerificationField({
         label={label}
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder ?? `Enter ${label.toLowerCase()}`}
-        error={isMissing ? `${label} is required` : undefined}
+        placeholder={
+          placeholder ?? t.review.fieldPlaceholder.replace('{label}', label.toLowerCase())
+        }
+        error={isMissing ? t.review.fieldRequired.replace('{label}', label) : undefined}
         helper={
           isLowConfidence
-            ? `Low confidence (${Math.round((confidence ?? 0) * 100)}%). Please verify`
+            ? t.review.lowConfidencePercent.replace(
+                '{n}',
+                String(Math.round((confidence ?? 0) * 100))
+              )
             : undefined
         }
       />

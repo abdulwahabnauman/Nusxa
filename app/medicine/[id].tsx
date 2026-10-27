@@ -174,40 +174,29 @@ export default function MedicineDetailScreen() {
     }
   }, [medicine, isPaused, load, t, invalidateData]);
 
-  const handleDelete = useCallback(() => {
+  // Deletion is soft (tombstone) and reversible, so it goes through straight
+  // away with an Undo action instead of a blocking confirm dialog (UX11).
+  const handleDelete = useCallback(async () => {
     if (!medicine) return;
-    Alert.alert(
-      t.common.delete,
-      t.medicine.deleteHint,
-      [
-        { text: t.common.cancel, style: 'cancel' },
-        {
-          text: t.common.delete,
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              const medId = medicine.id;
-              await deleteMedicine(medId); // soft delete — undo clears the tombstone
-              await syncDoseNotifications();
-              invalidateData();
-              router.back();
-              showToastWithAction(t.medicine.deletedToast, {
-                label: t.common.undo,
-                onPress: async () => {
-                  try {
-                    await restoreMedicine(medId);
-                    await syncDoseNotifications();
-                    invalidateData();
-                  } catch { /* undo is best-effort */ }
-                },
-              });
-            } catch (err) {
-              console.error('Failed to delete medicine:', err);
-            }
-          },
+    try {
+      const medId = medicine.id;
+      await deleteMedicine(medId); // soft delete — undo clears the tombstone
+      await syncDoseNotifications();
+      invalidateData();
+      router.back();
+      showToastWithAction(t.medicine.deletedToast, {
+        label: t.common.undo,
+        onPress: async () => {
+          try {
+            await restoreMedicine(medId);
+            await syncDoseNotifications();
+            invalidateData();
+          } catch { /* undo is best-effort */ }
         },
-      ]
-    );
+      });
+    } catch (err) {
+      console.error('Failed to delete medicine:', err);
+    }
   }, [medicine, router, t, invalidateData]);
 
   if (!medicine) {

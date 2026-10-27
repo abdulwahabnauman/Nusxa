@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 
 interface DayData {
   day: string; // e.g. "Mon"
@@ -13,6 +14,7 @@ interface WeeklyChartProps {
 
 export function WeeklyChart({ data }: WeeklyChartProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
 
   // Derive the chart height from the live theme tokens instead of
   // hardcoding it: in elderly mode typography.body.xs and spacing.xs are
@@ -25,7 +27,7 @@ export function WeeklyChart({ data }: WeeklyChartProps) {
   return (
     <View
       style={[styles.container]}
-      accessibilityLabel="Weekly adherence chart"
+      accessibilityLabel={t.analytics.weeklyChartA11y}
     >
       <View style={[styles.chartArea, { height: chartHeight }]}>
         {data.map((item, index) => {
