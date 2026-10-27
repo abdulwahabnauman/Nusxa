@@ -220,6 +220,8 @@ export default function MedicineDetailScreen() {
             icon="pill-off-outline"
             title={t.medicine.notFound}
             description={t.medicine.notFoundDesc}
+            actionLabel={t.medicine.backToMedicines}
+            onAction={() => router.replace('/(tabs)/medicines')}
           />
         </SafeAreaView>
       );

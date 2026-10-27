@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TextInput, KeyboardAvoidingView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { withLockExemption } from '../src/utils/appLock';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -18,6 +19,7 @@ import { getLocalizedName } from '../src/utils/profileName';
 import type { Medicine, Schedule } from '../src/types/models';
 
 export default function DoctorVisitScreen() {
+  const router = useRouter();
   const { colors, typography, spacing } = useTheme();
   const { t, language } = useI18n();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -121,6 +123,8 @@ export default function DoctorVisitScreen() {
                 icon="clipboard-text-outline"
                 title={t.doctorVisit.noMedicines}
                 description={t.doctorVisit.noMedicinesDesc}
+                actionLabel={t.home.addMedicine}
+                onAction={() => router.push('/medicine/new')}
               />
             </View>
           ) : (

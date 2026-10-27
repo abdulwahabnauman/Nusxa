@@ -309,6 +309,8 @@ export default function HistoryScreen() {
           ? t.history.noResultsDesc
           : t.history.noHistoryDesc
       }
+      actionLabel={searchQuery ? t.common.clearSearch : t.home.scanPrescription}
+      onAction={() => (searchQuery ? setSearchQuery('') : router.push('/scan'))}
     />
   );
 

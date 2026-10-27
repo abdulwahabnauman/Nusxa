@@ -606,6 +606,8 @@ export default function HomeScreen() {
                 icon={<PillIcon size={56} color={colors.text.disabled} contrastColor={colors.background.primary} />}
                 title={t.home.nothingForToday}
                 description={t.home.nothingForTodayDesc}
+                actionLabel={t.home.reviewMedicines}
+                onAction={() => router.push('/(tabs)/medicines')}
               />
             ) : (
               <EmptyState

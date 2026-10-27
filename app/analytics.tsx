@@ -19,6 +19,7 @@ import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { getLocalizedName } from '../src/utils/profileName';
 import { Card } from '../src/components/ui/Card';
+import { Button } from '../src/components/ui/Button';
 import { AdherenceRing } from '../src/components/progress/AdherenceRing';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { MonthCalendar } from '../src/components/progress/MonthCalendar';
@@ -150,6 +151,12 @@ export default function AnalyticsScreen() {
       return (
         <View style={{ padding: spacing.xl, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: colors.background.subtle }}>
           <Text style={[typ.body.base, { color: colors.text.secondary }]}>{t.analytics.noData}</Text>
+          <Button
+            title={t.analytics.backHome}
+            variant="secondary"
+            onPress={() => router.replace('/(tabs)')}
+            style={{ marginTop: spacing.md }}
+          />
         </View>
       );
     }

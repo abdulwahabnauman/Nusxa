@@ -90,6 +90,8 @@ export default function PrescriptionDetailScreen() {
           icon="file-document-remove-outline"
           title={t.history.notFound}
           description={t.history.notFoundDesc}
+          actionLabel={t.history.backToHistory}
+          onAction={() => router.replace('/(tabs)/history')}
         />
       </SafeAreaView>
     );
@@ -153,6 +155,8 @@ export default function PrescriptionDetailScreen() {
             <EmptyState
               icon="pill-off-outline"
               title={t.history.noMedicinesOnRx}
+              actionLabel={t.home.scanPrescription}
+              onAction={() => router.push('/scan')}
             />
           ) : (
             <View style={{ gap: spacing.base }}>
