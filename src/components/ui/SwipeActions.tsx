@@ -32,7 +32,7 @@ export function SwipeActions({
 }) {
   // +1 in LTR (reveal on left swipe), -1 in RTL (reveal on right swipe)
   const dirSign = I18nManager.isRTL ? -1 : 1;
-  const { typography } = useTheme();
+  const { typography, colors } = useTheme();
   const maxShift = SWIPE_ACTION_WIDTH * actions.length;
   // 0 = closed, -maxShift = fully open
   const tx = useSharedValue(0);
@@ -68,22 +68,27 @@ export function SwipeActions({
     <View style={style}>
       {/* Action strip revealed behind the sliding card */}
       <View style={styles.actionsRow} pointerEvents="box-none">
-        {actions.map((action) => (
-          <TouchableOpacity
-            key={action.label}
-            style={[styles.action, { backgroundColor: action.background, width: SWIPE_ACTION_WIDTH }]}
-            onPress={() => {
-              close();
-              action.onPress();
-            }}
-            accessibilityLabel={action.label}
-          >
-            <MaterialCommunityIcons name={action.icon} size={22} color={action.foreground ?? '#FFFFFF'} />
-            <Text numberOfLines={1} style={[styles.actionLabel, { color: action.foreground ?? '#FFFFFF', fontFamily: typography.families.semibold }]}>
-              {action.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {actions.map((action) => {
+          // Filled action strips are light in dark mode, so the label flips
+          // to near-black instead of hardcoded white.
+          const foreground = action.foreground ?? colors.onStatus;
+          return (
+            <TouchableOpacity
+              key={action.label}
+              style={[styles.action, { backgroundColor: action.background, width: SWIPE_ACTION_WIDTH }]}
+              onPress={() => {
+                close();
+                action.onPress();
+              }}
+              accessibilityLabel={action.label}
+            >
+              <MaterialCommunityIcons name={action.icon} size={22} color={foreground} />
+              <Text numberOfLines={1} style={[styles.actionLabel, { color: foreground, fontFamily: typography.families.semibold }]}>
+                {action.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
       <GestureDetector gesture={pan}>
         <Animated.View style={frontStyle}>{children}</Animated.View>

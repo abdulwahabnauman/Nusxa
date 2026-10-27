@@ -346,7 +346,7 @@ export default function AnalyticsScreen() {
               <Text
                 style={[
                   typ.label.sm,
-                  { color: selectedPeriod === period ? '#FFFFFF' : colors.text.secondary },
+                  { color: selectedPeriod === period ? colors.onAccent : colors.text.secondary },
                 ]}
               >
                 {periodLabels[period]}

@@ -108,7 +108,7 @@ export function RepeatSelector({ daysOfWeek, intervalDays, onChange }: RepeatSel
               <Text
                 style={[
                   typography.label.sm,
-                  { color: selected ? '#FFFFFF' : colors.text.primary },
+                  { color: selected ? colors.onAccent : colors.text.primary },
                 ]}
               >
                 {label}
@@ -173,7 +173,7 @@ export function RepeatSelector({ daysOfWeek, intervalDays, onChange }: RepeatSel
                 <Text
                   style={[
                     typography.label.sm,
-                    { color: selected ? '#FFFFFF' : colors.text.primary },
+                    { color: selected ? colors.onAccent : colors.text.primary },
                   ]}
                 >
                   {intervalLabel(days)}

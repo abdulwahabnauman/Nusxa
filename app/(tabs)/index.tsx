@@ -476,7 +476,7 @@ export default function HomeScreen() {
           <Button
             title={t.home.scanPrescription}
             onPress={() => router.push('/scan')}
-            icon={<MaterialCommunityIcons name="camera-outline" size={20} color="#FFFFFF" />}
+            icon={<MaterialCommunityIcons name="camera-outline" size={20} color={colors.onAccent} />}
             style={{ flex: 1 }}
           />
           <Button
@@ -508,7 +508,7 @@ export default function HomeScreen() {
                       style={{ backgroundColor: colors.accent.primary, borderRadius: borderRadius.md, paddingVertical: 8, paddingHorizontal: 14 }}
                       accessibilityLabel={t.home.permEnable}
                     >
-                      <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.home.permEnable}</Text>
+                      <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.home.permEnable}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={handleDismissPermPrompt}

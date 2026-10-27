@@ -6,18 +6,28 @@ export const lightTokens = {
   },
   text: {
     primary: '#1F1F1E',
-    secondary: '#686863',
-    disabled: '#999993',
+    // 7:1 on the ground — keeps secondary copy clearly above the muted tier.
+    secondary: '#57574F',
+    // 4.9:1 on the app ground — still reads as muted but stays legible for
+    // hints, placeholders and empty-state copy.
+    disabled: '#6E6E69',
   },
   border: {
+    // Card and row edges stay quiet (1.2:1); controls get a separate step
+    // that clears 3:1 so inputs and outline buttons read as interactive.
     default: '#E5E5E0',
     strong: '#D2D2CC',
+    control: '#8F8F89',
   },
   accent: {
     primary: '#2563EB',
     hover: '#1D4ED8',
     subtle: '#EFF6FF',
   },
+  /** Label/icon colour on an accent fill */
+  onAccent: '#FFFFFF',
+  /** Label/icon colour on a success/warning/error fill */
+  onStatus: '#FFFFFF',
   success: '#15803D',
   warning: '#B45309',
   error: '#B91C1C',
@@ -33,24 +43,35 @@ export const darkTokens = {
   text: {
     primary: '#F5F5F3',
     secondary: '#B5B5AF',
-    disabled: '#73736E',
+    // 5.9:1 on the surface — placeholders and meta must not disappear.
+    disabled: '#8F8F89',
   },
   border: {
     default: '#242424',
     strong: '#383838',
+    control: '#666666',
   },
   accent: {
     primary: '#4A90E2',
     hover: '#6BA5EF',
     subtle: '#172554',
   },
+  // Dark-mode accent/status fills are light hues, so their labels flip to
+  // near-black instead of white (white on #4A90E2 is only 2.9:1).
+  onAccent: '#0B0B0B',
+  onStatus: '#0B0B0B',
   success: '#4ADE80',
   warning: '#FBBF24',
   error: '#F87171',
   info: '#38BDF8',
 } as const;
 
-export type ThemeTokens = typeof lightTokens;
+type Widen<T> = {
+  [K in keyof T]: T[K] extends string ? string : Widen<T[K]>;
+};
+
+/** Structural shape shared by every palette (light, dark, elderly, contrast) */
+export type ThemeTokens = Widen<typeof lightTokens>;
 
 export type ThemeMode = 'light' | 'dark';
 
@@ -88,14 +109,18 @@ export const elderlyTokens = {
     border: {
       default: '#CCCCCC',
       strong: '#999999',
+      // Elderly mode needs noticeably stronger control outlines.
+      control: '#767676',
     },
     accent: {
       primary: '#0057FF', // Stronger blue (higher contrast)
       hover: '#0044CC',
       subtle: '#E6F0FF',
     },
+    onAccent: '#FFFFFF',
+    onStatus: '#FFFFFF',
     success: '#1B7A2D',
-    warning: '#FF4400', // More intense orange
+    warning: '#C2410C', // 5.2:1 on white; the previous orange failed as text
     error: '#AA1515',
     info: '#025C91',
   },
@@ -113,12 +138,15 @@ export const elderlyTokens = {
     border: {
       default: '#3C3C3C',
       strong: '#555555',
+      control: '#8A8A8A',
     },
     accent: {
       primary: '#4DA3FF', // Brighter blue for dark mode
       hover: '#6AB3FF',
       subtle: '#1A2A3D',
     },
+    onAccent: '#0B0B0B',
+    onStatus: '#0B0B0B',
     success: '#5DD873',
     warning: '#FFAE42',
     error: '#FF8A80',

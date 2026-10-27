@@ -119,8 +119,8 @@ export default function MedicinesScreen() {
           accessibilityRole="button"
           accessibilityLabel={t.manual.title}
         >
-          <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
-          <Text style={[typography.label.sm, { color: '#FFFFFF', marginStart: 4 }]}>
+          <MaterialCommunityIcons name="plus" size={18} color={colors.onAccent} />
+          <Text style={[typography.label.sm, { color: colors.onAccent, marginStart: 4 }]}>
             {t.manual.title}
           </Text>
         </TouchableOpacity>

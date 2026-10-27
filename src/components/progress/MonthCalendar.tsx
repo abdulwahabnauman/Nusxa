@@ -119,9 +119,9 @@ export function MonthCalendar() {
       return { bg: colors.background.subtle, fg: colors.text.disabled };
     }
     const pct = (stat.taken / stat.total) * 100;
-    if (pct >= 80) return { bg: colors.success, fg: '#FFFFFF' };
-    if (pct >= 40) return { bg: colors.warning, fg: '#FFFFFF' };
-    return { bg: colors.error, fg: '#FFFFFF' };
+    if (pct >= 80) return { bg: colors.success, fg: colors.onStatus };
+    if (pct >= 40) return { bg: colors.warning, fg: colors.onStatus };
+    return { bg: colors.error, fg: colors.onStatus };
   };
 
   const cellAccessibility = (day: number): string => {

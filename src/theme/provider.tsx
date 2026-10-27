@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useEffect, useState } from 'react';
 import { AccessibilityInfo, Platform, useColorScheme } from 'react-native';
-import { lightTokens, darkTokens, ThemeMode, elderlyTokens } from './tokens';
+import { lightTokens, darkTokens, ThemeMode, elderlyTokens, ThemeTokens } from './tokens';
 import { getTypography, Typography } from './typography';
 import { spacing, borderRadius, elderlySpacing, elderlyBorderRadius } from './spacing';
 import { useThemeStore } from '../stores/theme-store';
@@ -10,7 +10,7 @@ import { useSettingsStore } from '../stores/settings-store';
 export const URDU_FONT_FAMILY = 'NotoNastaliqUrdu';
 
 interface ThemeContextValue {
-  colors: any;
+  colors: ThemeTokens;
   typography: Typography;
   spacing: typeof spacing | typeof elderlySpacing;
   borderRadius: typeof borderRadius | typeof elderlyBorderRadius;

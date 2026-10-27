@@ -140,8 +140,8 @@ export function DoseItem({
             revealStyle,
           ]}
         >
-          <MaterialCommunityIcons name="check" size={24} color="#FFFFFF" />
-          <Text style={[typography.label.sm, { color: '#FFFFFF', marginStart: 6 }]}>{t.dose.taken}</Text>
+          <MaterialCommunityIcons name="check" size={24} color={colors.onStatus} />
+          <Text style={[typography.label.sm, { color: colors.onStatus, marginStart: 6 }]}>{t.dose.taken}</Text>
         </Animated.View>
       )}
 
@@ -195,7 +195,7 @@ export function DoseItem({
             onPress={onTaken}
             accessibilityLabel={`Mark ${medicineName} as taken`}
           >
-            <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.dose.taken}</Text>
+            <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.dose.taken}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.background.subtle, borderRadius: borderRadius.sm }]}

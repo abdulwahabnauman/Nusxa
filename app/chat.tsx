@@ -385,7 +385,7 @@ export default function ChatScreen() {
               <View>
                 <MarkdownText
                   content={displayedContent(msg)}
-                  textColor={msg.role === 'user' ? '#FFFFFF' : colors.text.primary}
+                  textColor={msg.role === 'user' ? colors.onAccent : colors.text.primary}
                 />
               </View>
               {/* Copy button on assistant answers */}
@@ -471,7 +471,7 @@ export default function ChatScreen() {
             disabled={!input.trim() || loading}
             accessibilityLabel="Send message"
           >
-            <MaterialCommunityIcons name="send" size={20} color="#FFFFFF" />
+            <MaterialCommunityIcons name="send" size={20} color={input.trim() ? colors.onAccent : colors.text.disabled} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

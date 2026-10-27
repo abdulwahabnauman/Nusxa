@@ -527,7 +527,7 @@ export default function MedicineDetailScreen() {
                     <MaterialCommunityIcons
                       name={isPaused ? 'play-outline' : 'pause'}
                       size={16}
-                      color={isPaused ? colors.text.inverse : colors.text.secondary}
+                      color={isPaused ? colors.onAccent : colors.text.secondary}
                     />
                   }
                   onPress={handleTogglePause}

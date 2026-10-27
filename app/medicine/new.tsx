@@ -167,7 +167,7 @@ export default function NewMedicineScreen() {
       <Text
         style={[
           typography.label.sm,
-          { color: selected ? '#FFFFFF' : colors.text.primary },
+          { color: selected ? colors.onAccent : colors.text.primary },
         ]}
       >
         {label}
@@ -397,7 +397,7 @@ export default function NewMedicineScreen() {
               loading={saving}
               disabled={!canSave}
               size="lg"
-              icon={<MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />}
+              icon={<MaterialCommunityIcons name="check" size={20} color={colors.onAccent} />}
             />
             <Button title={t.common.cancel} variant="ghost" onPress={() => router.back()} />
           </View>

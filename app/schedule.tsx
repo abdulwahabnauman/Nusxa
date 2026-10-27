@@ -283,7 +283,7 @@ export default function ScheduleScreen() {
                         <Text
                           style={[
                             typography.label.sm,
-                            { color: selected ? '#FFFFFF' : colors.text.primary },
+                            { color: selected ? colors.onAccent : colors.text.primary },
                           ]}
                         >
                           {t.schedule.windowOption.replace('{n}', formatDigits(mins, easternNumerals))}
@@ -330,7 +330,7 @@ export default function ScheduleScreen() {
             loading={confirming}
             disabled={hasInvalidOrEmptyTimes}
             size="lg"
-            icon={<MaterialCommunityIcons name="check" size={20} color="#FFFFFF" />}
+            icon={<MaterialCommunityIcons name="check" size={20} color={colors.onAccent} />}
           />
           <Button
             title={t.common.back}

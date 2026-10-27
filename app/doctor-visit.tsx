@@ -194,7 +194,7 @@ export default function DoctorVisitScreen() {
                   title={sharing ? t.doctorVisit.preparing : t.doctorVisit.shareReport}
                   onPress={handleShare}
                   loading={sharing}
-                  icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color="#FFFFFF" />}
+                  icon={<MaterialCommunityIcons name="file-pdf-box" size={20} color={colors.onAccent} />}
                   size="lg"
                 />
               </View>

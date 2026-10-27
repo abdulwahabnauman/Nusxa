@@ -111,11 +111,11 @@ function ApiKeyField({
         >
           {morph.active ? (
             <>
-              <MaterialCommunityIcons name="check" size={14} color="#FFFFFF" />
-              <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.saved}</Text>
+              <MaterialCommunityIcons name="check" size={14} color={morph.active ? colors.onStatus : colors.onAccent} />
+              <Text style={[typography.label.sm, { color: morph.active ? colors.onStatus : colors.onAccent }]}>{t.common.saved}</Text>
             </>
           ) : (
-            <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.settings.saveKey}</Text>
+            <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.settings.saveKey}</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -586,7 +586,7 @@ export default function SettingsScreen() {
                       }}
                       disabled={savingName}
                     >
-                      <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
+                      <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.common.save}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 14, alignItems: 'center' }]}
@@ -643,7 +643,7 @@ export default function SettingsScreen() {
                             }
                           }}
                         >
-                          <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.common.save}</Text>
+                          <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.common.save}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
                           style={[styles.saveKeyBtn, { backgroundColor: colors.border.default, flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 8 }]}
@@ -698,7 +698,7 @@ export default function SettingsScreen() {
                                 accessibilityLabel={`Set blood group to ${group}`}
                                 accessibilityState={{ selected }}
                               >
-                                <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>{group}</Text>
+                                <Text style={[typography.label.sm, { color: selected ? colors.onAccent : colors.text.secondary }]}>{group}</Text>
                               </TouchableOpacity>
                             );
                           })}
@@ -720,7 +720,7 @@ export default function SettingsScreen() {
                 <View style={styles.themeOptions}>
                   {(['system', 'light', 'dark'] as const).map((opt) => (
                     <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => { if (themePref !== opt) { selectionHaptic(); setPreference(opt); } }} accessibilityLabel={`Set theme to ${opt}`} accessibilityState={{ selected: themePref === opt }}>
-                      <Text style={[typography.label.sm, { color: themePref === opt ? '#FFFFFF' : colors.text.secondary }]}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
+                      <Text style={[typography.label.sm, { color: themePref === opt ? colors.onAccent : colors.text.secondary }]}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -773,7 +773,7 @@ export default function SettingsScreen() {
                         I18nManager.forceRTL(willBeRTL);
                       }
                     }} accessibilityLabel={`Set language to ${lang === 'en' ? 'English' : 'اردو'}`} accessibilityState={{ selected: language === lang }}>
-                      <Text style={[typography.label.sm, { color: language === lang ? '#FFFFFF' : colors.text.secondary }]}>{lang === 'en' ? t.settings.english : t.settings.urdu}</Text>
+                      <Text style={[typography.label.sm, { color: language === lang ? colors.onAccent : colors.text.secondary }]}>{lang === 'en' ? t.settings.english : t.settings.urdu}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -841,7 +841,7 @@ export default function SettingsScreen() {
                       accessibilityLabel={`Set snooze to ${min} minutes`}
                       accessibilityState={{ selected: snoozeMinutes === min }}
                     >
-                      <Text style={[typography.label.sm, { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary }]}>{nf(min)}</Text>
+                      <Text style={[typography.label.sm, { color: snoozeMinutes === min ? colors.onAccent : colors.text.secondary }]}>{nf(min)}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>

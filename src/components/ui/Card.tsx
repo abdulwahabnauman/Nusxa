@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/provider';
 
 interface CardProps {
@@ -31,12 +31,13 @@ export function Card({
   return (
     <View
       style={[
-        styles.card,
         {
           backgroundColor: colors.background.surface,
           borderColor: colors.border.default,
           borderRadius: borderRadius.lg,
           padding: paddingMap[padding],
+          // A surface is separated by a border or a shadow, never both.
+          borderWidth: elevated ? 0 : 1,
         },
         elevated && {
           shadowColor: colors.text.primary,
@@ -59,9 +60,3 @@ export function Card({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    borderWidth: 1,
-  },
-});

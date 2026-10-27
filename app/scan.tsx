@@ -587,7 +587,7 @@ export default function ScanScreen() {
               <Button
                 title={t.scanner.processPages.replace('{count}', String(pages.length))}
                 onPress={handleProcess}
-                icon={<MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />}
+                icon={<MaterialCommunityIcons name="arrow-right" size={20} color={colors.onAccent} />}
                 style={{ ...styles.fullWidthBtn, marginTop: spacing.sm }}
               />
             </View>
@@ -596,7 +596,7 @@ export default function ScanScreen() {
             <Button
               title={permission?.granted ? t.scanner.capture : t.scanner.openCamera}
               onPress={permission?.granted ? () => setCameraActive(true) : handleRequestCamera}
-              icon={<MaterialCommunityIcons name="camera" size={20} color="#FFFFFF" />}
+              icon={<MaterialCommunityIcons name="camera" size={20} color={colors.onAccent} />}
               style={styles.fullWidthBtn}
             />
             <Button
@@ -685,7 +685,7 @@ export default function ScanScreen() {
             onPress={handleApplyCrop}
             loading={cropping}
             size="lg"
-            icon={<MaterialCommunityIcons name="crop" size={22} color="#FFFFFF" />}
+            icon={<MaterialCommunityIcons name="crop" size={22} color={colors.onAccent} />}
             style={{ ...styles.fullWidthBtn, marginTop: spacing.md }}
             accessibilityHint={t.scanner.cropHint}
           />
@@ -778,7 +778,7 @@ export default function ScanScreen() {
                 }
                 onPress={handleProcess}
                 disabled={blurry}
-                icon={<MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />}
+                icon={<MaterialCommunityIcons name="arrow-right" size={20} color={colors.onAccent} />}
                 style={styles.previewHalfBtn}
               />
             </View>
@@ -909,7 +909,7 @@ export default function ScanScreen() {
           <Button
             title={t.scanner.grantCamera}
             onPress={handleRequestCamera}
-            icon={<MaterialCommunityIcons name="camera" size={20} color="#FFFFFF" />}
+            icon={<MaterialCommunityIcons name="camera" size={20} color={colors.onAccent} />}
             style={styles.fullWidthBtn}
           />
           <Button

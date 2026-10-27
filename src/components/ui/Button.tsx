@@ -89,12 +89,12 @@ export function Button({
   switch (variant) {
     case 'primary':
       bgColor = disabled ? colors.border.strong : colors.accent.primary;
-      textColor = '#FFFFFF';
+      textColor = colors.onAccent;
       break;
     case 'secondary':
       bgColor = 'transparent';
       textColor = disabled ? colors.text.disabled : colors.accent.primary;
-      borderColor = colors.border.strong;
+      borderColor = colors.border.control;
       break;
     case 'ghost':
       // Subtle filled container + hairline border so ghost actions still
@@ -105,11 +105,11 @@ export function Button({
       break;
     case 'danger':
       bgColor = disabled ? colors.border.strong : colors.error;
-      textColor = '#FFFFFF';
+      textColor = colors.onStatus;
       break;
     default:
       bgColor = colors.accent.primary;
-      textColor = '#FFFFFF';
+      textColor = colors.onAccent;
   }
 
   containerStyles.push({

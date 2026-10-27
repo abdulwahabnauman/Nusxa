@@ -33,7 +33,7 @@ export function StreakCounter({ streak }: StreakCounterProps) {
       style={[
         styles.container,
         {
-          backgroundColor: colors.background.card,
+          backgroundColor: colors.background.surface,
           borderColor: colors.border.default,
           borderRadius: borderRadius.md,
           padding: spacing.md,

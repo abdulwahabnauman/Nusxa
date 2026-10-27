@@ -233,7 +233,7 @@ export default function EmergencyCardScreen() {
                             accessibilityLabel={`Set blood group to ${group}`}
                             accessibilityState={{ selected }}
                           >
-                            <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>{group}</Text>
+                            <Text style={[typography.label.sm, { color: selected ? colors.onStatus : colors.text.secondary }]}>{group}</Text>
                           </TouchableOpacity>
                         );
                       })}
@@ -287,8 +287,8 @@ export default function EmergencyCardScreen() {
                           onPress={() => Linking.openURL(`tel:${emergencyPhone.replace(/[\s()-]/g, '')}`)}
                           accessibilityLabel={`${t.emergency.call} ${emergencyName}`}
                         >
-                          <MaterialCommunityIcons name="phone" size={16} color="#FFFFFF" />
-                          <Text style={[typography.label.sm, { color: '#FFFFFF' }]}>{t.emergency.call}</Text>
+                          <MaterialCommunityIcons name="phone" size={16} color={colors.onStatus} />
+                          <Text style={[typography.label.sm, { color: colors.onStatus }]}>{t.emergency.call}</Text>
                         </TouchableOpacity>
                       )}
                     </View>
@@ -316,7 +316,7 @@ export default function EmergencyCardScreen() {
                 title={savedMorph.active ? t.common.saved : t.common.save}
                 onPress={handleSave}
                 loading={saving}
-                icon={savedMorph.active ? <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" /> : undefined}
+                icon={savedMorph.active ? <MaterialCommunityIcons name="check" size={18} color={colors.onStatus} /> : undefined}
                 style={{ flex: 1, ...(savedMorph.active ? { backgroundColor: colors.success } : {}) }}
               />
               <Button title={t.common.cancel} onPress={handleCancel} variant="ghost" style={{ flex: 1 }} />

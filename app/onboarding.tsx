@@ -152,7 +152,7 @@ export default function OnboardingScreen() {
                 accessibilityState={{ selected }}
                 accessibilityLabel={`Set language to ${label}`}
               >
-                <Text style={[typography.label.sm, { color: selected ? '#FFFFFF' : colors.text.secondary }]}>
+                <Text style={[typography.label.sm, { color: selected ? colors.onAccent : colors.text.secondary }]}>
                   {label}
                 </Text>
               </TouchableOpacity>

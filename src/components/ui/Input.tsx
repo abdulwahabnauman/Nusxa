@@ -49,7 +49,7 @@ export function Input({
               ? colors.error
               : isFocused
                 ? colors.accent.primary
-                : colors.border.default,
+                : colors.border.control,
             borderRadius: borderRadius.md,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.md,

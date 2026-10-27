@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Text, View, StyleSheet, type TextStyle, type ViewStyle } from 'react-native';
 import { useTheme } from '../../theme/provider';
+import { lightTokens, type ThemeTokens } from '../../theme/tokens';
 
 interface MarkdownStyleSet {
   bold: TextStyle;
@@ -19,7 +20,8 @@ interface MarkdownStyleSet {
  *  which static font faces ignore on iOS. */
 function buildStyles(
   families: { regular: string; bold: string; italic: string },
-  base: TextStyle
+  base: TextStyle,
+  colors: ThemeTokens
 ): MarkdownStyleSet {
   return StyleSheet.create({
     bold: {
@@ -30,9 +32,10 @@ function buildStyles(
     },
     code: {
       fontFamily: 'monospace',
-      // Fixed dark-on-light chip so code spans stay readable in both themes
-      color: '#1F2937',
-      backgroundColor: '#F3F3F0',
+      // Inline code follows the live theme so it does not flash a light chip
+      // inside dark-mode answers.
+      color: colors.text.primary,
+      backgroundColor: colors.background.subtle,
       paddingHorizontal: 4,
       paddingVertical: 2,
       borderRadius: 4,
@@ -53,7 +56,7 @@ function buildStyles(
       marginBottom: 4,
     },
     bullet: {
-      color: '#686863',
+      color: colors.text.secondary,
       fontFamily: families.regular,
       fontSize: base.fontSize,
       minWidth: 16,
@@ -202,10 +205,10 @@ export function MarkdownText({
   content: string;
   textColor?: string;
 }) {
-  const { typography } = useTheme();
+  const { typography, colors } = useTheme();
   const styles = useMemo(
-    () => buildStyles(typography.families, typography.body.base),
-    [typography]
+    () => buildStyles(typography.families, typography.body.base, colors),
+    [typography, colors]
   );
   const nodes = useMemo(
     () => parseMarkdown(content, textColor, styles),
@@ -220,5 +223,6 @@ const fallbackStyles = buildStyles(
     bold: 'Inter_700Bold',
     italic: 'Inter_400Regular_Italic',
   },
-  { fontSize: 16, lineHeight: 24 }
+  { fontSize: 16, lineHeight: 24 },
+  lightTokens
 );

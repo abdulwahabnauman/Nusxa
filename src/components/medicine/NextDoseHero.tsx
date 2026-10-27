@@ -273,8 +273,8 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
             activeOpacity={0.85}
             accessibilityLabel={`Mark ${next.medicineName} as taken`}
           >
-            <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
-            <Text style={[typ.label.base, { color: '#FFFFFF', marginStart: 6 }]}>
+            <MaterialCommunityIcons name="check" size={18} color={colors.onAccent} />
+            <Text style={[typ.label.base, { color: colors.onAccent, marginStart: 6 }]}>
               {t.home.take}
             </Text>
           </TouchableOpacity>
@@ -326,7 +326,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
               <Text
                 style={[
                   typ.label.sm,
-                  { color: snoozeMinutes === min ? '#FFFFFF' : colors.text.secondary },
+                  { color: snoozeMinutes === min ? colors.onAccent : colors.text.secondary },
                 ]}
               >
                 {`${nf(min)}${t.home.minutesShort}`}
