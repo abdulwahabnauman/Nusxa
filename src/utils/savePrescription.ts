@@ -17,14 +17,14 @@ import {
   repeatFrequencyLabel,
   serializeDaysOfWeek,
 } from './repeat';
-import type { Medicine, Schedule } from '../types/models';
+import type { MealInstruction, Medicine, MedicineForm, Schedule } from '../types/models';
 
 export interface ScheduleDraft {
   medicineIndex: number;
   medicineName: string;
   dosage: string;
   frequency: string;
-  mealInstruction: string;
+  mealInstruction: MealInstruction;
   times: string[];
   /** Reminder window length in minutes from each reminder time */
   windowMinutes: number;
@@ -36,6 +36,16 @@ export interface ScheduleDraft {
 
 const generateId = () =>
   `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
+const MEDICINE_FORMS: readonly Exclude<MedicineForm, null>[] = [
+  'tablet', 'capsule', 'syrup', 'injection', 'cream', 'drops', 'inhaler', 'patch', 'other',
+];
+
+/** Clamp scanner output to a known form, anything else -> null */
+function parseMedicineForm(value: string | null): MedicineForm {
+  const normalized = value?.trim().toLowerCase();
+  return MEDICINE_FORMS.find((form) => form === normalized) ?? null;
+}
 
 const normalize = (s?: string | null) => (s ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
 
@@ -352,7 +362,7 @@ async function armSchedules(
       await updateSchedule(reuse.id, {
         frequency,
         ...repeatFields,
-        meal_instruction: (schedule.mealInstruction as any) ?? null,
+        meal_instruction: schedule.mealInstruction ?? null,
         window_minutes: schedule.windowMinutes,
         is_active: true,
         notification_id: notificationId,
@@ -380,7 +390,7 @@ async function armSchedules(
       timezone,
       frequency,
       ...repeatFields,
-      meal_instruction: (schedule.mealInstruction as any) ?? null,
+      meal_instruction: schedule.mealInstruction ?? null,
       start_date: startDate,
       end_date: null,
       is_active: true,
@@ -424,7 +434,7 @@ export async function savePrescription(
         brand_name: med.brand_name ?? match.brand_name,
         dosage: med.dosage ?? match.dosage,
         frequency: med.frequency ?? match.frequency,
-        meal_instruction: (med.meal_instruction as any) ?? match.meal_instruction,
+        meal_instruction: med.meal_instruction ?? match.meal_instruction,
         duration: med.duration ?? match.duration,
         purpose: med.purpose ?? match.purpose,
         side_effects: med.side_effects?.length ? med.side_effects : match.side_effects,
@@ -483,10 +493,10 @@ export async function savePrescription(
       generic_name: med.generic_name ?? null,
       brand_name: med.brand_name ?? null,
       strength: med.strength ?? null,
-      form: (med.form as any) ?? null,
+      form: parseMedicineForm(med.form),
       dosage: med.dosage ?? null,
       frequency: med.frequency ?? null,
-      meal_instruction: (med.meal_instruction as any) ?? null,
+      meal_instruction: med.meal_instruction ?? null,
       duration: med.duration ?? null,
       purpose: med.purpose ?? null,
       side_effects: med.side_effects ?? [],
