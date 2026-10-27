@@ -113,17 +113,6 @@ export interface DoseRecord {
   updated_at: string;
 }
 
-/** Medicine with joined schedule and today's dose info */
-export interface MedicineWithSchedule extends Medicine {
-  schedules: Schedule[];
-  todayDoses: {
-    scheduleId: string;
-    time: string;
-    status: DoseStatus;
-    doseRecordId: string | null;
-  }[];
-}
-
 /** Today's schedule item for the home screen */
 export interface TodayScheduleItem {
   scheduleId: string;

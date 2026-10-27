@@ -30,12 +30,6 @@ export {
   OCR_MAX_IMAGE_EDGE,
 } from './ai-models';
 
-/** Maximum image file size in bytes (10 MB) */
-export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024;
-
-/** Supported image formats */
-export const SUPPORTED_IMAGE_FORMATS = ['jpg', 'jpeg', 'png', 'heic', 'webp'];
-
 /** Minimum confidence threshold to flag a field for review */
 export const LOW_CONFIDENCE_THRESHOLD = 0.6;
 
@@ -51,12 +45,6 @@ export const MAX_PRESCRIPTION_PAGES = 3;
 
 /** Default database name */
 export const DB_NAME = 'nusxa.db';
-
-/** Reminder snooze duration in minutes */
-export const SNOOZE_MINUTES = 15;
-
-/** Undo window duration in seconds */
-export const UNDO_WINDOW_SECONDS = 30;
 
 /** Maximum prescription images to retain */
 export const MAX_RETAINED_IMAGES = 100;

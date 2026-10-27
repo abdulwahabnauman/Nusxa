@@ -25,6 +25,6 @@ export async function setKV(key: string, value: string): Promise<void> {
       [key, value]
     );
   } catch (error) {
-    console.warn('[KV] set failed (table may not exist yet):', error);
+    if (__DEV__) console.warn('[KV] set failed (table may not exist yet):', error);
   }
 }

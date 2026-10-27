@@ -90,10 +90,7 @@ export async function configureNotifications(): Promise<void> {
   try {
     // Set up notification handler with safe defaults
     Notifications.setNotificationHandler({
-      handleNotification: async (notification) => {
-        // Log notification receipt for debugging
-        console.log('[Notifications] Received notification:', notification.request.content.title);
-        
+      handleNotification: async () => {
         return {
           shouldShowAlert: true,
           shouldPlaySound: Platform.OS !== 'web',
@@ -409,7 +406,7 @@ export async function markEndOfDayMissed(): Promise<void> {
       }
     }
   } catch (error) {
-    console.warn('[Notifications] Missed marking skipped:', error);
+    if (__DEV__) console.warn('[Notifications] Missed marking skipped:', error);
   }
 }
 
@@ -559,7 +556,7 @@ export async function syncDoseNotifications(): Promise<void> {
       }
     }
   } catch (error) {
-    console.warn('[Notifications] Dose sync skipped:', error);
+    if (__DEV__) console.warn('[Notifications] Dose sync skipped:', error);
   }
 }
 
@@ -630,7 +627,7 @@ export async function syncRefillNotifications(): Promise<void> {
       await setKV(armedKey, getTodayISO());
     }
   } catch (error) {
-    console.warn('[Notifications] Refill sync skipped:', error);
+    if (__DEV__) console.warn('[Notifications] Refill sync skipped:', error);
   }
 }
 
@@ -702,7 +699,7 @@ export async function syncFollowUpNotifications(): Promise<void> {
       });
     }
   } catch (error) {
-    console.warn('[Notifications] Follow-up sync skipped:', error);
+    if (__DEV__) console.warn('[Notifications] Follow-up sync skipped:', error);
   }
 }
 

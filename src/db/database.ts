@@ -15,7 +15,7 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
     try {
       await db.execAsync('PRAGMA journal_mode = DELETE;');
     } catch {
-      console.log('[DB] Could not set journal_mode, continuing...');
+      // Fall back to SQLite's default journal mode; not fatal.
     }
     
     try {

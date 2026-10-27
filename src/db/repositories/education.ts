@@ -211,7 +211,7 @@ export async function updateReadingProgress(
       [userId, contentId, position, timeSpent ?? 0, position, timeSpent ?? 0]
     );
   } catch (error) {
-    console.log('[DB] Failed to save reading progress:', error);
+    if (__DEV__) console.warn('[DB] Failed to save reading progress:', error);
   }
 }
 
