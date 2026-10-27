@@ -35,3 +35,6 @@ project.zip
 
 # Expo generated native project
 android/
+
+# Generated launch video output
+Brag/
