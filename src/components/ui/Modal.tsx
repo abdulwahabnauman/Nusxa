@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 
 interface ModalProps {
   visible: boolean;
@@ -27,6 +28,7 @@ export function Modal({
   showClose = true,
 }: ModalProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
 
   return (
     <RNModal
@@ -68,7 +70,7 @@ export function Modal({
                 <TouchableOpacity
                   onPress={onClose}
                   style={styles.closeButton}
-                  accessibilityLabel="Close dialog"
+                  accessibilityLabel={t.common.close}
                   accessibilityRole="button"
                 >
                   <MaterialCommunityIcons
@@ -109,6 +111,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   closeButton: {
-    padding: 4,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

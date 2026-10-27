@@ -505,14 +505,14 @@ export default function HomeScreen() {
                     <TouchableOpacity
                       onPress={handleEnableReminders}
                       disabled={permBusy}
-                      style={{ backgroundColor: colors.accent.primary, borderRadius: borderRadius.md, paddingVertical: 8, paddingHorizontal: 14 }}
+                      style={{ backgroundColor: colors.accent.primary, borderRadius: borderRadius.md, minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 }}
                       accessibilityLabel={t.home.permEnable}
                     >
                       <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.home.permEnable}</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={handleDismissPermPrompt}
-                      style={{ borderRadius: borderRadius.md, paddingVertical: 8, paddingHorizontal: 14 }}
+                      style={{ borderRadius: borderRadius.md, minHeight: 44, justifyContent: 'center', paddingHorizontal: 14 }}
                       accessibilityLabel={t.home.permLater}
                     >
                       <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.home.permLater}</Text>
@@ -541,7 +541,9 @@ export default function HomeScreen() {
               <TouchableOpacity
                 style={[styles.takeAll, { backgroundColor: colors.accent.subtle, marginTop: spacing.sm }]}
                 onPress={handleTakeAll}
-                accessibilityLabel={`Take all ${takeAllGroup.length} doses scheduled at ${takeAllGroup[0]!.time}`}
+                accessibilityLabel={t.home.takeAllA11y
+                  .replace('{n}', String(takeAllGroup.length))
+                  .replace('{time}', formatTime12h(takeAllGroup[0]!.time, language))}
               >
                 <MaterialCommunityIcons name="check-all" size={20} color={colors.accent.primary} />
                 <Text style={[typography.label.base, { color: colors.accent.primary, marginStart: 8 }]}>

@@ -39,7 +39,9 @@ export function RepeatSelector({ daysOfWeek, intervalDays, onChange }: RepeatSel
     borderRadius: borderRadius.md,
     borderWidth: 1,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    minHeight: 44,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
   };
 
   const selectKind = (next: typeof kind) => {
@@ -196,7 +198,7 @@ const styles = StyleSheet.create({
   },
   dayChip: {
     minWidth: 44,
-    minHeight: 40,
+    minHeight: 44,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',

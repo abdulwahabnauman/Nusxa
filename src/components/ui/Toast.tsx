@@ -12,6 +12,7 @@ import Animated, {
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 type ToastType = 'success' | 'error' | 'warning' | 'info';
@@ -47,6 +48,7 @@ export function Toast({
   action,
 }: ToastProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
+  const { t } = useI18n();
   const reducedMotion = useReducedMotion();
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(10);
@@ -137,7 +139,7 @@ export function Toast({
         style={[styles.content, action ? { flex: 1 } : null]}
         onPress={onDismiss}
         activeOpacity={0.8}
-        accessibilityLabel={`${type}: ${message}. Tap or swipe to dismiss.`}
+        accessibilityLabel={`${message}. ${t.common.toastDismissHint}`}
       >
         <MaterialCommunityIcons name={ICON_MAP[type]} size={22} color={iconColor} />
         <Text style={[typography.body.sm, { color: colors.text.primary, flex: 1, marginStart: spacing.sm }]}>
@@ -150,7 +152,13 @@ export function Toast({
             action.onPress();
             onDismiss();
           }}
-          style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.sm, marginStart: spacing.xs }}
+          style={{
+            minHeight: 44,
+            justifyContent: 'center',
+            paddingVertical: spacing.xs,
+            paddingHorizontal: spacing.sm,
+            marginStart: spacing.xs,
+          }}
           accessibilityLabel={action.label}
         >
           <Text style={[typography.label.base, { color: colors.accent.primary, fontFamily: typography.families.bold }]}>

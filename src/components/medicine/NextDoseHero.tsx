@@ -271,7 +271,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
             style={[styles.takeButton, { backgroundColor: colors.accent.primary }]}
             onPress={() => onTaken(next.scheduleId, next.medicineId)}
             activeOpacity={0.85}
-            accessibilityLabel={`Mark ${next.medicineName} as taken`}
+            accessibilityLabel={t.dose.markTaken.replace('{name}', next.medicineName)}
           >
             <MaterialCommunityIcons name="check" size={18} color={colors.onAccent} />
             <Text style={[typ.label.base, { color: colors.onAccent, marginStart: 6 }]}>
@@ -285,7 +285,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
               onPress={() => applySnooze(snoozeMinutes)}
               onLongPress={() => setShowSnoozeOptions((v) => !v)}
               activeOpacity={0.85}
-              accessibilityLabel={`Snooze reminder for ${snoozeMinutes} minutes. Long-press to choose a duration.`}
+              accessibilityLabel={t.home.snoozeA11y.replace('{n}', String(snoozeMinutes))}
             >
               <MaterialCommunityIcons
                 name="clock-outline"
@@ -321,7 +321,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
                 },
               ]}
               onPress={() => pickSnooze(min)}
-              accessibilityLabel={`Snooze for ${min} minutes`}
+              accessibilityLabel={t.home.snoozeFor.replace('{n}', String(min))}
             >
               <Text
                 style={[
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10,
+    minHeight: 44,
     borderRadius: 12,
   },
   snoozeButton: {
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    minHeight: 44,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -388,7 +388,9 @@ const styles = StyleSheet.create({
   },
   snoozeChip: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 16,
     borderWidth: 1,
   },

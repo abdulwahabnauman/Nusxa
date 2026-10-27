@@ -14,6 +14,7 @@ import Animated, {
   FadeIn,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface CelebrationProps {
@@ -26,6 +27,7 @@ interface CelebrationProps {
 
 export function Celebration({ title, subtitle, onDismiss, duration = 2600 }: CelebrationProps) {
   const { colors, typography, spacing } = useTheme();
+  const { t } = useI18n();
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(reducedMotion ? 1 : 0.94);
   const cardOpacity = useSharedValue(reducedMotion ? 1 : 0);
@@ -56,7 +58,12 @@ export function Celebration({ title, subtitle, onDismiss, duration = 2600 }: Cel
       style={[styles.backdrop, { backgroundColor: 'rgba(0,0,0,0.55)' }]}
     >
       {/* Tapping anywhere outside the card dismisses the celebration early */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Dismiss celebration" />
+      <Pressable
+        style={StyleSheet.absoluteFill}
+        onPress={onDismiss}
+        accessibilityRole="button"
+        accessibilityLabel={t.common.dismiss}
+      />
       <Animated.View
         style={[
           styles.card,

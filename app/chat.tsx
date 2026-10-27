@@ -285,7 +285,11 @@ export default function ChatScreen() {
       >
         {/* Header */}
         <View style={[styles.header, { borderBottomColor: colors.border.default, paddingHorizontal: spacing.base }]}>
-          <TouchableOpacity onPress={() => router.back()} accessibilityLabel={t.common.goBack}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            accessibilityLabel={t.common.goBack}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
             <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
           </TouchableOpacity>
           <View style={{ marginLeft: 12, flex: 1 }}>
@@ -359,7 +363,8 @@ export default function ChatScreen() {
                       borderWidth: 1,
                       borderRadius: borderRadius.md,
                       paddingHorizontal: spacing.md,
-                      paddingVertical: spacing.sm,
+                      minHeight: 44,
+                      justifyContent: 'center',
                     }}
                     accessibilityRole="button"
                     accessibilityLabel={s}

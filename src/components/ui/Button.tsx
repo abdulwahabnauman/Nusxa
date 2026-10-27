@@ -11,6 +11,7 @@ import {
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useI18n } from '../../i18n';
 import { elderlyButtonSpacing } from '../../theme/spacing';
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
@@ -48,6 +49,7 @@ export function Button({
   largeTouchTarget = false,
 }: ButtonProps) {
   const { colors, typography, borderRadius, spacing, isElderly } = useTheme();
+  const { t } = useI18n();
   const reducedMotion = useReducedMotion();
 
   // In elderly mode the font size is already bumped up; using the full
@@ -147,7 +149,7 @@ export function Button({
         <ActivityIndicator
           color={textColor}
           size="small"
-          accessibilityLabel="Loading"
+          accessibilityLabel={t.common.loading}
         />
       ) : (
         <React.Fragment>
@@ -167,5 +169,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 80,
+    minHeight: 44,
   },
 });

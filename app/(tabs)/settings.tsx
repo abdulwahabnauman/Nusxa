@@ -96,7 +96,7 @@ function ApiKeyField({
           secureTextEntry
           autoCapitalize="none"
           autoCorrect={false}
-          accessibilityLabel={`${keyLabel} API key`}
+          accessibilityLabel={t.settings.apiKeyA11y.replace('{provider}', keyLabel)}
         />
         <TouchableOpacity
           style={[styles.saveKeyBtn, { backgroundColor: morph.active ? colors.success : colors.accent.primary, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
@@ -107,7 +107,7 @@ function ApiKeyField({
             setHasStored(true);
             morph.trigger();
           }}
-          accessibilityLabel={`Save ${keyLabel} API key`}
+          accessibilityLabel={t.settings.saveKeyA11y.replace('{provider}', keyLabel)}
         >
           {morph.active ? (
             <>
@@ -127,7 +127,8 @@ function ApiKeyField({
             setHasStored(false);
             showToast(t.toasts.apiKeyRemoved, 'info');
           }}
-          accessibilityLabel={`Remove stored ${keyLabel} API key`}
+          accessibilityLabel={t.settings.removeKeyA11y.replace('{provider}', keyLabel)}
+          hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
         >
           <Text style={[typography.body.sm, { color: colors.error }]}>{t.settings.removeKey}</Text>
         </TouchableOpacity>
@@ -695,7 +696,7 @@ export default function SettingsScreen() {
                                     showToast(t.toasts.saveFailed, 'error');
                                   }
                                 }}
-                                accessibilityLabel={`Set blood group to ${group}`}
+                                accessibilityLabel={t.settings.setBloodGroupA11y.replace('{group}', group)}
                                 accessibilityState={{ selected }}
                               >
                                 <Text style={[typography.label.sm, { color: selected ? colors.onAccent : colors.text.secondary }]}>{group}</Text>
@@ -719,7 +720,7 @@ export default function SettingsScreen() {
                 <Text style={[typography.body.base, { color: colors.text.primary }]}>{t.settings.theme}</Text>
                 <View style={styles.themeOptions}>
                   {(['system', 'light', 'dark'] as const).map((opt) => (
-                    <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => { if (themePref !== opt) { selectionHaptic(); setPreference(opt); } }} accessibilityLabel={`Set theme to ${opt}`} accessibilityState={{ selected: themePref === opt }}>
+                    <TouchableOpacity key={opt} style={[styles.themeChip, { backgroundColor: themePref === opt ? colors.accent.primary : colors.background.subtle, borderColor: themePref === opt ? colors.accent.primary : colors.border.default }]} onPress={() => { if (themePref !== opt) { selectionHaptic(); setPreference(opt); } }} accessibilityLabel={t.settings.setThemeA11y.replace('{theme}', t.settings[opt])} accessibilityState={{ selected: themePref === opt }}>
                       <Text style={[typography.label.sm, { color: themePref === opt ? colors.onAccent : colors.text.secondary }]}>{opt.charAt(0).toUpperCase() + opt.slice(1)}</Text>
                     </TouchableOpacity>
                   ))}
@@ -765,14 +766,14 @@ export default function SettingsScreen() {
                         // yet, transliterate the other one in the background.
                         void ensureNameForLanguage(lang);
                         try { await updateProfile({ language: lang }); }
-                        catch { console.log('Database not ready'); }
+                        catch { /* profile table may not be ready yet */ }
                         const willBeRTL = lang === 'ur';
                         // Persist for cold starts; the live flip is instant via
                         // the root view's `direction` style — no restart needed.
                         I18nManager.allowRTL(true);
                         I18nManager.forceRTL(willBeRTL);
                       }
-                    }} accessibilityLabel={`Set language to ${lang === 'en' ? 'English' : 'اردو'}`} accessibilityState={{ selected: language === lang }}>
+                    }} accessibilityLabel={t.settings.setLanguageA11y.replace('{language}', lang === 'en' ? t.settings.english : t.settings.urdu)} accessibilityState={{ selected: language === lang }}>
                       <Text style={[typography.label.sm, { color: language === lang ? colors.onAccent : colors.text.secondary }]}>{lang === 'en' ? t.settings.english : t.settings.urdu}</Text>
                     </TouchableOpacity>
                   ))}
@@ -838,7 +839,7 @@ export default function SettingsScreen() {
                       key={min}
                       style={[styles.themeChip, { backgroundColor: snoozeMinutes === min ? colors.accent.primary : colors.background.subtle, borderColor: snoozeMinutes === min ? colors.accent.primary : colors.border.default }]}
                       onPress={() => { if (snoozeMinutes !== min) { selectionHaptic(); setSnoozeMinutes(min); } }}
-                      accessibilityLabel={`Set snooze to ${min} minutes`}
+                      accessibilityLabel={t.settings.setSnoozeA11y.replace('{n}', String(min))}
                       accessibilityState={{ selected: snoozeMinutes === min }}
                     >
                       <Text style={[typography.label.sm, { color: snoozeMinutes === min ? colors.onAccent : colors.text.secondary }]}>{nf(min)}</Text>
@@ -1171,10 +1172,10 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 48 },
   header: { marginTop: 16, marginBottom: 24 },
   section: { marginBottom: 24 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', minHeight: 44 },
   themeOptions: { flexDirection: 'row', gap: 8 },
-  themeChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, borderWidth: 1 },
+  themeChip: { paddingHorizontal: 12, minHeight: 44, justifyContent: 'center', borderRadius: 16, borderWidth: 1 },
   divider: { height: StyleSheet.hairlineWidth, marginVertical: 12 },
-  saveKeyBtn: { paddingHorizontal: 16, paddingVertical: 10 },
+  saveKeyBtn: { paddingHorizontal: 16, minHeight: 44, justifyContent: 'center' },
   iconChip: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginEnd: 10 },
 });

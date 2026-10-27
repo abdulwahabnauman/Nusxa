@@ -287,6 +287,7 @@ export default function AnalyticsScreen() {
             onPress={() => router.back()}
             style={{ marginRight: spacing.sm, padding: 4 }}
             accessibilityLabel={t.common.goBack}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <MaterialCommunityIcons name="arrow-left" size={24} color={colors.text.primary} />
           </TouchableOpacity>
@@ -303,6 +304,7 @@ export default function AnalyticsScreen() {
               opacity: exporting || !weeklyStats || weeklyStats.totalSchedules === 0 ? 0.4 : 1,
             }}
             accessibilityLabel={t.analytics.exportReport}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
           >
             {exporting ? (
               <ActivityIndicator size="small" color={colors.accent.primary} />
@@ -335,7 +337,8 @@ export default function AnalyticsScreen() {
               style={{
                 flexShrink: 0,
                 paddingHorizontal: spacing.md,
-                paddingVertical: spacing.sm,
+                minHeight: 44,
+                justifyContent: 'center',
                 borderRadius: 8,
                 backgroundColor: selectedPeriod === period ? colors.accent.primary : colors.background.subtle,
               }}

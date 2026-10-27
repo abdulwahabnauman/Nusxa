@@ -416,7 +416,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
   },
-  backButton: { padding: 4 },
+  backButton: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   scrollContent: { paddingBottom: 40 },
   wrapRow: {
     flexDirection: 'row',
@@ -427,14 +427,19 @@ const styles = StyleSheet.create({
   chip: {
     borderWidth: 1,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   timeRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
   },
   removeButton: {
-    padding: 8,
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginStart: 4,
   },
   addTime: {
@@ -445,6 +450,6 @@ const styles = StyleSheet.create({
     borderStyle: 'dashed',
     borderRadius: 10,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    minHeight: 44,
   },
 });

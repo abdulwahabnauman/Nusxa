@@ -23,6 +23,12 @@ export const en = {
     undo: 'Undo',
     notSet: 'Not set',
     goBack: 'Go back',
+    clearSearch: 'Clear search',
+    digit: 'Digit {n}',
+    deleteDigit: 'Delete last digit',
+    dismiss: 'Dismiss',
+    undoLastAction: 'Undo last action',
+    toastDismissHint: 'Tap or swipe to dismiss.',
   },
   // Navigation
   nav: {
@@ -84,6 +90,9 @@ export const en = {
     permDesc: 'Nusxa can alert you at every dose time. Nothing is sent until you allow it.',
     permEnable: 'Enable reminders',
     permLater: 'Maybe later',
+    snoozeA11y: 'Snooze reminder for {n} minutes. Long-press to choose a duration.',
+    snoozeFor: 'Snooze for {n} minutes',
+    takeAllA11y: 'Take all {n} doses scheduled at {time}',
   },
   // Onboarding
   onboarding: {
@@ -194,6 +203,13 @@ export const en = {
     importDataMsg: 'Importing restores a previously exported JSON file and REPLACES all current data (profile, prescriptions, medicines, schedules, dose records). Continue?',
     chooseFile: 'Choose file',
     importFileFailed: 'The file could not be imported.',
+    apiKeyA11y: '{provider} API key',
+    saveKeyA11y: 'Save {provider} API key',
+    removeKeyA11y: 'Remove stored {provider} API key',
+    setBloodGroupA11y: 'Set blood group to {group}',
+    setThemeA11y: 'Set theme to {theme}',
+    setLanguageA11y: 'Set language to {language}',
+    setSnoozeA11y: 'Set snooze to {n} minutes',
   },
   // Scanner
   scanner: {
@@ -381,6 +397,7 @@ export const en = {
     notFound: 'Prescription not found',
     notFoundDesc: 'It may have been deleted.',
     noMedicinesOnRx: 'No medicines on this prescription',
+    prescriptionFrom: 'Prescription from {date}',
   },
   // Emergency card
   emergency: {
@@ -432,6 +449,8 @@ export const en = {
     morning: 'Morning',
     afternoon: 'Afternoon',
     night: 'Night',
+    markTaken: 'Mark {name} as taken',
+    skipOne: 'Skip {name}',
   },
   // Streak / progress
   progress: {
@@ -604,6 +623,7 @@ export const en = {
     loadingExtra: 'Loading extra details…',
     aiFailed: "Couldn't load extra details right now. Showing what we have.",
     disclaimer: 'General information only, not medical advice. Always follow your doctor\'s guidance.',
+    learnAbout: 'Learn about {name}',
   },
   // Medicine interactions
   interactions: {

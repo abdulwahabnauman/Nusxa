@@ -149,6 +149,7 @@ export function MonthCalendar() {
             style={{ padding: 4 }}
             accessibilityLabel={t.analytics.prevMonth}
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <MaterialCommunityIcons
               name={language === 'ur' ? 'chevron-right' : 'chevron-left'}
@@ -163,6 +164,7 @@ export function MonthCalendar() {
             style={{ padding: 4, opacity: isCurrentMonth ? 0.3 : 1 }}
             accessibilityLabel={t.analytics.nextMonth}
             accessibilityRole="button"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <MaterialCommunityIcons
               name={language === 'ur' ? 'chevron-left' : 'chevron-right'}

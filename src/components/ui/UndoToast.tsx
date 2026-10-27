@@ -138,11 +138,13 @@ function UndoToast({ state, onDismiss }: UndoToastProps) {
       <TouchableOpacity
         onPress={handleUndo}
         style={{
+          minHeight: 44,
+          justifyContent: 'center',
           paddingHorizontal: spacing.md,
           paddingVertical: spacing.xs,
           borderRadius: borderRadius.sm,
         }}
-        accessibilityLabel="Undo last action"
+        accessibilityLabel={t.common.undoLastAction}
       >
         <Text style={[typography.label.base, { color: colors.accent.primary, fontFamily: typography.families.bold }]}>
           {t.common.undo.toUpperCase()}

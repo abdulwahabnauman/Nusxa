@@ -223,7 +223,9 @@ export default function EmergencyCardScreen() {
                             key={group}
                             style={{
                               paddingHorizontal: 12,
-                              paddingVertical: 6,
+                              minHeight: 44,
+                              alignItems: 'center',
+                              justifyContent: 'center',
                               borderRadius: 16,
                               borderWidth: 1,
                               backgroundColor: selected ? colors.error : colors.background.subtle,
@@ -281,7 +283,7 @@ export default function EmergencyCardScreen() {
                             gap: 6,
                             backgroundColor: colors.success,
                             paddingHorizontal: 12,
-                            paddingVertical: 8,
+                            minHeight: 44,
                             borderRadius: 20,
                           }}
                           onPress={() => Linking.openURL(`tel:${emergencyPhone.replace(/[\s()-]/g, '')}`)}

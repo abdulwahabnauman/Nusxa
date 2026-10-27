@@ -193,14 +193,14 @@ export function DoseItem({
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.accent.primary, borderRadius: borderRadius.sm }]}
             onPress={onTaken}
-            accessibilityLabel={`Mark ${medicineName} as taken`}
+            accessibilityLabel={t.dose.markTaken.replace('{name}', medicineName)}
           >
             <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.dose.taken}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.background.subtle, borderRadius: borderRadius.sm }]}
             onPress={onSkip}
-            accessibilityLabel={`Skip ${medicineName}`}
+            accessibilityLabel={t.dose.skipOne.replace('{name}', medicineName)}
           >
             <Text style={[typography.label.sm, { color: colors.text.secondary }]}>{t.dose.skip}</Text>
           </TouchableOpacity>
@@ -244,6 +244,8 @@ const styles = StyleSheet.create({
   },
   actionBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

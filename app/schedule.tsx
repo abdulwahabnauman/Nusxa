@@ -354,6 +354,6 @@ const styles = StyleSheet.create({
   medHeader: { flexDirection: 'row', alignItems: 'flex-start' },
   timeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
   windowRow: { flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' },
-  windowChip: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1 },
+  windowChip: { paddingHorizontal: 12, minHeight: 44, justifyContent: 'center', borderRadius: 8, borderWidth: 1 },
   actions: { paddingTop: 12, paddingBottom: 16, gap: 12, alignItems: 'center' },
 });

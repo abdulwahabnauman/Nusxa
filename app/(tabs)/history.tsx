@@ -86,7 +86,7 @@ const PrescriptionRow = memo(function PrescriptionRow({
       <Card>
         <TouchableOpacity
           onPress={() => onOpen(rx)}
-          accessibilityLabel={`Prescription from ${displayDate}`}
+          accessibilityLabel={t.history.prescriptionFrom.replace('{date}', displayDate)}
         >
           <View style={styles.rxHeader}>
             <View style={{ flex: 1 }}>
@@ -281,7 +281,11 @@ export default function HistoryScreen() {
             />
           </View>
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              accessibilityLabel={t.common.clearSearch}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            >
               <MaterialCommunityIcons name="close-circle" size={18} color={colors.text.disabled} />
             </TouchableOpacity>
           )}

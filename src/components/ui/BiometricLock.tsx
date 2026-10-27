@@ -278,6 +278,8 @@ const styles = StyleSheet.create({
   biometricBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
     marginTop: spacing.xl,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,

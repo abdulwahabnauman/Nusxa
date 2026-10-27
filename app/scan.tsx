@@ -554,6 +554,7 @@ export default function ScanScreen() {
           style={[styles.pageRemoveBtn, { backgroundColor: colors.background.surface }]}
           onPress={() => handleRemovePage(idx)}
           accessibilityLabel={t.scanner.removePage}
+          hitSlop={{ top: 11, bottom: 11, left: 11, right: 11 }}
         >
           <MaterialCommunityIcons name="close-circle" size={22} color={colors.error} />
         </TouchableOpacity>

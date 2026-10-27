@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { spacing } from '../../theme/spacing';
 
 interface PinKeypadProps {
@@ -15,6 +16,7 @@ interface PinKeypadProps {
 /** Theme-aware PIN dots + numeric keypad, shared by the lock screen and setup */
 export function PinKeypad({ pinLength, entered, onDigit, onBackspace, disabled = false }: PinKeypadProps) {
   const { colors, typography: typ } = useTheme();
+  const { t } = useI18n();
 
   const keyStyle = [styles.key, { backgroundColor: colors.background.subtle }, disabled ? { opacity: 0.4 } : null];
 
@@ -42,7 +44,7 @@ export function PinKeypad({ pinLength, entered, onDigit, onBackspace, disabled =
             style={keyStyle}
             onPress={() => !disabled && onDigit(num.toString())}
             disabled={disabled}
-            accessibilityLabel={`Digit ${num}`}
+            accessibilityLabel={t.common.digit.replace('{n}', String(num))}
           >
             <Text style={[typ.heading.h4, { color: colors.text.primary }]}>{num}</Text>
           </TouchableOpacity>
@@ -55,7 +57,7 @@ export function PinKeypad({ pinLength, entered, onDigit, onBackspace, disabled =
           style={keyStyle}
           onPress={() => !disabled && onDigit('0')}
           disabled={disabled}
-          accessibilityLabel="Digit 0"
+          accessibilityLabel={t.common.digit.replace('{n}', '0')}
         >
           <Text style={[typ.heading.h4, { color: colors.text.primary }]}>0</Text>
         </TouchableOpacity>
@@ -64,7 +66,7 @@ export function PinKeypad({ pinLength, entered, onDigit, onBackspace, disabled =
           style={keyStyle}
           onPress={() => !disabled && onBackspace()}
           disabled={disabled}
-          accessibilityLabel="Delete last digit"
+          accessibilityLabel={t.common.deleteDigit}
         >
           <MaterialCommunityIcons name="backspace-outline" size={24} color={colors.text.secondary} />
         </TouchableOpacity>

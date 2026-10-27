@@ -24,6 +24,12 @@ export const ur: TranslationKeys = {
     undo: 'واپس',
     notSet: 'سیٹ نہیں',
     goBack: 'واپس جائیں',
+    clearSearch: 'تلاش صاف کریں',
+    digit: 'ہندسہ {n}',
+    deleteDigit: 'آخری ہندسہ حذف کریں',
+    dismiss: 'بند کریں',
+    undoLastAction: 'آخری کارروائی واپس کریں',
+    toastDismissHint: 'بند کرنے کے لیے ٹیپ کریں یا سوائپ کریں۔',
   },
   nav: {
     home: 'ہوم',
@@ -84,6 +90,9 @@ export const ur: TranslationKeys = {
     permDesc: 'نسخہ ہر خوراک کے وقت آپ کو خبردار کر سکتا ہے۔ آپ کی اجازت تک کچھ نہیں بھیجا جاتا۔',
     permEnable: 'یاد دہانیاں آن کریں',
     permLater: 'بعد میں',
+    snoozeA11y: '{n} منٹ کے لیے یاد دہانی روکیں۔ دورانیہ منتخب کرنے کے لیے دیر تک دبائیں۔',
+    snoozeFor: '{n} منٹ کے لیے روکیں',
+    takeAllA11y: '{time} پر طے شدہ تمام {n} خوراکیں لیں',
   },
   onboarding: {
     welcomeTitle: 'نسخہ میں خوش آمدید',
@@ -192,6 +201,13 @@ export const ur: TranslationKeys = {
     importDataMsg: 'امپورٹ کرنے سے پہلے ایکسپورٹ کی گئی JSON فائل بحال ہوتی ہے اور تمام موجودہ ڈیٹا (پروفائل، نسخے، ادویات، شیڈولز، خوراک کے ریکارڈ) تبدیل ہو جاتا ہے۔ جاری رکھیں؟',
     chooseFile: 'فائل منتخب کریں',
     importFileFailed: 'فائل امپورٹ نہیں ہو سکی۔',
+    apiKeyA11y: '{provider} API کلید',
+    saveKeyA11y: '{provider} API کلید محفوظ کریں',
+    removeKeyA11y: 'محفوظ شدہ {provider} API کلید ہٹائیں',
+    setBloodGroupA11y: 'بلڈ گروپ {group} مقرر کریں',
+    setThemeA11y: 'تھیم {theme} مقرر کریں',
+    setLanguageA11y: 'زبان {language} مقرر کریں',
+    setSnoozeA11y: 'سنوز {n} منٹ مقرر کریں',
   },
   scanner: {
     title: 'نسخہ اسکین کریں',
@@ -370,6 +386,7 @@ export const ur: TranslationKeys = {
     notFound: 'نسخہ نہیں ملا',
     notFoundDesc: 'ہو سکتا ہے اسے حذف کر دیا گیا ہو۔',
     noMedicinesOnRx: 'اس نسخے پر کوئی دوا نہیں',
+    prescriptionFrom: '{date} کا نسخہ',
   },
   emergency: {
     title: 'ایمرجنسی کارڈ',
@@ -418,6 +435,8 @@ export const ur: TranslationKeys = {
     morning: 'صبح',
     afternoon: 'دوپہر',
     night: 'رات',
+    markTaken: '{name} کو لیا گیا کے طور پر نشان زد کریں',
+    skipOne: '{name} چھوڑ دیں',
   },
   progress: {
     startStreak: 'آج اپنا سلسلہ شروع کریں',
@@ -585,6 +604,7 @@ export const ur: TranslationKeys = {
     loadingExtra: 'اضافی تفصیلات لوڈ ہو رہی ہیں…',
     aiFailed: 'اس وقت اضافی تفصیلات لوڈ نہیں ہو سکیں۔ جو موجود ہے وہی دکھایا جا رہا ہے',
     disclaimer: 'صرف عمومی معلومات، طبی مشورہ نہیں۔ ہمیشہ اپنے ڈاکٹر کی ہدایت پر عمل کریں۔',
+    learnAbout: '{name} کے بارے میں جانیں',
   },
   // Medicine interactions
   interactions: {

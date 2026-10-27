@@ -30,6 +30,7 @@ const EducationRow = memo(function EducationRow({
   onPress: (id: string) => void;
 }) {
   const { colors, typography: typ, spacing } = useTheme();
+  const { t } = useI18n();
   const snippet =
     language === 'ur' ? medicine.purpose_ur ?? medicine.purpose : medicine.purpose;
   return (
@@ -37,7 +38,10 @@ const EducationRow = memo(function EducationRow({
       onPress={() => onPress(medicine.id)}
       activeOpacity={0.8}
       accessibilityRole="button"
-      accessibilityLabel={`Learn about ${medicine.name ?? 'medicine'}`}
+      accessibilityLabel={t.education.learnAbout.replace(
+        '{name}',
+        medicine.name ?? t.education.title,
+      )}
       style={{ marginBottom: 10 }}
     >
       <Card>

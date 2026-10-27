@@ -113,7 +113,7 @@ export default function MedicinesScreen() {
             backgroundColor: colors.accent.primary,
             borderRadius: 999,
             paddingHorizontal: 14,
-            paddingVertical: 8,
+            minHeight: 44,
             marginStart: spacing.sm,
           }}
           accessibilityRole="button"

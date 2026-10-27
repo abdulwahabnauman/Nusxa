@@ -150,7 +150,7 @@ export default function OnboardingScreen() {
                 ]}
                 accessibilityRole="button"
                 accessibilityState={{ selected }}
-                accessibilityLabel={`Set language to ${label}`}
+                accessibilityLabel={t.settings.setLanguageA11y.replace('{language}', label)}
               >
                 <Text style={[typography.label.sm, { color: selected ? colors.onAccent : colors.text.secondary }]}>
                   {label}
@@ -353,7 +353,7 @@ const styles = StyleSheet.create({
   languageChip: {
     paddingVertical: 6,
     paddingHorizontal: 14,
-    minHeight: 36,
+    minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -391,10 +391,12 @@ const styles = StyleSheet.create({
   },
   bloodGroupChip: {
     minWidth: 64,
+    minHeight: 44,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderWidth: 1.5,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   permissionNote: {
     flexDirection: 'row',
