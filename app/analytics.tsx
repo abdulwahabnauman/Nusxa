@@ -314,13 +314,17 @@ export default function AnalyticsScreen() {
       </View>
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: spacing.xl + 20 }}>
-        {/* Period selector */}
-        <View
-          style={{
-            flexDirection: 'row',
+        {/* Period selector — horizontally scrollable so the chips never clip
+            or force the page itself to scroll on narrow screens */}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{
             gap: spacing.sm,
             paddingHorizontal: spacing.base,
             paddingVertical: spacing.md,
+          }}
+          style={{
             borderBottomWidth: 1,
             borderBottomColor: colors.border.default,
           }}
@@ -329,12 +333,15 @@ export default function AnalyticsScreen() {
             <TouchableOpacity
               key={period}
               style={{
+                flexShrink: 0,
                 paddingHorizontal: spacing.md,
                 paddingVertical: spacing.sm,
                 borderRadius: 8,
                 backgroundColor: selectedPeriod === period ? colors.accent.primary : colors.background.subtle,
               }}
               onPress={() => setSelectedPeriod(period)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: selectedPeriod === period }}
             >
               <Text
                 style={[
@@ -346,7 +353,7 @@ export default function AnalyticsScreen() {
               </Text>
             </TouchableOpacity>
           ))}
-        </View>
+        </ScrollView>
 
         {/* Adherence ring */}
         {renderAdherenceRing()}

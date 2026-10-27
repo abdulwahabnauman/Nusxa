@@ -6,6 +6,7 @@ import {
   StyleSheet,
   RefreshControl,
   Platform,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -96,12 +97,33 @@ export default function MedicinesScreen() {
   const listHeader = (
     <>
       <View style={[styles.header, { paddingHorizontal: spacing.base, marginBottom: 16 }]}>
-        <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-          {t.medicinesList.title}
-        </Text>
-        <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
-          {t.medicinesList.subtitle}
-        </Text>
+        <View style={{ flex: 1 }}>
+          <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
+            {t.medicinesList.title}
+          </Text>
+          <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 4 }]}>
+            {t.medicinesList.subtitle}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/medicine/new')}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: colors.accent.primary,
+            borderRadius: 999,
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            marginStart: spacing.sm,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={t.manual.title}
+        >
+          <MaterialCommunityIcons name="plus" size={18} color="#FFFFFF" />
+          <Text style={[typography.label.sm, { color: '#FFFFFF', marginStart: 4 }]}>
+            {t.manual.title}
+          </Text>
+        </TouchableOpacity>
       </View>
       {!loading && interactions.length > 0 && (
         <View
@@ -231,5 +253,7 @@ const styles = StyleSheet.create({
   },
   header: {
     marginTop: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

@@ -25,9 +25,10 @@ import {
   savePrescription,
   ScheduleDraft,
 } from '../src/utils/savePrescription';
-import { syncFollowUpNotifications } from '../src/utils/notifications';
+import { syncFollowUpNotifications, syncDoseNotifications } from '../src/utils/notifications';
 import { archivePrescriptionImages } from '../src/utils/archiveImages';
 import { isValidTimeFormat, findScheduleConflicts } from '../src/utils/validation';
+import { RepeatSelector } from '../src/components/schedule/RepeatSelector';
 
 const WINDOW_OPTIONS = [60, 90, 120, 180];
 
@@ -117,6 +118,17 @@ export default function ScheduleScreen() {
     });
   };
 
+  const updateRepeat = (medIdx: number, value: { daysOfWeek: number[]; intervalDays: number }) => {
+    setSchedules((prev) => {
+      const updated = [...prev];
+      const schedule = { ...updated[medIdx]! };
+      schedule.daysOfWeek = value.daysOfWeek;
+      schedule.intervalDays = value.intervalDays;
+      updated[medIdx] = schedule;
+      return updated;
+    });
+  };
+
   const handleConfirm = async () => {
     if (!prescription) return;
     if (hasInvalidOrEmptyTimes) {
@@ -135,8 +147,10 @@ export default function ScheduleScreen() {
       );
 
       // A new/updated prescription may carry a follow-up visit date — arm
-      // its reminder without blocking the navigation back home.
+      // its reminder without blocking the navigation back home. Dose
+      // reminders are resynced so non-daily patterns arm their dated slots.
       void syncFollowUpNotifications();
+      void syncDoseNotifications();
 
       // Toast lives in the root layout, so it stays visible after navigating
       showToast(
@@ -278,6 +292,12 @@ export default function ScheduleScreen() {
                     );
                   })}
                 </View>
+
+                <RepeatSelector
+                  daysOfWeek={schedule.daysOfWeek}
+                  intervalDays={schedule.intervalDays}
+                  onChange={(value) => updateRepeat(medIdx, value)}
+                />
               </Card>
             </View>
           ))}

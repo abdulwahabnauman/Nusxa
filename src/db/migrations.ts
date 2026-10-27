@@ -463,6 +463,31 @@ const migration_v19: Migration = {
   },
 };
 
+/**
+ * Version 20: Non-daily schedules.
+ * Medicines are not always taken every day — some are weekly, on selected
+ * weekdays, or on alternate days. `days_of_week` stores the chosen weekdays
+ * (CSV, NULL = any day) and `interval_days` the spacing between doses
+ * (1 = daily, 2 = alternate days). Existing rows default to daily.
+ */
+const migration_v20: Migration = {
+  version: 20,
+  up: async (db) => {
+    const columns = [
+      'ALTER TABLE schedules ADD COLUMN days_of_week TEXT;',
+      'ALTER TABLE schedules ADD COLUMN interval_days INTEGER DEFAULT 1;',
+    ];
+    for (const sql of columns) {
+      try {
+        await db.execAsync(sql);
+      } catch {
+        // Column already exists — nothing to do
+      }
+    }
+    await db.runAsync('UPDATE schema_version SET version = 20;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -483,6 +508,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v17,
   migration_v18,
   migration_v19,
+  migration_v20,
 ];
 
 /** Run pending migrations */

@@ -89,6 +89,10 @@ export interface Schedule {
   window_minutes: number;
   timezone: string;
   frequency: string;
+  /** Comma-separated weekday numbers (0=Sun .. 6=Sat); null means every day */
+  days_of_week: string | null;
+  /** Minimum days between doses (1 = daily, 2 = alternate days) */
+  interval_days: number;
   meal_instruction: MealInstruction;
   start_date: string;
   end_date: string | null;

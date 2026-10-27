@@ -46,6 +46,15 @@ export function frequencyToDailyCount(frequency: string | null): number {
   if (lower.includes('three') || lower.includes('tid') || lower.includes('tds') || lower.includes('every 8 hour')) return 3;
   if (lower.includes('twice') || lower.includes('bid') || lower.includes('every 12 hour')) return 2;
   if (lower.includes('every 4 hour')) return 6;
+
+  // Non-daily regimens: convert weekly / spaced dosing to doses per day
+  if (lower.includes('alternate') || lower.includes('every other day') || lower.includes('alt dieb')) return 0.5;
+  if (lower.includes('weekly') || lower.includes('once a week') || lower.includes('once weekly')) return 1 / 7;
+  const perWeek = lower.match(/(\d+)\s*(?:times?\s*)?(?:a|per|every|in a)?\s*week/);
+  if (perWeek) return parseInt(perWeek[1]!, 10) / 7;
+  const everyNDays = lower.match(/every\s*(\d+)\s*days?/);
+  if (everyNDays) return 1 / Math.max(1, parseInt(everyNDays[1]!, 10));
+
   if (lower.includes('once') || lower.includes('od') || lower.includes('bedtime') || lower.includes('morning') || lower.includes('night')) return 1;
   if (lower.includes('as needed') || lower.includes('prn') || lower.includes('sos')) return 0;
 

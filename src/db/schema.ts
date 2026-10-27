@@ -5,7 +5,7 @@
  * updates the stored `schema_version` row to its own version, so after all
  * migrations run the stored value always equals this constant.
  */
-export const CURRENT_SCHEMA_VERSION = 19;
+export const CURRENT_SCHEMA_VERSION = 20;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS schedules (
   window_minutes INTEGER DEFAULT 120,
   timezone TEXT NOT NULL,
   frequency TEXT NOT NULL,
+  /** Comma-separated weekday numbers (0=Sun .. 6=Sat); NULL means every day */
+  days_of_week TEXT,
+  /** Minimum days between doses (1 = daily, 2 = alternate days) */
+  interval_days INTEGER DEFAULT 1,
   meal_instruction TEXT,
   start_date TEXT NOT NULL,
   end_date TEXT,

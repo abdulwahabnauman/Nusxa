@@ -135,6 +135,8 @@ const draftFor = (index: number, times: string[] = ['08:00']): ScheduleDraft => 
   mealInstruction: 'after',
   times,
   windowMinutes: 120,
+  daysOfWeek: [],
+  intervalDays: 1,
 });
 
 beforeEach(() => {
@@ -226,6 +228,23 @@ describe('buildDefaultSchedules', () => {
   it('uses the default 120-minute reminder window', () => {
     const drafts = buildDefaultSchedules(makePrescriptionJSON([makeMedicineJSON()]));
     expect(drafts[0]!.windowMinutes).toBe(120);
+  });
+
+  it('maps an alternate-day frequency to a two-day interval', () => {
+    const drafts = buildDefaultSchedules(
+      makePrescriptionJSON([makeMedicineJSON({ frequency: 'On alternate days' })])
+    );
+    expect(drafts[0]!.intervalDays).toBe(2);
+    expect(drafts[0]!.daysOfWeek).toEqual([]);
+  });
+
+  it('maps a weekly frequency to a single selected weekday', () => {
+    const drafts = buildDefaultSchedules(
+      makePrescriptionJSON([makeMedicineJSON({ frequency: 'Once weekly' })])
+    );
+    expect(drafts[0]!.daysOfWeek).toHaveLength(1);
+    expect(drafts[0]!.intervalDays).toBe(1);
+    expect(drafts[0]!.times).toEqual(['08:00']);
   });
 });
 
@@ -369,7 +388,9 @@ describe('savePrescription schedule replacement', () => {
     expect(rows).toHaveLength(2);
     expect(createSchedule).toHaveBeenCalledTimes(3); // 2 on first save + 1 on re-save
     expect(updateSchedule).toHaveBeenCalledWith(historyRow.id, {
-      frequency: 'Three times daily',
+      frequency: 'Twice daily',
+      days_of_week: null,
+      interval_days: 1,
       meal_instruction: 'after',
       window_minutes: 120,
       is_active: true,
@@ -386,6 +407,8 @@ describe('cleanupDeadSchedules', () => {
     window_minutes: 120,
     timezone: 'Asia/Karachi',
     frequency: 'Twice daily',
+    days_of_week: null,
+    interval_days: 1,
     meal_instruction: 'after',
     start_date: '2026-01-01',
     end_date: null,

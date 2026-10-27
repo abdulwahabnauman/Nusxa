@@ -294,6 +294,7 @@ function AppContent() {
         <Stack.Screen name="scan" options={{ presentation: 'modal' }} />
         <Stack.Screen name="processing" options={{ presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="review" options={{ presentation: 'card' }} />
+        <Stack.Screen name="medicine/new" options={{ presentation: 'card' }} />
         <Stack.Screen name="medicine/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="prescription/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="schedule" options={{ presentation: 'card' }} />

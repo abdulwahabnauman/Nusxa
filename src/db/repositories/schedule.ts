@@ -10,6 +10,8 @@ function parseSchedule(row: Record<string, unknown>): Schedule {
     window_minutes: typeof row.window_minutes === 'number' ? row.window_minutes : 120,
     timezone: row.timezone as string,
     frequency: row.frequency as string,
+    days_of_week: (row.days_of_week as string | null) ?? null,
+    interval_days: typeof row.interval_days === 'number' ? row.interval_days : 1,
     meal_instruction: row.meal_instruction as Schedule['meal_instruction'],
     start_date: row.start_date as string,
     end_date: row.end_date as string | null,
@@ -26,11 +28,12 @@ export async function createSchedule(
   const now = new Date().toISOString();
 
   await db.runAsync(
-    `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, days_of_week, interval_days, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     [
       data.id, data.medicine_id, data.time, data.window_minutes, data.timezone,
-      data.frequency, data.meal_instruction, data.start_date, data.end_date,
+      data.frequency, data.days_of_week, data.interval_days,
+      data.meal_instruction, data.start_date, data.end_date,
       data.is_active ? 1 : 0, data.notification_id, now,
     ]
   );
@@ -71,7 +74,7 @@ export async function getSchedule(id: string): Promise<Schedule | null> {
 
 export async function updateSchedule(
   id: string,
-  data: Partial<Pick<Schedule, 'time' | 'window_minutes' | 'timezone' | 'frequency' | 'meal_instruction' | 'is_active' | 'notification_id' | 'end_date'>>
+  data: Partial<Pick<Schedule, 'time' | 'window_minutes' | 'timezone' | 'frequency' | 'days_of_week' | 'interval_days' | 'meal_instruction' | 'is_active' | 'notification_id' | 'end_date'>>
 ): Promise<void> {
   const db = getDatabase();
   const fields: string[] = [];

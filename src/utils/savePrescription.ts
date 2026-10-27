@@ -11,6 +11,12 @@ import { createSchedule, getSchedulesByMedicine, updateSchedule, hardDeleteSched
 import { getDoseRecordsBySchedule } from '../db/repositories/dose';
 import { scheduleDoseNotification, cancelNotification } from './notifications';
 import { getTodayISO } from './date';
+import {
+  isDailyRepeat,
+  normalizeDaysOfWeek,
+  repeatFrequencyLabel,
+  serializeDaysOfWeek,
+} from './repeat';
 import type { Medicine, Schedule } from '../types/models';
 
 export interface ScheduleDraft {
@@ -22,6 +28,10 @@ export interface ScheduleDraft {
   times: string[];
   /** Reminder window length in minutes from each reminder time */
   windowMinutes: number;
+  /** Selected weekdays (0=Sun … 6=Sat); empty means any day */
+  daysOfWeek: number[];
+  /** Minimum days between doses (1 = daily, 2 = alternate days) */
+  intervalDays: number;
 }
 
 const generateId = () =>
@@ -256,6 +266,29 @@ export function buildDefaultSchedules(
       : freq.includes('three') || freq.includes('tid') || freq.includes('tds') ? 3
       : freq.includes('four') || freq.includes('qid') || freq.includes('qds') ? 4
       : 1;
+
+    // Non-daily regimens: weekly counts and alternate days skip the daily
+    // reminder loop and get their own recurrence instead.
+    const weeklyCount = detectPerWeek(freq);
+    const alternateDays = /alternate|every other day|alt[ .-]?dieb/.test(freq);
+
+    if (weeklyCount > 0) {
+      const today = new Date().getDay();
+      const offsets =
+        weeklyCount === 1 ? [0] : weeklyCount === 2 ? [0, 3] : [0, 2, 4];
+      return {
+        medicineIndex: i,
+        medicineName: med.name ?? `Medicine ${i + 1}`,
+        dosage: med.dosage ?? '',
+        frequency: med.frequency ?? 'Once weekly',
+        mealInstruction: med.meal_instruction ?? 'none',
+        times: ['08:00'],
+        windowMinutes: 120,
+        daysOfWeek: normalizeDaysOfWeek(offsets.map((offset) => (today + offset) % 7)),
+        intervalDays: 1,
+      };
+    }
+
     const times = DEFAULT_SCHEDULE_TIMES[String(dailyCount)] ?? ['08:00'];
     return {
       medicineIndex: i,
@@ -265,8 +298,18 @@ export function buildDefaultSchedules(
       mealInstruction: med.meal_instruction ?? 'none',
       times: [...times],
       windowMinutes: 120,
+      daysOfWeek: [],
+      intervalDays: alternateDays ? 2 : 1,
     };
   });
+}
+
+/** How many separate days per week a frequency string describes (0 = daily) */
+function detectPerWeek(freq: string): number {
+  if (/\bweekly\b/.test(freq) || /once\s*(?:a|per|every|in a)?\s*week/.test(freq)) return 1;
+  if (/\bbiweekly\b/.test(freq) || /twice\s*(?:a|per|every|in a)?\s*week/.test(freq)) return 2;
+  if (/three\s*(?:times?)?\s*(?:a|per|every|in a)?\s*week/.test(freq)) return 3;
+  return 0;
 }
 
 /** Create schedule rows + reminder notifications for one medicine.
@@ -280,21 +323,35 @@ async function armSchedules(
   reusable: Schedule[] = []
 ): Promise<void> {
   const pool = [...reusable];
+  const daysOfWeek = normalizeDaysOfWeek(schedule.daysOfWeek);
+  const intervalDays = Math.max(1, schedule.intervalDays ?? 1);
+  // Non-daily regimens are armed as dated one-shot reminders by
+  // syncDoseNotifications (a DAILY trigger would ring on off-days).
+  const daily = isDailyRepeat(daysOfWeek, intervalDays);
+  const frequency = repeatFrequencyLabel(daysOfWeek, intervalDays, schedule.times.length);
+  const repeatFields = {
+    days_of_week: serializeDaysOfWeek(daysOfWeek),
+    interval_days: intervalDays,
+  };
+
   for (const time of schedule.times) {
     const reuseIndex = pool.findIndex((s) => s.time === time);
     if (reuseIndex !== -1) {
       const reuse = pool.splice(reuseIndex, 1)[0]!;
-      const notificationId = await scheduleDoseNotification({
-        id: reuse.id,
-        medicineId,
-        medicineName: schedule.medicineName,
-        dosage: schedule.dosage,
-        mealInstruction: schedule.mealInstruction,
-        time,
-      });
+      const notificationId = daily
+        ? await scheduleDoseNotification({
+            id: reuse.id,
+            medicineId,
+            medicineName: schedule.medicineName,
+            dosage: schedule.dosage,
+            mealInstruction: schedule.mealInstruction,
+            time,
+          })
+        : null;
 
       await updateSchedule(reuse.id, {
-        frequency: schedule.frequency,
+        frequency,
+        ...repeatFields,
         meal_instruction: (schedule.mealInstruction as any) ?? null,
         window_minutes: schedule.windowMinutes,
         is_active: true,
@@ -304,14 +361,16 @@ async function armSchedules(
     }
 
     const scheduleId = generateId();
-    const notificationId = await scheduleDoseNotification({
-      id: scheduleId,
-      medicineId,
-      medicineName: schedule.medicineName,
-      dosage: schedule.dosage,
-      mealInstruction: schedule.mealInstruction,
-      time,
-    });
+    const notificationId = daily
+      ? await scheduleDoseNotification({
+          id: scheduleId,
+          medicineId,
+          medicineName: schedule.medicineName,
+          dosage: schedule.dosage,
+          mealInstruction: schedule.mealInstruction,
+          time,
+        })
+      : null;
 
     await createSchedule({
       id: scheduleId,
@@ -319,7 +378,8 @@ async function armSchedules(
       time,
       window_minutes: schedule.windowMinutes,
       timezone,
-      frequency: schedule.frequency,
+      frequency,
+      ...repeatFields,
       meal_instruction: (schedule.mealInstruction as any) ?? null,
       start_date: startDate,
       end_date: null,
@@ -444,4 +504,115 @@ export async function savePrescription(
   }
 
   return { added, updated };
+}
+
+export interface ManualMedicineInput {
+  name: string;
+  strength?: string | null;
+  form?: Medicine['form'];
+  dosage?: string | null;
+  mealInstruction?: Medicine['meal_instruction'];
+  duration?: string | null;
+  purpose?: string | null;
+  initialQuantity?: number | null;
+  remainingQuantity?: number | null;
+  times: string[];
+  windowMinutes: number;
+  daysOfWeek: number[];
+  intervalDays: number;
+  language?: 'en' | 'ur';
+}
+
+/**
+ * Add a medicine the user typed in themselves. It lives under a "Manual
+ * entry" prescription so history, exports and the doctor-visit report treat
+ * it exactly like a verified scan result.
+ */
+export async function addMedicineManually(input: ManualMedicineInput): Promise<string> {
+  const today = getTodayISO();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const prescriptionId = generateId();
+  const medicineId = generateId();
+  const name = input.name.trim();
+  const dosage = input.dosage?.trim() || null;
+
+  const days = normalizeDaysOfWeek(input.daysOfWeek);
+  const intervalDays = Math.max(1, input.intervalDays ?? 1);
+  const frequency = repeatFrequencyLabel(
+    days,
+    intervalDays,
+    input.times.length,
+    input.language ?? 'en',
+  );
+
+  await createPrescription({
+    id: prescriptionId,
+    doctor_name: 'Manual entry',
+    hospital: null,
+    date: today,
+    follow_up_date: null,
+    source_image_uri: null,
+    verification_status: 'verified',
+    overall_confidence: 1,
+    patient_notes: null,
+    treatment_status: 'active',
+  });
+
+  await createMedicine({
+    id: medicineId,
+    prescription_id: prescriptionId,
+    name,
+    generic_name: null,
+    brand_name: null,
+    strength: input.strength?.trim() || null,
+    form: input.form ?? null,
+    dosage,
+    frequency,
+    meal_instruction: input.mealInstruction ?? null,
+    duration: input.duration?.trim() || null,
+    purpose: input.purpose?.trim() || null,
+    side_effects: [],
+    food_interactions: [],
+    storage: null,
+    confidence: 1,
+    warnings: [],
+    verification_status: 'verified',
+    initial_quantity: input.initialQuantity ?? null,
+    remaining_quantity: input.remainingQuantity ?? input.initialQuantity ?? null,
+  });
+
+  const daily = isDailyRepeat(days, intervalDays);
+  for (const time of input.times) {
+    const scheduleId = generateId();
+    // Non-daily patterns are armed as dated one-shots by the notification
+    // sync that runs after this function returns.
+    const notificationId = daily
+      ? await scheduleDoseNotification({
+          id: scheduleId,
+          medicineId,
+          medicineName: name,
+          dosage: dosage ?? '',
+          mealInstruction: input.mealInstruction ?? null,
+          time,
+        })
+      : null;
+
+    await createSchedule({
+      id: scheduleId,
+      medicine_id: medicineId,
+      time,
+      window_minutes: input.windowMinutes,
+      timezone,
+      frequency,
+      days_of_week: serializeDaysOfWeek(days),
+      interval_days: intervalDays,
+      meal_instruction: input.mealInstruction ?? null,
+      start_date: today,
+      end_date: null,
+      is_active: true,
+      notification_id: notificationId,
+    });
+  }
+
+  return medicineId;
 }

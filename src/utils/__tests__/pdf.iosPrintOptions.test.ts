@@ -63,6 +63,8 @@ const schedule: Schedule = {
   window_minutes: 120,
   timezone: 'Asia/Karachi',
   frequency: 'daily',
+  days_of_week: null,
+  interval_days: 1,
   meal_instruction: 'after',
   start_date: '2026-08-29',
   end_date: null,

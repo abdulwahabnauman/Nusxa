@@ -8,6 +8,12 @@ import { getAllPrescriptions } from '../db/repositories/prescription';
 import { estimateDaysUntilRefillFromFrequency } from './inventory';
 import { getKV, setKV } from '../db/repositories/kv';
 import { getTodayISO, getDaysAgoISO } from './date';
+import {
+  occurrenceDates,
+  parseDaysOfWeek,
+  repeatFromSchedule,
+  scheduleOccursOn,
+} from './repeat';
 
 /* Android channel used for all medicine reminders */
 export const DOSE_CHANNEL_ID = 'medication-reminders';
@@ -148,6 +154,10 @@ export async function scheduleDoseNotification(params: {
   dosage: string;
   mealInstruction: string | null;
   time: string; // HH:mm
+  /** When set, arms a one-shot reminder on this date instead of repeating daily */
+  dateISO?: string;
+  /** Real schedule id when `id` is an occurrence-qualified identifier */
+  scheduleId?: string;
 }): Promise<string | null> {
   const hasPermission = await checkNotificationPermission();
   if (!hasPermission) return null;
@@ -170,21 +180,34 @@ export async function scheduleDoseNotification(params: {
         medicineId: params.medicineId,
         medicineName: params.medicineName,
         dosage: params.dosage,
-        scheduleId: params.id,
+        scheduleId: params.scheduleId ?? params.id,
       },
       ...(Platform.OS === 'android' ? { channelId: DOSE_CHANNEL_ID } : {}),
       categoryIdentifier: DOSE_CATEGORY_ID,
       sound: true,
       priority: Notifications.AndroidNotificationPriority.HIGH,
     },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: hours ?? 8,
-      minute: minutes ?? 0,
-    },
+    trigger: params.dateISO
+      ? {
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(`${params.dateISO}T${params.time}:00`),
+        }
+      : {
+          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+          hour: hours ?? 8,
+          minute: minutes ?? 0,
+        },
   });
 
   return notificationId;
+}
+
+/** How many days of one-shot reminders are armed for non-daily schedules */
+export const OCCURRENCE_LOOKAHEAD_DAYS = 21;
+
+/** Identifier for a single dated occurrence of a non-daily schedule */
+export function doseOccurrenceNotificationId(scheduleId: string, dateISO: string): string {
+  return `${scheduleId}@${dateISO}`;
 }
 
 /** Cancel a scheduled notification */
@@ -367,6 +390,8 @@ export async function markEndOfDayMissed(): Promise<void> {
         // Only days the schedule was actually in effect
         if (schedule.start_date > dateStr) continue;
         if (schedule.end_date !== null && schedule.end_date < dateStr) continue;
+        // Weekly / alternate-day medicines are not missed on off-days
+        if (!scheduleOccursOn(schedule, dateStr)) continue;
 
         try {
           await createDoseRecord({
@@ -407,6 +432,8 @@ export async function syncDoseNotifications(): Promise<void> {
     const handledToday = new Set(records.map((r) => r.schedule_id));
     const now = new Date();
     const validIds = new Set<string>();
+    /** Schedules whose today-warning/escalation one-shots should survive */
+    const warningScheduleIds = new Set<string>();
 
     for (const schedule of schedules) {
       const ended = schedule.end_date !== null && schedule.end_date < today;
@@ -420,21 +447,59 @@ export async function syncDoseNotifications(): Promise<void> {
         continue;
       }
 
-      validIds.add(schedule.id);
-
       const medicine = await getMedicine(schedule.medicine_id);
       const medicineName = medicine?.name ?? 'Your medicine';
+      const repeat = repeatFromSchedule(schedule);
 
-      // Idempotent: re-registering with the same identifier replaces the
-      // existing request, so this is safe to run on every load.
-      await scheduleDoseNotification({
-        id: schedule.id,
-        medicineId: schedule.medicine_id,
-        medicineName,
-        dosage: medicine?.dosage ?? '',
-        mealInstruction: schedule.meal_instruction,
-        time: schedule.time,
-      });
+      if (repeat.kind === 'daily') {
+        validIds.add(schedule.id);
+        // Idempotent: re-registering with the same identifier replaces the
+        // existing request, so this is safe to run on every load.
+        await scheduleDoseNotification({
+          id: schedule.id,
+          medicineId: schedule.medicine_id,
+          medicineName,
+          dosage: medicine?.dosage ?? '',
+          mealInstruction: schedule.meal_instruction,
+          time: schedule.time,
+        });
+      } else {
+        // Weekly / selected-days / alternate-day regimens: a DAILY trigger
+        // would ring on off-days, so arm dated one-shots for the upcoming
+        // occurrences and let the stray sweep retire expired ones.
+        const days = occurrenceDates(
+          {
+            startDate: schedule.start_date,
+            endDate: schedule.end_date,
+            daysOfWeek: parseDaysOfWeek(schedule.days_of_week),
+            intervalDays: schedule.interval_days,
+          },
+          today,
+          OCCURRENCE_LOOKAHEAD_DAYS,
+        );
+        for (const dateISO of days) {
+          // Today's slot may have already elapsed (the user opened the app
+          // after the reminder time) — arming a past DATE trigger makes the
+          // OS deliver it immediately.
+          if (new Date(`${dateISO}T${schedule.time}:00`).getTime() <= now.getTime()) continue;
+          const occurrenceId = doseOccurrenceNotificationId(schedule.id, dateISO);
+          validIds.add(occurrenceId);
+          await scheduleDoseNotification({
+            id: occurrenceId,
+            scheduleId: schedule.id,
+            medicineId: schedule.medicine_id,
+            medicineName,
+            dosage: medicine?.dosage ?? '',
+            mealInstruction: schedule.meal_instruction,
+            time: schedule.time,
+            dateISO,
+          });
+        }
+      }
+
+      // Warnings and escalation only apply on days the dose actually runs
+      if (!scheduleOccursOn(schedule, today)) continue;
+      warningScheduleIds.add(schedule.id);
 
       // Replace any stale one-shots with today's — only while still pending
       await cancelNotification(warningId).catch(() => {});
@@ -476,12 +541,20 @@ export async function syncDoseNotifications(): Promise<void> {
     for (const request of scheduled) {
       const id = String(request.identifier);
       if (id.startsWith('refill-') || id.startsWith('snooze-') || id.startsWith('followup-')) continue;
-      const scheduleId = id.startsWith(WARNING_PREFIX)
+      const isWarning = id.startsWith(WARNING_PREFIX) || id.startsWith(ESCALATION_PREFIX);
+      const baseId = id.startsWith(WARNING_PREFIX)
         ? id.slice(WARNING_PREFIX.length)
         : id.startsWith(ESCALATION_PREFIX)
           ? id.slice(ESCALATION_PREFIX.length)
           : id;
-      if (!validIds.has(scheduleId)) {
+      // Dated occurrences are kept only while still inside the armed window;
+      // warnings are judged by today's schedule set.
+      const keep = baseId.includes('@')
+        ? validIds.has(baseId)
+        : isWarning
+          ? warningScheduleIds.has(baseId)
+          : validIds.has(baseId);
+      if (!keep) {
         await Notifications.cancelScheduledNotificationAsync(id).catch(() => {});
       }
     }

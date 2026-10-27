@@ -3,6 +3,7 @@ import { getActiveMedicines, getMedicineCountsByPrescription } from '../db/repos
 import { getAllPrescriptions, searchPrescriptions } from '../db/repositories/prescription';
 import { getActiveSchedules } from '../db/repositories/schedule';
 import { estimateDaysUntilRefillFromFrequency } from '../utils/inventory';
+import { occurrencesPerWeek, parseDaysOfWeek } from '../utils/repeat';
 import type { Medicine, Prescription, Schedule } from '../types/models';
 
 /**
@@ -35,20 +36,36 @@ export function useActiveMedicines(enabled = true) {
     queryFn: async (): Promise<MedicineWithInfo[]> => {
       const [active, schedules] = await Promise.all([getActiveMedicines(), getActiveSchedules()]);
       // Group the active schedules by medicine in one pass (no per-row query)
-      const timesByMedicine = new Map<string, string[]>();
+      const byMedicine = new Map<string, Schedule[]>();
       for (const sch of schedules) {
-        const list = timesByMedicine.get(sch.medicine_id) ?? [];
-        list.push(sch.time);
-        timesByMedicine.set(sch.medicine_id, list);
+        const list = byMedicine.get(sch.medicine_id) ?? [];
+        list.push(sch);
+        byMedicine.set(sch.medicine_id, list);
       }
-      return active.map((med) => ({
-        ...med,
-        scheduleTimes: (timesByMedicine.get(med.id) ?? []).sort(),
-        daysUntilRefill:
-          med.remaining_quantity !== null && med.frequency
-            ? estimateDaysUntilRefillFromFrequency(med.remaining_quantity, med.frequency)
-            : null,
-      }));
+      return active.map((med) => {
+        const medSchedules = byMedicine.get(med.id) ?? [];
+        // Doses per day across every slot, honouring weekly / alternate-day
+        // recurrence — otherwise a weekly medicine looks like it runs out
+        // 7× too fast.
+        const dailyDoses = medSchedules.reduce(
+          (sum, sch) =>
+            sum + occurrencesPerWeek(parseDaysOfWeek(sch.days_of_week), sch.interval_days) / 7,
+          0,
+        );
+        const daysUntilRefill =
+          med.remaining_quantity !== null
+            ? dailyDoses > 0
+              ? Math.floor(med.remaining_quantity / dailyDoses)
+              : med.frequency
+                ? estimateDaysUntilRefillFromFrequency(med.remaining_quantity, med.frequency)
+                : null
+            : null;
+        return {
+          ...med,
+          scheduleTimes: medSchedules.map((sch) => sch.time).sort(),
+          daysUntilRefill,
+        };
+      });
     },
   });
 }

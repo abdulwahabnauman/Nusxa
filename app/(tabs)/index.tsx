@@ -29,6 +29,7 @@ import { AdherenceRing } from '../../src/components/progress/AdherenceRing';
 import { StreakCounter } from '../../src/components/progress/StreakCounter';
 import { WeeklyChart } from '../../src/components/progress/WeeklyChart';
 import { getLast7Days, getTodayISO, getDaysAgoISO, formatTime12h, getDayPart, getTodayAtMs } from '../../src/utils/date';
+import { scheduleOccursOn } from '../../src/utils/repeat';
 import { formatDigits } from '../../src/utils/numerals';
 import { cancelNotification, snoozeNotificationId, syncRefillNotifications, syncDoseNotifications, markEndOfDayMissed, missedWarningNotificationId } from '../../src/utils/notifications';
 import { upsertDoseStatus, getTodayDoseRecords, deleteDoseRecord, updateDoseRecord, getDailyAdherence } from '../../src/db/repositories/dose';
@@ -148,13 +149,15 @@ export default function HomeScreen() {
       // Close out past days first so history already shows them as missed
       await markEndOfDayMissed();
       // All independent loads run in parallel (no sequential awaits)
-      const [schedules, todayRecords, daily, activeMedicines] = await Promise.all([
+      const [allSchedules, todayRecords, daily, activeMedicines] = await Promise.all([
         getActiveSchedules(),
         getTodayDoseRecords(today),
         // Two years of per-day rollups in ONE query — enough for any streak
         getDailyAdherence(getDaysAgoISO(730)),
         getActiveMedicines(),
       ]);
+      // Weekly / alternate-day medicines only appear on their due days
+      const schedules = allSchedules.filter((schedule) => scheduleOccursOn(schedule, today));
       setHasActiveMedicines(activeMedicines.length > 0);
       // One batch query for every medicine referenced by today's schedules
       const medicines = await getMedicinesByIds(schedules.map((s) => s.medicine_id));
@@ -476,6 +479,13 @@ export default function HomeScreen() {
             icon={<MaterialCommunityIcons name="camera-outline" size={20} color="#FFFFFF" />}
             style={{ flex: 1 }}
           />
+          <Button
+            title={t.home.addMedicine}
+            onPress={() => router.push('/medicine/new')}
+            variant="secondary"
+            icon={<MaterialCommunityIcons name="plus-circle-outline" size={20} color={colors.accent.primary} />}
+            style={{ flex: 1 }}
+          />
         </View>
 
         {/* One-time reminders catch-up (only if never asked by the OS) */}
@@ -700,6 +710,8 @@ const styles = StyleSheet.create({
   },
   quickActions: {
     marginTop: 20,
+    flexDirection: 'row',
+    gap: 12,
   },
   takeAll: {
     flexDirection: 'row',

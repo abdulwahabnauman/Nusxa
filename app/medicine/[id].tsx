@@ -29,6 +29,7 @@ import { syncDoseNotifications } from '../../src/utils/notifications';
 import { isValidTimeFormat } from '../../src/utils/validation';
 import { useInvalidateData } from '../../src/hooks/queries';
 import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory';
+import { occurrencesPerWeek, parseDaysOfWeek } from '../../src/utils/repeat';
 import { formatTime12h, addMinutesToTime } from '../../src/utils/date';
 import { formatDigits } from '../../src/utils/numerals';
 import type { Medicine, Schedule } from '../../src/types/models';
@@ -262,8 +263,18 @@ export default function MedicineDetailScreen() {
     { label: 'Storage', value: medicine.storage },
   ].filter((f) => f.value);
 
-  const estDays = medicine.remaining_quantity !== null && medicine.frequency
-    ? estimateDaysUntilRefillFromFrequency(medicine.remaining_quantity, medicine.frequency)
+  const activeSchedules = schedules.filter((s) => s.is_active);
+  const dailyDoses = activeSchedules.reduce(
+    (sum, sch) =>
+      sum + occurrencesPerWeek(parseDaysOfWeek(sch.days_of_week), sch.interval_days) / 7,
+    0,
+  );
+  const estDays = medicine.remaining_quantity !== null
+    ? dailyDoses > 0
+      ? Math.floor(medicine.remaining_quantity / dailyDoses)
+      : medicine.frequency
+        ? estimateDaysUntilRefillFromFrequency(medicine.remaining_quantity, medicine.frequency)
+        : null
     : null;
 
   return (
