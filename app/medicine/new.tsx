@@ -282,7 +282,7 @@ export default function NewMedicineScreen() {
                   keyboardType="numeric"
                   containerStyle={{ flex: 1 }}
                   constraint="numeric"
-                  error={quantityInvalid ? t.manual.quantityPlaceholder : undefined}
+                  error={quantityInvalid ? t.manual.quantityInvalid : undefined}
                 />
               </View>
             </View>

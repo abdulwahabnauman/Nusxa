@@ -546,6 +546,7 @@ export const en = {
     durationPlaceholder: 'e.g. 30 days',
     quantityLabel: 'Supply quantity (optional)',
     quantityPlaceholder: 'e.g. 30',
+    quantityInvalid: 'Enter a whole number.',
     scheduleTitle: 'Reminder times',
     addTime: 'Add another time',
     removeTime: 'Remove',

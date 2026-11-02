@@ -527,6 +527,7 @@ export const ur: TranslationKeys = {
     durationPlaceholder: 'مثلاً 30 دن',
     quantityLabel: 'دستیاب مقدار (اختیاری)',
     quantityPlaceholder: 'مثلاً 30',
+    quantityInvalid: 'مکمل عدد درج کریں۔',
     scheduleTitle: 'یاد دہانی کے اوقات',
     addTime: 'ایک اور وقت شامل کریں',
     removeTime: 'ہٹائیں',
