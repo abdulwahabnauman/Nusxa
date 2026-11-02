@@ -199,7 +199,7 @@ export default function EmergencyCardScreen() {
                 <View style={{ marginStart: 12, flex: 1 }}>
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.onboarding.dobLabel}</Text>
                   {editing ? (
-                    <Input value={dob} onChangeText={setDob} placeholder={t.onboarding.dobPlaceholder} keyboardType="numbers-and-punctuation" containerStyle={{ marginTop: 4 }} />
+                    <Input value={dob} onChangeText={setDob} placeholder={t.onboarding.dobPlaceholder} keyboardType="numbers-and-punctuation" containerStyle={{ marginTop: 4 }} constraint="date" />
                   ) : dob ? (
                     <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>
                       {dob}{(() => { const a = calculateAge(dob); return a !== null ? ` · ${t.emergency.ageYears.replace('{n}', String(a))}` : ''; })()}
@@ -266,8 +266,8 @@ export default function EmergencyCardScreen() {
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.emergencyContact}</Text>
                   {editing ? (
                     <View style={{ gap: 8, marginTop: 4 }}>
-                      <Input value={emergencyName} onChangeText={setEmergencyName} placeholder={t.emergency.contactNamePlaceholder} />
-                      <Input value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder={t.emergency.phonePlaceholder} keyboardType="phone-pad" />
+                      <Input value={emergencyName} onChangeText={setEmergencyName} placeholder={t.emergency.contactNamePlaceholder} constraint="alpha" />
+                      <Input value={emergencyPhone} onChangeText={setEmergencyPhone} placeholder={t.emergency.phonePlaceholder} keyboardType="phone-pad" constraint="phone" />
                     </View>
                   ) : (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -303,7 +303,7 @@ export default function EmergencyCardScreen() {
                 <View style={{ marginStart: 12, flex: 1 }}>
                   <Text style={[typography.label.sm, { color: colors.text.secondary, textAlign: align }]}>{t.emergency.physician}</Text>
                   {editing ? (
-                    <Input value={physician} onChangeText={setPhysician} placeholder={t.emergency.physicianPlaceholder} containerStyle={{ marginTop: 4 }} />
+                    <Input value={physician} onChangeText={setPhysician} placeholder={t.emergency.physicianPlaceholder} containerStyle={{ marginTop: 4 }} constraint="alpha" />
                   ) : (
                     <Text style={[typography.body.base, { color: colors.text.primary, textAlign: align }]}>{physician || t.common.notSet}</Text>
                   )}

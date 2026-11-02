@@ -650,12 +650,14 @@ export default function MedicineDetailScreen() {
             value={editRemaining}
             onChangeText={setEditRemaining}
             keyboardType="numeric"
+            constraint="numeric"
           />
           <Input
             label={t.medicine.initialLabel}
             value={editInitial}
             onChangeText={setEditInitial}
             keyboardType="numeric"
+            constraint="numeric"
           />
           {schedules.map((sch) => {
             const val = editTimes[sch.id] ?? sch.time;
@@ -667,6 +669,7 @@ export default function MedicineDetailScreen() {
                 value={val}
                 onChangeText={(text) => setEditTimes((prev) => ({ ...prev, [sch.id]: text }))}
                 placeholder={t.common.timeFormatHint}
+                constraint="time"
                 error={invalid ? t.schedule.timeInvalid : undefined}
               />
             );

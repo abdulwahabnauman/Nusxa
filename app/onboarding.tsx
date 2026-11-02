@@ -218,6 +218,7 @@ export default function OnboardingScreen() {
                   placeholder={t.onboarding.yourName}
                   autoCapitalize="words"
                   autoFocus
+                  constraint="alpha"
                   onSubmitEditing={handleProfileSave}
                 />
               </View>
@@ -239,6 +240,7 @@ export default function OnboardingScreen() {
                   onChangeText={setDob}
                   placeholder={t.onboarding.dobPlaceholder}
                   keyboardType="numbers-and-punctuation"
+                  constraint="date"
                 />
                 <Text style={[typography.label.base, { color: colors.text.secondary, marginTop: spacing.lg, marginBottom: spacing.sm }]}>
                   {t.onboarding.bloodGroupLabel}

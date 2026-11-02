@@ -281,6 +281,7 @@ export default function NewMedicineScreen() {
                   placeholder={t.manual.quantityPlaceholder}
                   keyboardType="numeric"
                   containerStyle={{ flex: 1 }}
+                  constraint="numeric"
                   error={quantityInvalid ? t.manual.quantityPlaceholder : undefined}
                 />
               </View>
@@ -328,6 +329,7 @@ export default function NewMedicineScreen() {
                       placeholder={t.common.timeFormatHint}
                       keyboardType="numbers-and-punctuation"
                       containerStyle={{ flex: 1, marginStart: spacing.sm }}
+                      constraint="time"
                       error={invalid ? t.schedule.timeInvalid : undefined}
                       accessibilityLabel={`${t.medicine.timeLabel} ${index + 1}`}
                     />

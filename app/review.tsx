@@ -432,6 +432,7 @@ export default function ReviewScreen() {
                   )
                 }
                 placeholder={t.review.notDetected}
+                constraint="alpha"
                 containerStyle={{ marginBottom: spacing.md }}
               />
               <Input
@@ -454,6 +455,7 @@ export default function ReviewScreen() {
                   )
                 }
                 placeholder={t.review.notDetected}
+                constraint="date"
               />
             </Card>
           </View>

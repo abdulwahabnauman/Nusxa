@@ -255,6 +255,7 @@ export default function ScheduleScreen() {
                       placeholder={t.common.timeFormatHint}
                       containerStyle={{ flex: 1, marginLeft: 8 }}
                       keyboardType="numbers-and-punctuation"
+                      constraint="time"
                       error={timeIsInvalid(time) ? t.schedule.timeInvalid : undefined}
                     />
                   </View>

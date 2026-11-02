@@ -8,12 +8,14 @@ import {
   TextInputProps,
 } from 'react-native';
 import { useTheme } from '../../theme/provider';
+import { applyInputConstraint, type InputConstraint } from '../../utils/inputConstraints';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
   error?: string;
   helper?: string;
   containerStyle?: ViewStyle;
+  constraint?: InputConstraint;
 }
 
 export function Input({
@@ -21,6 +23,8 @@ export function Input({
   error,
   helper,
   containerStyle,
+  constraint,
+  onChangeText,
   ...inputProps
 }: InputProps) {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -66,6 +70,11 @@ export function Input({
         }}
         accessibilityLabel={label}
         accessibilityState={{ disabled: inputProps.editable === false }}
+        onChangeText={
+          constraint
+            ? (text) => onChangeText?.(applyInputConstraint(text, constraint))
+            : onChangeText
+        }
         {...inputProps}
       />
       {error && (
