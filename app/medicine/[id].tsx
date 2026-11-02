@@ -715,7 +715,7 @@ export default function MedicineDetailScreen() {
           </View>
         ) : (
           <View style={{ gap: spacing.md }}>
-            <MarkdownText content={explanation ?? ''} />
+            <MarkdownText content={explanation ?? ''} textColor={colors.text.primary} />
             <Text style={[typography.body.xs, { color: colors.text.disabled }]}>
               {t.chat.disclaimer}
             </Text>
