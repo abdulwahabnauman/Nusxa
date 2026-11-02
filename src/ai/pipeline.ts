@@ -6,6 +6,7 @@ import { PrescriptionJSON, PipelineStage, ValidationResult, ValidationFlag, Medi
 import { LOW_CONFIDENCE_THRESHOLD, OCR_MAX_IMAGE_EDGE } from '../constants/config';
 import { resizeToFit } from '../utils/ocr-image';
 import { postProcessPrescription } from './postprocess';
+import { formatExplanationText } from './explain-format';
 
 type StageCallback = (stage: PipelineStage) => void;
 
@@ -268,5 +269,6 @@ export async function explainMedicine(
 
 Provide a plain-language explanation, how to take it, common side effects, and when to contact a doctor.`;
 
-  return chatCompletion(INTERPRETATION_SYSTEM_PROMPT, userPrompt, keys);
+  const text = await chatCompletion(INTERPRETATION_SYSTEM_PROMPT, userPrompt, keys);
+  return formatExplanationText(text);
 }

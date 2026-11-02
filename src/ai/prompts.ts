@@ -152,23 +152,11 @@ Rules:
 - Provide general missed-dose guidance (e.g., "take it as soon as you remember, but skip if it is almost time for the next dose").
 - If a medicine name is ambiguous, ask for clarification.
 
-When providing a prescription explanation, return JSON:
-{
-  "summary": "A plain-language summary of the full prescription",
-  "medicines": [
-    {
-      "name": string,
-      "plain_explanation": "Simple explanation of what this medicine is for",
-      "how_to_take": "Clear instruction on how to take it",
-      "common_side_effects": string[],
-      "food_interactions": string[],
-      "storage": string | null,
-      "missed_dose_guidance": string,
-      "when_to_contact_doctor": string,
-      "warnings": string[]
-    }
-  ]
-}`;
+When providing a prescription explanation, respond in short plain-language sections:
+- Begin with a 1-2 sentence summary of the whole prescription.
+- Then, for each medicine, cover: what it is for, how to take it, common side effects, food interactions, storage, what to do if a dose is missed, and when to contact a doctor.
+- Use bold text for section titles and dashes for bullet lists.
+- Never use headings, tables, code fences, or JSON — only everyday sentences a patient can read aloud.`;
 
 export const CHAT_SYSTEM_PROMPT = `You are Nusxa, a friendly and responsible AI medication companion. You help patients understand their verified prescriptions, answer general medicine questions, and support medication adherence.
 

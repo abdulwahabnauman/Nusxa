@@ -470,16 +470,22 @@ export default function MedicineDetailScreen() {
             </Text>
             <Card>
               <View style={styles.fieldRow}>
-                <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.medicine.remaining}</Text>
-                <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                <Text style={[typography.label.base, { color: colors.text.secondary, flexShrink: 1, marginEnd: spacing.sm }]}>
+                  {t.medicine.remaining}
+                </Text>
+                <Text style={[typography.body.base, { color: colors.text.primary, flex: 1, textAlign: 'right' }]}>
                   {nf(medicine.remaining_quantity ?? '?')} / {nf(medicine.initial_quantity)}
                 </Text>
               </View>
               {estDays != null && (
                 <View style={[styles.fieldRow, { marginTop: spacing.sm }]}>
-                  <Text style={[typography.label.base, { color: colors.text.secondary }]}>{t.medicine.estDaysRemaining}</Text>
+                  <Text style={[typography.label.base, { color: colors.text.secondary, flexShrink: 1, marginEnd: spacing.sm }]}>
+                    {t.medicine.estDaysRemaining}
+                  </Text>
                   <Text style={[typography.body.base, {
                     color: (estDays ?? Infinity) <= 7 ? colors.warning : colors.text.primary,
+                    flex: 1,
+                    textAlign: 'right',
                   }]}>
                     {t.medicine.daysRemaining.replace('{n}', nf(estDays ?? '?'))}
                   </Text>
