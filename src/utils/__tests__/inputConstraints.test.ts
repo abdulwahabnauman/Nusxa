@@ -1,4 +1,8 @@
-import { applyInputConstraint } from '../inputConstraints';
+import {
+  applyInputConstraint,
+  DEFAULT_TEXT_MAX_LENGTH,
+  maxLengthFor,
+} from '../inputConstraints';
 
 describe('applyInputConstraint', () => {
   describe('numeric', () => {
@@ -41,6 +45,32 @@ describe('applyInputConstraint', () => {
 
     it('strips letters', () => {
       expect(applyInputConstraint('call 0300', 'phone')).toBe(' 0300');
+    });
+  });
+
+  describe('length limits', () => {
+    it('caps a time field at five characters', () => {
+      expect(applyInputConstraint('82888828282', 'time')).toBe('82888');
+      expect(applyInputConstraint('08:30', 'time')).toBe('08:30');
+    });
+
+    it('caps numeric, date, phone and alpha values', () => {
+      expect(applyInputConstraint('1234567', 'numeric')).toBe('123456');
+      expect(applyInputConstraint('1950-05-15extra', 'date')).toBe('1950-05-15');
+      expect(applyInputConstraint('+92 300 123456789012345', 'phone').length).toBe(
+        maxLengthFor('phone'),
+      );
+      expect(applyInputConstraint('a'.repeat(80), 'alpha')).toHaveLength(
+        maxLengthFor('alpha'),
+      );
+    });
+
+    it('truncates after filtering so rejected characters do not consume the budget', () => {
+      expect(applyInputConstraint('8a8b8c8d8e8f8g', 'time')).toBe('88888');
+    });
+
+    it('exposes a default cap for free-text fields', () => {
+      expect(DEFAULT_TEXT_MAX_LENGTH).toBe(120);
     });
   });
 });

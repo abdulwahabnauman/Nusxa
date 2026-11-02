@@ -199,7 +199,7 @@ export const ur: TranslationKeys = {
     enterBackupPasswordHint: 'یہ بیک اپ خفیہ کردہ ہے۔ بحالی کے لیے پاس ورڈ درج کریں۔',
     wrongBackupPassword: 'غلط پاس ورڈ — بیک اپ ڈی کرپٹ نہیں ہو سکا۔',
     encryptedBackupReady: 'خفیہ بیک اپ شیئر کرنے کے لیے تیار ہے',
-    about: 'نسخہ v1.0.0',
+    about: 'نسخہ v1.0.1',
     aboutDesc: 'AI دوا ساتھی',
     clearDataMsg: 'اس سے آپ کا پروفائل، تمام نسخے، ادویات، شیڈولز، خوراک کے ریکارڈ، چیٹ کی سرگزشت اور محفوظ نسخے کی تصاویر مستقل طور پر حذف ہو جائیں گی۔',
     deleteEverything: 'سب کچھ حذف کریں',

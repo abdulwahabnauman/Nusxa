@@ -202,7 +202,7 @@ export const en = {
     enterBackupPasswordHint: 'This backup is encrypted. Enter its password to restore.',
     wrongBackupPassword: 'Wrong password — the backup could not be decrypted.',
     encryptedBackupReady: 'Encrypted backup ready to share',
-    about: 'Nusxa v1.0.0',
+    about: 'Nusxa v1.0.1',
     aboutDesc: 'AI Medication Companion',
     clearDataMsg: 'This will permanently delete your profile, all prescriptions, medicines, schedules, dose records, chat history, and saved prescription images.',
     deleteEverything: 'Delete everything',

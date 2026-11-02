@@ -275,6 +275,7 @@ export default function HistoryScreen() {
               placeholder=""
               value={searchQuery}
               onChangeText={setSearchQuery}
+              maxLength={100}
               onFocus={() => setSearchFocused(true)}
               onBlur={() => setSearchFocused(false)}
               accessibilityLabel={t.history.searchPlaceholder}

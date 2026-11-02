@@ -2,7 +2,7 @@
 
 **Project:** Nusxa — AI Medication Companion
 **Repository:** github.com/abdulwahabnauman/Nusxa
-**Version:** 1.0.0 (`package.json`, `app.json`)
+**Version:** 1.0.1 (`package.json`, `app.json`)
 **Document date:** 2026-09-02
 **Companion documents:** `readme.md` (developer handoff guide), `docs/` (design and audit notes), `worker/README.md`, `eval/README.md`
 

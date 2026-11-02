@@ -8,7 +8,12 @@ import {
   TextInputProps,
 } from 'react-native';
 import { useTheme } from '../../theme/provider';
-import { applyInputConstraint, type InputConstraint } from '../../utils/inputConstraints';
+import {
+  applyInputConstraint,
+  DEFAULT_TEXT_MAX_LENGTH,
+  maxLengthFor,
+  type InputConstraint,
+} from '../../utils/inputConstraints';
 
 interface InputProps extends Omit<TextInputProps, 'style'> {
   label?: string;
@@ -24,6 +29,7 @@ export function Input({
   helper,
   containerStyle,
   constraint,
+  maxLength,
   onChangeText,
   ...inputProps
 }: InputProps) {
@@ -70,6 +76,9 @@ export function Input({
         }}
         accessibilityLabel={label}
         accessibilityState={{ disabled: inputProps.editable === false }}
+        maxLength={
+          maxLength ?? (constraint ? maxLengthFor(constraint) : DEFAULT_TEXT_MAX_LENGTH)
+        }
         onChangeText={
           constraint
             ? (text) => onChangeText?.(applyInputConstraint(text, constraint))

@@ -91,6 +91,7 @@ function ApiKeyField({
           style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 8, flex: 1 }]}
           value={input}
           onChangeText={setInput}
+          maxLength={300}
           placeholder={hasStored ? savedPlaceholder : placeholder}
           placeholderTextColor={colors.text.disabled}
           secureTextEntry
@@ -542,6 +543,7 @@ export default function SettingsScreen() {
                   <TextInput
                     value={nameInput}
                     onChangeText={setNameInput}
+                    maxLength={120}
                     placeholder={t.onboarding.yourName}
                     placeholderTextColor={colors.text.disabled}
                     autoFocus
@@ -620,6 +622,7 @@ export default function SettingsScreen() {
                       <TextInput
                         value={dobInput}
                         onChangeText={setDobInput}
+                        maxLength={10}
                         placeholder={t.onboarding.dobPlaceholder}
                         placeholderTextColor={colors.text.disabled}
                         keyboardType="numbers-and-punctuation"
@@ -1123,6 +1126,7 @@ export default function SettingsScreen() {
           style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: spacing.sm }]}
           value={encPassword}
           onChangeText={(v) => { setEncPassword(v); setEncError(null); }}
+          maxLength={128}
           placeholder={t.settings.backupPasswordLabel}
           placeholderTextColor={colors.text.disabled}
           secureTextEntry
@@ -1135,6 +1139,7 @@ export default function SettingsScreen() {
             style={[typography.body.base, { color: colors.text.primary, backgroundColor: colors.background.subtle, borderColor: colors.border.default, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: spacing.sm }]}
             value={encConfirm}
             onChangeText={(v) => { setEncConfirm(v); setEncError(null); }}
+            maxLength={128}
             placeholder={t.settings.backupPasswordConfirmLabel}
             placeholderTextColor={colors.text.disabled}
             secureTextEntry

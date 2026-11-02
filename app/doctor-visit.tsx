@@ -174,6 +174,7 @@ export default function DoctorVisitScreen() {
                     placeholderTextColor={colors.text.disabled}
                     value={questions}
                     onChangeText={setQuestions}
+                    maxLength={1000}
                     multiline
                     accessibilityLabel={t.doctorVisit.questions}
                   />
