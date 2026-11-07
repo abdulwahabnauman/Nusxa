@@ -6,8 +6,8 @@ import CryptoJS from 'crypto-js';
 import { getDatabase } from '../db/database';
 import { getProfile , ensureProfileRow } from '../db/repositories/profile';
 
-import { getActiveMedicines } from '../db/repositories/medicine';
-import { getActiveSchedules } from '../db/repositories/schedule';
+import { getAllMedicines } from '../db/repositories/medicine';
+import { getAllSchedules } from '../db/repositories/schedule';
 import { getAllDoseRecords } from '../db/repositories/dose';
 import { getAllPrescriptions } from '../db/repositories/prescription';
 import { loadChatHistory, saveChatHistory } from './chatHistory';
@@ -41,8 +41,8 @@ export async function exportAsJSON(): Promise<Record<string, unknown>> {
   ] = await Promise.all([
     collect('profile', getProfile),
     collect('prescriptions', getAllPrescriptions),
-    collect('medicines', getActiveMedicines),
-    collect('schedules', getActiveSchedules),
+    collect('medicines', getAllMedicines),
+    collect('schedules', getAllSchedules),
     collect('dose records', getAllDoseRecords),
     // Optional sections guard themselves and degrade to empty lists
     getKVState(),
@@ -295,8 +295,8 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       if (!id || !m.prescription_id || medicineIds.has(id)) continue;
       medicineIds.add(id);
       await db.runAsync(
-        `INSERT INTO medicines (id, prescription_id, name, generic_name, brand_name, strength, form, dosage, frequency, meal_instruction, duration, purpose, side_effects, food_interactions, storage, confidence, warnings, verification_status, initial_quantity, remaining_quantity, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO medicines (id, prescription_id, name, generic_name, brand_name, strength, form, dosage, frequency, meal_instruction, duration, purpose, side_effects, food_interactions, storage, confidence, warnings, verification_status, initial_quantity, remaining_quantity, deleted_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           id,
           asString(m.prescription_id),
@@ -318,6 +318,7 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
           asString(m.verification_status) ?? 'verified',
           asNumber(m.initial_quantity),
           asNumber(m.remaining_quantity),
+          asString(m.deleted_at),
           asString(m.created_at) ?? now,
           asString(m.updated_at) ?? now,
         ]
@@ -331,8 +332,8 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
       if (!id || !s.time || !medicineIds.has(s.medicine_id as string) || scheduleIds.has(id)) continue;
       scheduleIds.add(id);
       await db.runAsync(
-        `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        `INSERT INTO schedules (id, medicine_id, time, window_minutes, timezone, frequency, days_of_week, interval_days, meal_instruction, start_date, end_date, is_active, notification_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           id,
           asString(s.medicine_id),
@@ -340,6 +341,8 @@ export async function importFromJSON(raw: string): Promise<ImportResult> {
           typeof s.window_minutes === 'number' ? s.window_minutes : 120,
           asString(s.timezone) ?? 'UTC',
           asString(s.frequency) ?? 'daily',
+          asString(s.days_of_week),
+          typeof s.interval_days === 'number' ? s.interval_days : 1,
           asString(s.meal_instruction),
           asString(s.start_date) ?? now.slice(0, 10),
           asString(s.end_date),
