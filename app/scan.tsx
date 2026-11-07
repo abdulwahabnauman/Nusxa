@@ -238,30 +238,31 @@ export default function ScanScreen() {
     }
   };
 
-  /** Copy a temp image to the document directory so it survives screen changes */
+  /** Copy a temp image to an isolated working cache directory so it survives screen transitions without risking stored archive images */
   const persistImage = async (sourceUri: string): Promise<string | null> => {
     try {
-      // Clean up old scan images first, keeping enough headroom for a full
-      // multi-page session plus the capture currently in progress
-      const dir = FileSystem.documentDirectory;
-      if (dir) {
-        const files = await FileSystem.readDirectoryAsync(dir);
-        const oldScans = files
-          .filter((f) => f.startsWith('nusxa_scan_') && f.endsWith('.jpg'))
-          .sort();
-        // Delete everything beyond the retention window
-        const keep = MAX_PRESCRIPTION_PAGES + 2;
-        for (const old of oldScans.slice(0, Math.max(0, oldScans.length - keep))) {
-          try {
-            await FileSystem.deleteAsync(dir + old, { idempotent: true });
-          } catch {
-            // Ignore cleanup failures
-          }
+      const baseDir = FileSystem.cacheDirectory || FileSystem.documentDirectory;
+      if (!baseDir) return null;
+      const scanDir = `${baseDir}scans/`;
+
+      await FileSystem.makeDirectoryAsync(scanDir, { intermediates: true }).catch(() => {});
+
+      // Clean up old transient scans in the dedicated working directory only
+      const files = await FileSystem.readDirectoryAsync(scanDir).catch(() => []);
+      const oldScans = files
+        .filter((f) => f.startsWith('nusxa_scan_') && f.endsWith('.jpg'))
+        .sort();
+      const keep = MAX_PRESCRIPTION_PAGES + 2;
+      for (const old of oldScans.slice(0, Math.max(0, oldScans.length - keep))) {
+        try {
+          await FileSystem.deleteAsync(scanDir + old, { idempotent: true });
+        } catch {
+          // Ignore cleanup failures
         }
       }
 
       const filename = `nusxa_scan_${Date.now()}.jpg`;
-      const destUri = FileSystem.documentDirectory + filename;
+      const destUri = `${scanDir}${filename}`;
       await FileSystem.copyAsync({ from: sourceUri, to: destUri });
       return destUri;
     } catch (error) {
