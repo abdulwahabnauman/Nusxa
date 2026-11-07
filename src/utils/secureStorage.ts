@@ -23,11 +23,11 @@ export async function deleteApiKey(): Promise<void> {
   await SecureStore.deleteItemAsync(API_KEY_STORAGE_KEY);
 }
 
-/** Get the Gemini API key from secure store or fall back to env variable */
+/** Get the Gemini API key from secure store or fall back to env variable in dev */
 export async function resolveApiKey(): Promise<string> {
   const stored = await getApiKey();
   if (stored) return stored;
-  return process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '';
+  return __DEV__ ? (process.env.EXPO_PUBLIC_GEMINI_API_KEY ?? '') : '';
 }
 
 /** Save the OpenRouter API key securely — fallback for the chat/explain features (Nemotron 3 Ultra) when Groq is unavailable */
@@ -49,11 +49,11 @@ export async function deleteOpenRouterKey(): Promise<void> {
   await SecureStore.deleteItemAsync(OPENROUTER_KEY_STORAGE_KEY);
 }
 
-/** Get the OpenRouter API key from secure store or fall back to env variable */
+/** Get the OpenRouter API key from secure store or fall back to env variable in dev */
 export async function resolveOpenRouterKey(): Promise<string> {
   const stored = await getOpenRouterKey();
   if (stored) return stored;
-  return process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '';
+  return __DEV__ ? (process.env.EXPO_PUBLIC_OPENROUTER_API_KEY ?? '') : '';
 }
 
 /** Save the Groq API key securely — primary provider for the chat/explain features (gpt-oss-120b) */
@@ -75,11 +75,11 @@ export async function deleteGroqKey(): Promise<void> {
   await SecureStore.deleteItemAsync(GROQ_KEY_STORAGE_KEY);
 }
 
-/** Get the Groq API key from secure store or fall back to env variable */
+/** Get the Groq API key from secure store or fall back to env variable in dev */
 export async function resolveGroqKey(): Promise<string> {
   const stored = await getGroqKey();
   if (stored) return stored;
-  return process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '';
+  return __DEV__ ? (process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '') : '';
 }
 
 /** Resolve both text-provider keys at once — used by every chat/explain call site */
