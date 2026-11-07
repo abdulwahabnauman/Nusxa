@@ -126,10 +126,14 @@ export default function ProcessingScreen() {
       // Archive the source pages durably (working scan files get cleaned
       // up) so the saved prescription keeps readable originals.
       const archived = await archivePrescriptionImages(uris);
+      const savedImageUri = archived.length > 1
+        ? JSON.stringify(archived)
+        : (archived[0] ?? uris[0] ?? null);
+
       const outcome = await savePrescription(
         verified,
         buildDefaultSchedules(verified),
-        archived[0] ?? uris[0]
+        savedImageUri
       );
       const bodyParts: string[] = [];
       if (outcome.updated > 0) {
