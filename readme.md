@@ -48,6 +48,20 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 
 ---
 
+## Clinical Safety Guidance & Regional Formulary
+
+Nusxa adheres strictly to the clinical principle that an AI companion must **never make independent medical decisions or override a physician's prescription**. Safety checks act as informational guardrails:
+
+- **Dosage Ceilings & High-Alert Warnings** (`validatePrescription` in `src/ai/pipeline.ts`):
+  - Parsed medications are checked against `DOSAGE_CEILINGS` in `src/constants/medical.ts` — per-dose ceilings first (e.g. Paracetamol >1000mg/dose, Ibuprofen >800mg/dose) and, when the frequency resolves to a doses-per-day count, the resulting daily total against the maximum daily limit (e.g. Paracetamol >4000mg/day, Metformin >2550mg/day). Insulin doses above 100 U and single methotrexate doses above 25 mg are flagged for manual verification.
+  - High-alert safety rules flag weekly-only medications like **Methotrexate** if scheduled daily.
+- **Pakistani & South Asian Regional Brand Formulary**:
+  - `SOUTH_ASIAN_BRAND_TO_GENERIC` in `src/constants/medical.ts` maps 56 commonly prescribed regional commercial brand names (e.g. *Panadol, Brufen, Augmentin, Flagyl, Glucophage, Arinac, Risek, Softin, Disprin, Calpol*) to their standardized international non-proprietary names (INN/generics), so interaction checks still work when a doctor writes a local brand.
+- **Opt-in Reference Notices (Settings)**:
+  - In adherence to Nusxa's non-directive philosophy, potential duplicate active ingredients and food/beverage reference notes (e.g. dairy with fluoroquinolones) are configured as **opt-in informational notices** in Settings rather than intrusive or unsolicited commands.
+
+---
+
 ## UI/UX Formatting & Bilingual Localization
 
 Nusxa is designed with first-class bilingual support for English and Urdu (Nastaliq script):

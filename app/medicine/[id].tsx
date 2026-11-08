@@ -41,6 +41,7 @@ export default function MedicineDetailScreen() {
   const { colors, typography, spacing } = useTheme();
   const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const foodTimingAlerts = useSettingsStore((s) => s.foodTimingAlerts);
   const reducedMotion = useReducedMotion();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -522,16 +523,21 @@ export default function MedicineDetailScreen() {
           </Card>
         </Animated.View>
 
-        {/* Food Interactions */}
-        {medicine.food_interactions.length > 0 && (
+        {/* Food Interactions — displayed only if user opted into dietary references */}
+        {foodTimingAlerts && medicine.food_interactions.length > 0 && (
           <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
-            <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              {t.medicine.foodInteractions}
-            </Text>
+            <View style={{ marginBottom: spacing.xs }}>
+              <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                {t.review.dietaryNotesTitle}
+              </Text>
+              <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
+                {t.review.dietaryNotesDisclaimer}
+              </Text>
+            </View>
             <Card>
               {medicine.food_interactions.map((item, i) => (
                 <View key={i} style={styles.listItem}>
-                  <MaterialCommunityIcons name="food-apple-outline" size={16} color={colors.warning} />
+                  <MaterialCommunityIcons name="food-apple-outline" size={16} color={colors.accent.primary} />
                   <Text style={[typography.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                     {item}
                   </Text>

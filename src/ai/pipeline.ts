@@ -4,6 +4,7 @@ import { visionCompletion, chatCompletion, TextProviderKeys, AIError } from './c
 import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
 import { PrescriptionJSON, PipelineStage, ValidationResult, ValidationFlag, MedicineJSON } from './types';
 import { LOW_CONFIDENCE_THRESHOLD, OCR_MAX_IMAGE_EDGE } from '../constants/config';
+import { DOSAGE_CEILINGS, FREQUENCY_TO_DAILY_COUNT } from '../constants/medical';
 import { resizeToFit } from '../utils/ocr-image';
 import { postProcessPrescription } from './postprocess';
 import { formatExplanationText } from './explain-format';
@@ -172,6 +173,70 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
     }
     if (med.confidence === 0) {
       flags.push({ code: 'unreadable', medicine: med.name, index: i });
+    }
+
+    // Dosage ceiling sanity check for high-risk medications
+    const medNameLower = (med.name ?? '').toLowerCase();
+    const strengthLower = (med.strength ?? '').toLowerCase();
+    const dosageLower = (med.dosage ?? '').toLowerCase();
+    const combinedStr = `${medNameLower} ${strengthLower} ${dosageLower}`;
+
+    for (const ceiling of DOSAGE_CEILINGS) {
+      const matchesDrug = ceiling.genericKeywords.some((k) => combinedStr.includes(k));
+      if (!matchesDrug) continue;
+
+      const mgMatch = combinedStr.match(/(\d+(?:\.\d+)?)\s*mg/i);
+      const unitMatch = combinedStr.match(/(\d+(?:\.\d+)?)\s*(?:u|units?)\b/i);
+      const mgPerDose = mgMatch ? parseFloat(mgMatch[1]!) : null;
+
+      if (ceiling.maxSingleDoseMg !== undefined && mgPerDose !== null && mgPerDose > ceiling.maxSingleDoseMg) {
+        flags.push({
+          code: 'abnormal_dosage',
+          medicine: med.name,
+          index: i,
+          detail: `${mgPerDose} mg per dose (usual max ${ceiling.maxSingleDoseMg} mg)`,
+        });
+      } else if (ceiling.maxDailyDoseMg !== undefined && mgPerDose !== null) {
+        const dosesPerDay = FREQUENCY_TO_DAILY_COUNT[(med.frequency ?? '').trim().toLowerCase()];
+        // Without a recognised frequency the per-dose amount is the only
+        // floor we know for the daily total, so compare that directly.
+        const dailyTotalMg = mgPerDose * (dosesPerDay ?? 1);
+        if (dailyTotalMg > ceiling.maxDailyDoseMg) {
+          flags.push({
+            code: 'abnormal_dosage',
+            medicine: med.name,
+            index: i,
+            detail: dosesPerDay
+              ? `${mgPerDose} mg x ${dosesPerDay} = ${dailyTotalMg} mg/day (usual max ${ceiling.maxDailyDoseMg} mg/day)`
+              : `${mgPerDose} mg per dose (usual max ${ceiling.maxDailyDoseMg} mg/day)`,
+          });
+        }
+      }
+
+      if (ceiling.maxUnitsPerDose !== undefined && unitMatch) {
+        const val = parseFloat(unitMatch[1]!);
+        if (val > ceiling.maxUnitsPerDose) {
+          flags.push({
+            code: 'abnormal_dosage',
+            medicine: med.name,
+            index: i,
+            detail: `${val} units per dose (usual max ${ceiling.maxUnitsPerDose} units)`,
+          });
+        }
+      }
+
+      // Methotrexate frequency check: daily instead of weekly schedule
+      if (ceiling.genericKeywords.includes('methotrexate')) {
+        const freqLower = (med.frequency ?? '').toLowerCase();
+        if (/daily|od|\b1\s*x\s*1\b|روزانہ/.test(freqLower)) {
+          flags.push({
+            code: 'abnormal_dosage',
+            medicine: med.name,
+            index: i,
+            detail: 'Daily frequency flagged — normally taken weekly',
+          });
+        }
+      }
     }
   }
 
