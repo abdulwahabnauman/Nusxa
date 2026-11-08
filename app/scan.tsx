@@ -19,7 +19,17 @@ import * as ImageManipulator from 'expo-image-manipulator';
 import * as FileSystem from 'expo-file-system/legacy';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { runOnJS } from 'react-native-reanimated';
+import Animated, {
+  runOnJS,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+  interpolateColor,
+} from 'react-native-reanimated';
+import { useReducedMotion } from '../src/hooks/useReducedMotion';
 import { useTheme } from '../src/theme/provider';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
@@ -134,6 +144,61 @@ export default function ScanScreen() {
   // Multi-page prescriptions: confirmed pages parked here while the current
   // capture lives in capturedImage. All of them go to OCR as one document.
   const [pages, setPages] = useState<string[]>([]);
+
+  // Animated viewfinder: scanning laser line and corner bracket lock
+  const reducedMotion = useReducedMotion();
+  const laserTranslateY = useSharedValue(0);
+  const laserOpacity = useSharedValue(0.7);
+  const cornerPulse = useSharedValue(0);
+
+  useEffect(() => {
+    if (reducedMotion || capturedImage || cropStage) {
+      laserTranslateY.value = 0;
+      laserOpacity.value = 0.5;
+      cornerPulse.value = 1;
+      return;
+    }
+    laserTranslateY.value = withRepeat(
+      withSequence(
+        withTiming(SCAN_FRAME_HEIGHT - 24, { duration: 1800, easing: Easing.inOut(Easing.quad) }),
+        withTiming(0, { duration: 1800, easing: Easing.inOut(Easing.quad) })
+      ),
+      -1,
+      true
+    );
+    laserOpacity.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 900 }),
+        withTiming(0.55, { duration: 900 })
+      ),
+      -1,
+      true
+    );
+    cornerPulse.value = withRepeat(
+      withSequence(
+        withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.ease) }),
+        withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.ease) })
+      ),
+      -1,
+      true
+    );
+  }, [reducedMotion, capturedImage, cropStage]);
+
+  const laserStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: laserTranslateY.value }],
+    opacity: laserOpacity.value,
+  }));
+
+  const cornerAnimatedStyle = useAnimatedStyle(() => {
+    const borderColor = interpolateColor(
+      cornerPulse.value,
+      [0, 1],
+      ['rgba(255, 255, 255, 0.85)', '#10B981']
+    );
+    return {
+      borderColor,
+    };
+  });
 
   const baseSize = useMemo(() => {
     if (!viewport || !imageDims) return null;
@@ -847,11 +912,15 @@ export default function ScanScreen() {
           <View style={styles.overlayMiddle}>
             <View style={styles.overlaySide} />
             <View style={[styles.scanFrame, { borderColor: colors.accent.primary }]}>
-              {/* Corner guides — classic scanner brackets at each corner */}
-              <View style={[styles.cornerGuide, styles.cornerTL, { borderColor: CAMERA_CHROME }]} />
-              <View style={[styles.cornerGuide, styles.cornerTR, { borderColor: CAMERA_CHROME }]} />
-              <View style={[styles.cornerGuide, styles.cornerBL, { borderColor: CAMERA_CHROME }]} />
-              <View style={[styles.cornerGuide, styles.cornerBR, { borderColor: CAMERA_CHROME }]} />
+              {/* Corner guides — animated scanner brackets locking to emerald */}
+              <Animated.View style={[styles.cornerGuide, styles.cornerTL, cornerAnimatedStyle]} />
+              <Animated.View style={[styles.cornerGuide, styles.cornerTR, cornerAnimatedStyle]} />
+              <Animated.View style={[styles.cornerGuide, styles.cornerBL, cornerAnimatedStyle]} />
+              <Animated.View style={[styles.cornerGuide, styles.cornerBR, cornerAnimatedStyle]} />
+
+              {/* Animated pulsed scanning laser line */}
+              <Animated.View style={[styles.scanLaser, laserStyle]} />
+
               <Text style={[styles.scanHint, { color: CAMERA_CHROME, fontFamily: typography.families.regular }]}>
                 {t.scanner.alignGuide}
               </Text>
@@ -1005,6 +1074,21 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingBottom: 16,
+    overflow: 'hidden',
+  },
+  scanLaser: {
+    position: 'absolute',
+    top: 6,
+    left: 8,
+    right: 8,
+    height: 3,
+    backgroundColor: '#10B981',
+    borderRadius: 2,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
+    elevation: 4,
   },
   scanHint: {
     fontSize: 13,
