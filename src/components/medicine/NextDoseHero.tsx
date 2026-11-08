@@ -9,13 +9,23 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSequence,
+  withSpring,
+  interpolate,
+  runOnJS,
+} from 'react-native-reanimated';
 import { MedicineFormIcon } from '../ui/PillIcon';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { formatDigits } from '../../utils/numerals';
 import { getTimeRangeParts } from '../../utils/date';
 import { scheduleSnoozeReminder } from '../../utils/notifications';
+import { takeDoseHaptic } from '../../utils/haptics';
 import type { TodayScheduleItem } from '../../types/models';
 
 /** Snooze durations offered on long-press (minutes) */
@@ -48,10 +58,16 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const snoozeMinutes = useSettingsStore((s) => s.snoozeMinutes);
   const setSnoozeMinutes = useSettingsStore((s) => s.setSnoozeMinutes);
+  const reducedMotion = useReducedMotion();
   const [now, setNow] = useState(() => Date.now());
   // {start, until} per schedule so the ring can drain over the snooze window
   const [snoozedUntil, setSnoozedUntil] = useState<Record<string, { start: number; until: number }>>({});
   const [showSnoozeOptions, setShowSnoozeOptions] = useState(false);
+  const [takingScheduleId, setTakingScheduleId] = useState<string | null>(null);
+
+  // Micro-interaction: spring physics morphing pill to checkmark on take
+  const takeButtonScale = useSharedValue(1);
+  const morphProgress = useSharedValue(0);
 
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
 
@@ -188,6 +204,51 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     applySnooze(minutes);
   };
 
+  useEffect(() => {
+    takeButtonScale.value = 1;
+    morphProgress.value = 0;
+    setTakingScheduleId(null);
+  }, [next?.scheduleId]);
+
+  const handleTakePress = () => {
+    takeDoseHaptic();
+    if (reducedMotion) {
+      onTaken(next.scheduleId, next.medicineId);
+      return;
+    }
+    setTakingScheduleId(next.scheduleId);
+    takeButtonScale.value = withSequence(
+      withSpring(0.92, { damping: 12, stiffness: 450 }),
+      withSpring(1, { damping: 14, stiffness: 350 })
+    );
+    morphProgress.value = withSpring(1, { damping: 14, stiffness: 320 }, (finished) => {
+      if (finished) {
+        runOnJS(onTaken)(next.scheduleId, next.medicineId);
+      }
+    });
+  };
+
+  const takeButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: takeButtonScale.value }],
+  }));
+
+  const pillIconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(morphProgress.value, [0, 0.45], [1, 0], 'clamp'),
+    transform: [
+      { scale: interpolate(morphProgress.value, [0, 0.5], [1, 0.3], 'clamp') },
+      { rotate: `${interpolate(morphProgress.value, [0, 0.5], [0, -40], 'clamp')}deg` },
+    ],
+  }));
+
+  const checkIconStyle = useAnimatedStyle(() => ({
+    position: 'absolute',
+    opacity: interpolate(morphProgress.value, [0.4, 1], [0, 1], 'clamp'),
+    transform: [
+      { scale: interpolate(morphProgress.value, [0.4, 1], [0.3, 1], 'clamp') },
+      { rotate: `${interpolate(morphProgress.value, [0.4, 1], [40, 0], 'clamp')}deg` },
+    ],
+  }));
+
   return (
     <View
       style={[
@@ -268,15 +329,24 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
       {started && (
         <View style={[styles.actions, { marginTop: spacing.md }]}>
           <TouchableOpacity
-            style={[styles.takeButton, { backgroundColor: colors.accent.primary }]}
-            onPress={() => onTaken(next.scheduleId, next.medicineId)}
+            onPress={handleTakePress}
             activeOpacity={0.85}
             accessibilityLabel={t.dose.markTaken.replace('{name}', next.medicineName)}
+            disabled={takingScheduleId === next.scheduleId}
           >
-            <MaterialCommunityIcons name="check" size={18} color={colors.onAccent} />
-            <Text style={[typ.label.base, { color: colors.onAccent, marginStart: 6 }]}>
-              {t.home.take}
-            </Text>
+            <Animated.View style={[styles.takeButton, { backgroundColor: colors.accent.primary }, takeButtonStyle]}>
+              <View style={styles.morphIconWrap}>
+                <Animated.View style={pillIconStyle}>
+                  <MaterialCommunityIcons name="pill" size={18} color={colors.onAccent} />
+                </Animated.View>
+                <Animated.View style={checkIconStyle}>
+                  <MaterialCommunityIcons name="check-bold" size={18} color={colors.onAccent} />
+                </Animated.View>
+              </View>
+              <Text style={[typ.label.base, { color: colors.onAccent, marginStart: 6 }]}>
+                {takingScheduleId === next.scheduleId ? t.dose.taken : t.home.take}
+              </Text>
+            </Animated.View>
           </TouchableOpacity>
 
           {!isSnoozed && (
@@ -372,6 +442,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     minHeight: 44,
     borderRadius: 12,
+  },
+  morphIconWrap: {
+    width: 20,
+    height: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   snoozeButton: {
     flexDirection: 'row',

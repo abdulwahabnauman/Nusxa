@@ -16,6 +16,7 @@ import { useSettingsStore } from '../../stores/settings-store';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { getTimeRangeParts, getTodayAtMs } from '../../utils/date';
 import { formatDigits } from '../../utils/numerals';
+import { takeDoseHaptic } from '../../utils/haptics';
 import type { DoseStatus } from '../../types/models';
 
 interface DoseItemProps {
@@ -111,6 +112,7 @@ export function DoseItem({
         e.translationX >= SWIPE_THRESHOLD && e.translationX > Math.abs(e.translationY) * 1.5;
       const fling = e.velocityX > 800 && e.translationX > 40;
       if ((deliberate || fling) && onTaken) {
+        takeDoseHaptic();
         runOnJS(onTaken)();
       }
       swipeX.value = withSpring(0, { damping: 22, stiffness: 400 });
@@ -192,7 +194,10 @@ export function DoseItem({
         <View style={styles.actions}>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.accent.primary, borderRadius: borderRadius.sm }]}
-            onPress={onTaken}
+            onPress={() => {
+              takeDoseHaptic();
+              onTaken?.();
+            }}
             accessibilityLabel={t.dose.markTaken.replace('{name}', medicineName)}
           >
             <Text style={[typography.label.sm, { color: colors.onAccent }]}>{t.dose.taken}</Text>
