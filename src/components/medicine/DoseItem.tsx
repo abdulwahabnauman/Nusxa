@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
   runOnJS,
   interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
@@ -16,7 +17,7 @@ import { useSettingsStore } from '../../stores/settings-store';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { getTimeRangeParts, getTodayAtMs } from '../../utils/date';
 import { formatDigits } from '../../utils/numerals';
-import { takeDoseHaptic } from '../../utils/haptics';
+import { selectionHaptic, takeDoseHaptic } from '../../utils/haptics';
 import { SpeechButton } from '../ui/SpeechButton';
 import { buildDoseSpeechText } from '../../utils/speech';
 import type { DoseStatus } from '../../types/models';
@@ -98,16 +99,38 @@ export function DoseItem({
     (status === 'pending' || status === 'missed') &&
     (status !== 'pending' || nowMs >= getTodayAtMs(time));
   const swipeX = useSharedValue(0);
+  const swipePassedThreshold = useSharedValue(false);
   const swipeEnabled = actionable && !!onTaken;
+
+  const triggerThresholdHaptic = () => {
+    selectionHaptic();
+  };
+
   const swipeGesture = Gesture.Pan()
     .enabled(swipeEnabled)
-    // Axis lock: only claim the gesture after clear horizontal intent, and
-    // bail out the moment the finger moves vertically — so plain scrolling
-    // never triggers a swipe-to-taken.
+    // Axis lock: only claim horizontal gesture with deliberate intent
     .activeOffsetX([-24, 24])
     .failOffsetY([-12, 12])
     .onChange((e) => {
-      swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_MAX));
+      if (e.translationX <= 0) {
+        swipeX.value = 0;
+        return;
+      }
+      if (e.translationX <= SWIPE_THRESHOLD) {
+        swipeX.value = e.translationX;
+        if (swipePassedThreshold.value) {
+          swipePassedThreshold.value = false;
+        }
+      } else {
+        // Elastic rubber-band resistance curve past threshold
+        const excess = e.translationX - SWIPE_THRESHOLD;
+        const rubberBanded = SWIPE_THRESHOLD + excess * 0.38;
+        swipeX.value = Math.min(rubberBanded, SWIPE_MAX + 30);
+        if (!swipePassedThreshold.value) {
+          swipePassedThreshold.value = true;
+          runOnJS(triggerThresholdHaptic)();
+        }
+      }
     })
     .onEnd((e) => {
       const deliberate =
@@ -117,14 +140,29 @@ export function DoseItem({
         runOnJS(takeDoseHaptic)();
         runOnJS(onTaken)();
       }
-      swipeX.value = withSpring(0, { damping: 22, stiffness: 400 });
+      swipePassedThreshold.value = false;
+      swipeX.value = withSpring(0, { damping: 18, stiffness: 350 });
     });
+
   const rowStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: swipeX.value }],
   }));
-  const revealStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(swipeX.value, [0, SWIPE_THRESHOLD], [0.35, 1], 'clamp'),
-  }));
+
+  const revealStyle = useAnimatedStyle(() => {
+    const opacity = interpolate(swipeX.value, [0, SWIPE_THRESHOLD * 0.35, SWIPE_THRESHOLD], [0.2, 0.7, 1], Extrapolation.CLAMP);
+    const scale = interpolate(swipeX.value, [0, SWIPE_THRESHOLD, SWIPE_MAX + 30], [0.92, 1, 1.06], Extrapolation.CLAMP);
+    return {
+      opacity,
+      transform: [{ scale }],
+    };
+  });
+
+  const checkIconStyle = useAnimatedStyle(() => {
+    const scale = interpolate(swipeX.value, [0, SWIPE_THRESHOLD * 0.5, SWIPE_THRESHOLD, SWIPE_MAX + 30], [0.4, 0.8, 1, 1.25], Extrapolation.CLAMP);
+    return {
+      transform: [{ scale }],
+    };
+  });
 
   const statusColor =
     status === 'taken' ? colors.success
@@ -134,7 +172,7 @@ export function DoseItem({
 
   return (
     <View style={{ borderBottomColor: colors.border.default, borderBottomWidth: 1, overflow: 'hidden' }}>
-      {/* Swipe reveal layer */}
+      {/* Elastic Swipe reveal layer */}
       {swipeEnabled && (
         <Animated.View
           pointerEvents="none"
@@ -144,7 +182,9 @@ export function DoseItem({
             revealStyle,
           ]}
         >
-          <MaterialCommunityIcons name="check" size={24} color={colors.onStatus} />
+          <Animated.View style={checkIconStyle}>
+            <MaterialCommunityIcons name="check" size={24} color={colors.onStatus} />
+          </Animated.View>
           <Text style={[typography.label.sm, { color: colors.onStatus, marginStart: 6 }]}>{t.dose.taken}</Text>
         </Animated.View>
       )}

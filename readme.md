@@ -50,17 +50,27 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 
 ## Animations, Micro-Interactions & Voice Accessibility
 
-Designed for elderly accessibility and clinical clarity:
+Designed for elderly accessibility and clinical clarity, built with `react-native-reanimated` and fully respecting `useReducedMotion()`:
 
 - **Pill-to-Checkmark Morphing (`src/components/medicine/DoseItem.tsx`)**:
   - Tactile spring pop scaling and smooth circular fill transition upon completing or taking a dose.
+- **Elastic Rubber-Band Swipe-to-Action (`src/components/medicine/DoseItem.tsx`)**:
+  - Past the commit threshold the row follows the finger with linear rubber-band resistance (`excess * 0.38`) instead of a hard clamp, fires a haptic tick the moment the threshold is crossed, and pop-scales the checkmark as the reveal layer saturates.
 - **Scanner Viewfinder Laser (`app/scan.tsx`)**:
   - Continuous vertical laser sweep beam and corner alignment reticles guiding document framing.
 - **Urgent Dose Breathing Glow (`src/components/medicine/NextDoseHero.tsx`)**:
   - Smooth pulsating aura on the next upcoming dose card when within 15 minutes of scheduled time.
+- **Liquid Fill Adherence Ring (`src/components/progress/AdherenceRing.tsx`)**:
+  - Two layered SVG sine waves slosh horizontally inside a clipped circular capsule while the liquid level springs up or down to the current adherence percentage; a specular glass highlight sits on top of the fill.
+- **Isometric Holographic Scan Card (`src/components/scan/IsometricScanCard.tsx`)**:
+  - Levitating prescription card (`perspective: 900`, `rotateX: 20deg`, `rotateZ: -7deg`) with a soft ground shadow, skeleton prescription lines, an SVG laser beam sweeping the document while OCR runs, and a spring snap back to upright when the pipeline completes.
+- **ECG Typing Indicator (`src/components/chat/EcgTypingIndicator.tsx`)**:
+  - Replaces the generic three-dot typing bubble with a P-Q-R-S-T electrocardiogram trace; a phosphor tracer head rides the mathematical cardiac path, one full sweep per 1.25 s, with a double systolic heart pulse as the R-wave peaks.
 - **On-Device Voice Readout (`src/utils/speech.ts` & `src/components/ui/SpeechButton.tsx`)**:
   - Leverages `expo-speech` to speak medication names, dosage amounts, and meal instructions in English or Urdu at an accessible, slow pacing (0.85 rate).
   - Synchronized global listener ensures only one audio stream plays at a time.
+- **Dancing Audio Equalizer (`src/components/ui/AudioEqualizer.tsx`)**:
+  - While a readout is playing, the speech button swaps its icon for four bars oscillating at asynchronous rates, with the same global listener keeping every card in sync.
 
 ---
 
@@ -162,11 +172,17 @@ nusxa/
 │   │   │   ├── DoseItem.tsx      # Single dose row (taken/skip/pending, animated status icon)
 │   │   │   ├── ScheduleTimeline.tsx  # Vertical timeline of doses
 │   │   │   └── VerificationField.tsx # Editable field with confidence indicator
+│   │   ├── chat/                 # Chat components
+│   │   │   └── EcgTypingIndicator.tsx # Doctor heartbeat / ECG line typing indicator
+│   │   ├── scan/                 # Scan & processing components
+│   │   │   └── IsometricScanCard.tsx  # 3D isometric holographic prescription scanning card
 │   │   ├── progress/             # Adherence tracking components
-│   │   │   ├── AdherenceRing.tsx # Circular progress ring
+│   │   │   ├── AdherenceRing.tsx # Liquid fill wave adherence capsule
 │   │   │   ├── StreakCounter.tsx # Non-shaming streak display
 │   │   │   └── WeeklyChart.tsx   # 7-day bar chart
 │   │   └── ui/                   # Reusable UI primitives
+│   │       ├── AudioEqualizer.tsx # Dancing 4-bar audio equalizer waveform
+│   │       ├── SpeechButton.tsx   # On-device TTS voice button with live waveform
 │   │       ├── Badge.tsx, Button.tsx (spring press feedback), Card.tsx
 │   │       ├── EmptyState.tsx (accepts icon name or custom node), Input.tsx, Modal.tsx
 │   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx (all Reanimated)
@@ -226,6 +242,7 @@ nusxa/
 │       ├── pdf.ts                # Doctor visit + analytics PDF generation (expo-print HTML templates, RTL Urdu mode)
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
+│       ├── speech.ts             # On-device TTS manager (expo-speech, Urdu/English voices)
 │       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
 │       └── validation.ts         # Input validation helpers (used by review + schedule screens)
 │
