@@ -21,6 +21,7 @@ import Animated, {
   runOnJS,
 } from 'react-native-reanimated';
 import { MedicineFormIcon } from '../ui/PillIcon';
+import { SpeechButton } from '../ui/SpeechButton';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -29,6 +30,7 @@ import { formatDigits } from '../../utils/numerals';
 import { getTimeRangeParts } from '../../utils/date';
 import { scheduleSnoozeReminder } from '../../utils/notifications';
 import { takeDoseHaptic } from '../../utils/haptics';
+import { buildDoseSpeechText } from '../../utils/speech';
 import type { TodayScheduleItem } from '../../types/models';
 
 /** Snooze durations offered on long-press (minutes) */
@@ -350,13 +352,26 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           >
             {isSnoozed ? t.home.snoozed : t.home.nextDose}
           </Text>
-          <Text
-            numberOfLines={1}
-            style={[typ.heading.h4, { color: colors.text.primary }]}
-          >
-            {next.medicineName}
-            {next.dosage ? `, ${next.dosage}` : ''}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text
+              numberOfLines={1}
+              style={[typ.heading.h4, { color: colors.text.primary, flex: 1, marginEnd: 8 }]}
+            >
+              {next.medicineName}
+              {next.dosage ? `, ${next.dosage}` : ''}
+            </Text>
+            <SpeechButton
+              text={buildDoseSpeechText({
+                medicineName: next.medicineName,
+                dosage: next.dosage,
+                mealInstruction: next.mealInstruction,
+                time: formatClock(doseDate),
+                language,
+              })}
+              medicineName={next.medicineName}
+              size={20}
+            />
+          </View>
           <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
             {isSnoozed && snoozeEntry
               ? t.home.reminderBackAt.replace('{t}', formatClock(new Date(snoozeEntry.until)))

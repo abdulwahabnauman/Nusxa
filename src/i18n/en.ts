@@ -485,6 +485,9 @@ export const en = {
     night: 'Night',
     markTaken: 'Mark {name} as taken',
     skipOne: 'Skip {name}',
+    listenInstructions: 'Listen to instructions',
+    stopAudio: 'Stop audio',
+    listenA11y: 'Listen to instructions for {name}',
   },
   // Streak / progress
   progress: {

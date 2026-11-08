@@ -470,6 +470,9 @@ export const ur: TranslationKeys = {
     night: 'رات',
     markTaken: '{name} کو لیا گیا کے طور پر نشان زد کریں',
     skipOne: '{name} چھوڑ دیں',
+    listenInstructions: 'ہدایات سنیں',
+    stopAudio: 'آواز بند کریں',
+    listenA11y: '{name} کی ہدایات سنیں',
   },
   progress: {
     startStreak: 'آج اپنا سلسلہ شروع کریں',

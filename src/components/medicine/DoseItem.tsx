@@ -17,6 +17,8 @@ import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { getTimeRangeParts, getTodayAtMs } from '../../utils/date';
 import { formatDigits } from '../../utils/numerals';
 import { takeDoseHaptic } from '../../utils/haptics';
+import { SpeechButton } from '../ui/SpeechButton';
+import { buildDoseSpeechText } from '../../utils/speech';
 import type { DoseStatus } from '../../types/models';
 
 interface DoseItemProps {
@@ -172,9 +174,22 @@ export function DoseItem({
           </Animated.View>
         </View>
         <View style={{ marginStart: 12, flex: 1 }}>
-          <Text style={[typography.body.base, { color: colors.text.primary }]}>
-            {timeLabel}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+            <Text style={[typography.body.base, { color: colors.text.primary, flex: 1 }]}>
+              {timeLabel}
+            </Text>
+            <SpeechButton
+              text={buildDoseSpeechText({
+                medicineName,
+                dosage,
+                mealInstruction,
+                time: rangeStart,
+                language,
+              })}
+              medicineName={medicineName}
+              size={18}
+            />
+          </View>
           <Text style={[typography.body.sm, { color: colors.text.secondary, marginTop: 2 }]}>
             {medicineName} {dosage ? `, ${dosage}` : ''}
           </Text>
