@@ -209,10 +209,12 @@ export default function HomeScreen() {
       // streaks — and the 14/30-day milestones — are actually reachable.
       // Days with at least one taken dose extend it; a day with scheduled
       // doses but none taken ends it; days with nothing scheduled are neutral.
+      // An ongoing today with doses not yet taken should not prematurely break a streak.
       let currentStreak = 0;
       for (let i = daily.length - 1; i >= 0; i--) {
         const row = daily[i];
         if (!row) continue;
+        if (row.date === today && row.taken === 0) continue;
         if (row.taken > 0) {
           currentStreak++;
         } else if (row.total > 0) {

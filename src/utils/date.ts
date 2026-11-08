@@ -25,7 +25,7 @@ export function formatDateLocalized(isoDate: string, locale = 'en-US'): string {
 /** Format time string (HH:mm) to 12-hour format */
 export function formatTime12h(time24: string, language: 'en' | 'ur' = 'en'): string {
   const [h, m] = time24.split(':').map(Number);
-  if (h == null || m == null) return time24;
+  if (h == null || m == null || isNaN(h) || isNaN(m)) return time24;
   const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   const clock = `${hour12}:${String(m).padStart(2, '0')}`;
   if (language === 'ur') {
@@ -58,11 +58,12 @@ export function getTodayAtMs(time24: string): number {
   return d.getTime();
 }
 
-/** Add minutes to an HH:mm time, wrapping past midnight */
+/** Add minutes to an HH:mm time, wrapping past midnight (handles positive and negative offsets) */
 export function addMinutesToTime(time24: string, minutes: number): string {
   const [h, m] = time24.split(':').map(Number);
-  if (h == null || m == null) return time24;
-  const total = (h * 60 + m + minutes) % (24 * 60);
+  if (h == null || m == null || isNaN(h) || isNaN(m)) return time24;
+  const dayMinutes = 24 * 60;
+  const total = (((h * 60 + m + minutes) % dayMinutes) + dayMinutes) % dayMinutes;
   const nh = Math.floor(total / 60);
   const nm = total % 60;
   return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;

@@ -7,7 +7,9 @@ const REQUIRED_FIELDS: (keyof MedicineJSON)[] = ['name', 'dosage', 'frequency', 
 export function isMedicineComplete(medicine: MedicineJSON): boolean {
   return REQUIRED_FIELDS.every((field) => {
     const value = medicine[field];
-    return value !== null && value !== undefined && value !== '';
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim().length > 0;
+    return true;
   });
 }
 
@@ -15,7 +17,9 @@ export function isMedicineComplete(medicine: MedicineJSON): boolean {
 export function getMissingFields(medicine: MedicineJSON): string[] {
   return REQUIRED_FIELDS.filter((field) => {
     const value = medicine[field];
-    return value === null || value === undefined || value === '';
+    if (value === null || value === undefined) return true;
+    if (typeof value === 'string') return value.trim().length === 0;
+    return false;
   });
 }
 
