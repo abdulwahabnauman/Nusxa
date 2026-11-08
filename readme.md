@@ -48,6 +48,22 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 
 ---
 
+## Animations, Micro-Interactions & Voice Accessibility
+
+Designed for elderly accessibility and clinical clarity:
+
+- **Pill-to-Checkmark Morphing (`src/components/medicine/DoseItem.tsx`)**:
+  - Tactile spring pop scaling and smooth circular fill transition upon completing or taking a dose.
+- **Scanner Viewfinder Laser (`app/scan.tsx`)**:
+  - Continuous vertical laser sweep beam and corner alignment reticles guiding document framing.
+- **Urgent Dose Breathing Glow (`src/components/medicine/NextDoseHero.tsx`)**:
+  - Smooth pulsating aura on the next upcoming dose card when within 15 minutes of scheduled time.
+- **On-Device Voice Readout (`src/utils/speech.ts` & `src/components/ui/SpeechButton.tsx`)**:
+  - Leverages `expo-speech` to speak medication names, dosage amounts, and meal instructions in English or Urdu at an accessible, slow pacing (0.85 rate).
+  - Synchronized global listener ensures only one audio stream plays at a time.
+
+---
+
 ## Clinical Safety Guidance & Regional Formulary
 
 Nusxa adheres strictly to the clinical principle that an AI companion must **never make independent medical decisions or override a physician's prescription**. Safety checks act as informational guardrails:
@@ -89,6 +105,7 @@ Nusxa is designed with first-class bilingual support for English and Urdu (Nasta
 | Notifications      | expo-notifications (local scheduled)    |
 | Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
 | PDF Generation     | expo-print + expo-sharing (doctor visit + analytics reports, on-device; RTL Urdu mode with bundled Noto Nastaliq font) |
+| Text-to-Speech     | expo-speech (on-device bilingual voice readout at 0.85 rate) |
 | Animations         | react-native-reanimated (reduced-motion aware) |
 | Vector Graphics    | react-native-svg (brand pill icon, charts) |
 | File Picking       | expo-document-picker (JSON data import) |
