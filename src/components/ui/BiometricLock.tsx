@@ -5,12 +5,18 @@
  * cannot be brute-forced.
  */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, AppState } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, AppState, Modal, ScrollView, Linking } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { spacing } from '../../theme/spacing';
 import { useI18n } from '../../i18n';
 import { PinKeypad } from './PinKeypad';
+import { useAuthStore } from '../../stores/auth-store';
+import { getActiveMedicines } from '../../db/repositories/medicine';
+import { calculateAge } from '../../utils/date';
+import { getLocalizedName } from '../../utils/profileName';
+import type { Medicine } from '../../types/models';
 import {
   PIN_LENGTH,
   authenticateWithBiometrics,
@@ -25,7 +31,10 @@ const LOCKOUT_SECONDS = 30;
 
 export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   const { colors, typography: typ } = useTheme();
-  const { t } = useI18n();
+  const { t, language, isRTL } = useI18n();
+  const profile = useAuthStore((s) => s.profile);
+  const [showEmergencyModal, setShowEmergencyModal] = useState(false);
+  const [activeMeds, setActiveMeds] = useState<Medicine[]>([]);
   const [pinInput, setPinInput] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState(MAX_ATTEMPTS);
@@ -49,6 +58,12 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
   useEffect(() => () => {
     mountedRef.current = false;
   }, []);
+
+  useEffect(() => {
+    if (showEmergencyModal) {
+      getActiveMedicines().then(setActiveMeds).catch(() => {});
+    }
+  }, [showEmergencyModal]);
 
   const lockedOut = lockoutUntil !== null && lockoutUntil > now;
   const biometricName = biometricLabel ?? t.lock.biometrics;
@@ -253,6 +268,131 @@ export function BiometricLock({ onUnlock }: { onUnlock: () => void }) {
           </Text>
         </TouchableOpacity>
       )}
+
+      {/* Emergency Info (ICE) Button — Life safety access for paramedics/first responders */}
+      <TouchableOpacity
+        style={styles.emergencyBtn}
+        onPress={() => setShowEmergencyModal(true)}
+        accessibilityLabel={language === 'ur' ? 'ہنگامی معلومات (ICE)' : 'Emergency Medical Info (ICE)'}
+      >
+        <MaterialCommunityIcons name="medical-bag" size={20} color={colors.error} />
+        <Text style={[typ.label.sm, { color: colors.error, marginLeft: 6 }]}>
+          {language === 'ur' ? 'ہنگامی طبی معلومات (ICE)' : 'Emergency Info (ICE)'}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Emergency Modal Sheet */}
+      <Modal
+        visible={showEmergencyModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={() => setShowEmergencyModal(false)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: colors.background.primary }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderColor: colors.border.default }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <MaterialCommunityIcons name="medical-bag" size={24} color={colors.error} />
+              <Text style={[typ.heading.h3, { color: colors.text.primary }]}>
+                {language === 'ur' ? 'ہنگامی طبی معلومات (ICE)' : 'Emergency Medical Info'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setShowEmergencyModal(false)}
+              style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: colors.background.subtle, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <MaterialCommunityIcons name="close" size={20} color={colors.text.primary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={{ padding: 16, gap: 16 }}>
+            {/* Patient Name & Age */}
+            <View style={{ backgroundColor: colors.background.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border.default }}>
+              <Text style={[typ.label.sm, { color: colors.text.secondary }]}>{language === 'ur' ? 'مریض کا نام' : 'Patient Name'}</Text>
+              <Text style={[typ.heading.h3, { color: colors.text.primary, marginTop: 4 }]}>
+                {profile ? getLocalizedName(profile, language) : (language === 'ur' ? 'نامعلوم' : 'Unknown')}
+                {profile?.date_of_birth ? ` (${calculateAge(profile.date_of_birth)} yrs)` : ''}
+              </Text>
+            </View>
+
+            {/* Blood Group & Allergies */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1, backgroundColor: colors.background.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border.default }}>
+                <Text style={[typ.label.sm, { color: colors.text.secondary }]}>{language === 'ur' ? 'بلڈ گروپ' : 'Blood Group'}</Text>
+                <Text style={[typ.heading.h2, { color: colors.error, marginTop: 4 }]}>
+                  {profile?.blood_group || (language === 'ur' ? 'نامعلوم' : 'Unknown')}
+                </Text>
+              </View>
+              <View style={{ flex: 1.5, backgroundColor: colors.background.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border.default }}>
+                <Text style={[typ.label.sm, { color: colors.text.secondary }]}>{language === 'ur' ? 'الرجی' : 'Allergies'}</Text>
+                <Text style={[typ.body.base, { color: colors.text.primary, marginTop: 4, fontWeight: '600' }]}>
+                  {profile?.allergies && profile.allergies.length > 0
+                    ? profile.allergies.join(', ')
+                    : (language === 'ur' ? 'کوئی معلوم نہیں' : 'None listed')}
+                </Text>
+              </View>
+            </View>
+
+            {/* Emergency Contact */}
+            {profile?.emergency_contact?.phone ? (
+              <View style={{ backgroundColor: colors.background.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border.default }}>
+                <Text style={[typ.label.sm, { color: colors.text.secondary }]}>{language === 'ur' ? 'ہنگامی رابطہ' : 'Emergency Contact'}</Text>
+                <Text style={[typ.body.lg, { color: colors.text.primary, marginTop: 4 }]}>
+                  {profile.emergency_contact.name || (language === 'ur' ? 'قریبی فرد' : 'Next of Kin')}
+                </Text>
+                <TouchableOpacity
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: colors.success,
+                    marginTop: 12,
+                    paddingVertical: 12,
+                    borderRadius: 10,
+                    gap: 8,
+                  }}
+                  onPress={() => Linking.openURL(`tel:${profile.emergency_contact!.phone.replace(/[\s()-]/g, '')}`)}
+                >
+                  <MaterialCommunityIcons name="phone" size={20} color="#FFF" />
+                  <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>
+                    {language === 'ur' ? `کال کریں: ${profile.emergency_contact.phone}` : `Call: ${profile.emergency_contact.phone}`}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {/* Primary Physician */}
+            {profile?.primary_physician ? (
+              <View style={{ backgroundColor: colors.background.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border.default }}>
+                <Text style={[typ.label.sm, { color: colors.text.secondary }]}>{language === 'ur' ? 'معالج' : 'Primary Physician'}</Text>
+                <Text style={[typ.body.base, { color: colors.text.primary, marginTop: 4 }]}>{profile.primary_physician}</Text>
+              </View>
+            ) : null}
+
+            {/* Active Medications */}
+            <View style={{ backgroundColor: colors.background.surface, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: colors.border.default }}>
+              <Text style={[typ.label.sm, { color: colors.text.secondary, marginBottom: 8 }]}>
+                {language === 'ur' ? 'موجودہ فعال ادویات' : 'Current Active Medications'}
+              </Text>
+              {activeMeds.length === 0 ? (
+                <Text style={[typ.body.sm, { color: colors.text.disabled }]}>
+                  {language === 'ur' ? 'کوئی فعال دوا ریکارڈ میں نہیں' : 'No active medications on record'}
+                </Text>
+              ) : (
+                activeMeds.map((med, i) => (
+                  <View key={med.id || i} style={{ paddingVertical: 6, borderBottomWidth: i < activeMeds.length - 1 ? 1 : 0, borderColor: colors.border.default }}>
+                    <Text style={[typ.body.base, { color: colors.text.primary, fontWeight: '600' }]}>
+                      {med.name} {med.strength ? `(${med.strength})` : ''}
+                    </Text>
+                    <Text style={[typ.body.sm, { color: colors.text.secondary }]}>
+                      {med.dosage || ''} {med.frequency ? `· ${med.frequency}` : ''}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </View>
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
     </View>
   );
 }
@@ -280,7 +420,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 44,
-    marginTop: spacing.xl,
+    marginTop: spacing.md,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+  },
+  emergencyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 44,
+    marginTop: spacing.lg,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
   },

@@ -140,10 +140,14 @@ export default function ScheduleScreen() {
       // Archive the source pages durably so the saved prescription keeps
       // readable originals (working scan files get cleaned up).
       const archived = await archivePrescriptionImages(pageUris);
+      const savedImageUri = archived.length > 1
+        ? JSON.stringify(archived)
+        : (archived[0] ?? imageUri ?? null);
+
       const outcome = await savePrescription(
         prescription,
         schedules,
-        archived[0] ?? imageUri
+        savedImageUri
       );
 
       // A new/updated prescription may carry a follow-up visit date — arm

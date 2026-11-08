@@ -301,6 +301,33 @@ async function handleVision(request, env) {
   }
 }
 
+// Per-IP rate limiting defense against proxy quota scraping
+const ipRateLimits = new Map();
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 hour
+const MAX_VISION_PER_HOUR = 20;
+const MAX_CHAT_PER_HOUR = 60;
+
+function checkRateLimit(ip, pathname) {
+  if (!ip) return true;
+  const now = Date.now();
+  const key = `${ip}:${pathname}`;
+  const record = ipRateLimits.get(key) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
+
+  if (now > record.resetAt) {
+    record.count = 0;
+    record.resetAt = now + RATE_LIMIT_WINDOW_MS;
+  }
+
+  const limit = pathname === '/vision' ? MAX_VISION_PER_HOUR : MAX_CHAT_PER_HOUR;
+  if (record.count >= limit) {
+    return false;
+  }
+
+  record.count++;
+  ipRateLimits.set(key, record);
+  return true;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -323,6 +350,13 @@ export default {
     // Shared app secret stops strangers from burning the provider quotas.
     if (request.headers.get('x-app-key') !== env.APP_KEY) {
       return errorReply('unauthorized', 401);
+    }
+
+    // IP rate limiting check
+    const clientIp = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || 'anonymous';
+    if (!checkRateLimit(clientIp, url.pathname)) {
+      console.warn(`[proxy] Rate limit exceeded for IP ${clientIp} on ${url.pathname}`);
+      return errorReply('rate_limited', 429, 300);
     }
 
     if (url.pathname === '/chat') return handleChat(request, env);

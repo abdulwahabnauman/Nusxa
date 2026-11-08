@@ -63,6 +63,15 @@ export async function getActiveSchedules(): Promise<Schedule[]> {
   return rows.map(parseSchedule);
 }
 
+/** Every schedule ever recorded (used by the full backup export). */
+export async function getAllSchedules(): Promise<Schedule[]> {
+  const db = getDatabase();
+  const rows = await db.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM schedules ORDER BY created_at ASC;'
+  );
+  return rows.map(parseSchedule);
+}
+
 export async function getSchedule(id: string): Promise<Schedule | null> {
   const db = getDatabase();
   const row = await db.getFirstAsync<Record<string, unknown>>(

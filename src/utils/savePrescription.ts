@@ -415,7 +415,32 @@ export async function savePrescription(
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   const existing = await getActiveMedicines();
 
+  // Always create a prescription row for the scanned prescription session so the visit
+  // (doctor, date, hospital, follow-up date, and image) is durably recorded even when all
+  // medicines already exist in the active regimen (e.g. chronic care refills/follow-ups).
   let prescriptionId: string | null = null;
+  if (
+    imageUri ||
+    prescription.prescription?.doctor_name ||
+    prescription.prescription?.hospital ||
+    prescription.prescription?.date ||
+    prescription.medicines.length > 0
+  ) {
+    prescriptionId = generateId();
+    await createPrescription({
+      id: prescriptionId,
+      doctor_name: prescription.prescription?.doctor_name ?? null,
+      hospital: prescription.prescription?.hospital ?? null,
+      date: prescription.prescription?.date ?? null,
+      follow_up_date: prescription.prescription?.follow_up_date ?? null,
+      source_image_uri: imageUri ?? null,
+      verification_status: 'verified',
+      overall_confidence: prescription.overall_confidence ?? 0,
+      patient_notes: null,
+      treatment_status: 'active',
+    });
+  }
+
   let added = 0;
   let updated = 0;
 
@@ -427,9 +452,10 @@ export async function savePrescription(
     const match = findExistingMatch(med, existing);
 
     if (match) {
-      // Refresh details from the new scan (inventory counts are preserved),
-      // then replace the old reminders with the freshly confirmed times.
+      // Refresh details from the new scan (inventory counts are preserved)
+      // and re-link to the latest prescription visit if one was recorded.
       await updateMedicine(match.id, {
+        ...(prescriptionId ? { prescription_id: prescriptionId } : {}),
         generic_name: med.generic_name ?? match.generic_name,
         brand_name: med.brand_name ?? match.brand_name,
         dosage: med.dosage ?? match.dosage,
@@ -468,7 +494,7 @@ export async function savePrescription(
       continue;
     }
 
-    // New medicine — make sure we have a prescription row to attach it to.
+    // New medicine — ensure prescriptionId exists
     if (!prescriptionId) {
       prescriptionId = generateId();
       await createPrescription({

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Image, TouchableOpacity, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -17,6 +17,22 @@ import { estimateDaysUntilRefillFromFrequency } from '../../src/utils/inventory'
 import { formatDateLocalized } from '../../src/utils/date';
 import type { PrescriptionWithMedicines } from '../../src/types/models';
 
+function parsePrescriptionImageUris(raw?: string | null): string[] {
+  if (!raw) return [];
+  const trimmed = raw.trim();
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.filter((item): item is string => typeof item === 'string' && item.length > 0);
+      }
+    } catch {
+      // Fallback to raw string
+    }
+  }
+  return [trimmed];
+}
+
 /**
  * Prescription detail — where a History card lands. Shows the visit metadata
  * (doctor, hospital, dates) and every medicine on the prescription, each
@@ -33,6 +49,7 @@ export default function PrescriptionDetailScreen() {
   const [prescription, setPrescription] = useState<PrescriptionWithMedicines | null>(null);
   const [scheduleTimes, setScheduleTimes] = useState<Record<string, string[]>>({});
   const [loaded, setLoaded] = useState(false);
+  const [modalImageUri, setModalImageUri] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -145,6 +162,61 @@ export default function PrescriptionDetailScreen() {
               </Text>
             </View>
           )}
+
+          {/* Original Prescription Document Gallery */}
+          {(() => {
+            const imageUris = parsePrescriptionImageUris(prescription.source_image_uri);
+            if (imageUris.length === 0) return null;
+            return (
+              <View style={{ marginTop: 16 }}>
+                <Text style={[typography.label.sm, { color: colors.text.secondary, marginBottom: 8 }]}>
+                  {imageUris.length > 1
+                    ? (language === 'ur' ? `نسخے کے صفحات (${imageUris.length})` : `Prescription Pages (${imageUris.length})`)
+                    : (language === 'ur' ? 'اصل نسخہ' : 'Original Prescription')}
+                </Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12 }}>
+                  {imageUris.map((uri, idx) => (
+                    <TouchableOpacity
+                      key={uri + idx}
+                      activeOpacity={0.85}
+                      onPress={() => setModalImageUri(uri)}
+                      style={{
+                        borderRadius: 12,
+                        overflow: 'hidden',
+                        borderWidth: 1,
+                        borderColor: colors.border.default,
+                        backgroundColor: colors.background.subtle,
+                      }}
+                    >
+                      <Image
+                        source={{ uri }}
+                        style={{ width: 140, height: 180, resizeMode: 'cover' }}
+                      />
+                      <View
+                        style={{
+                          position: 'absolute',
+                          bottom: 6,
+                          right: 6,
+                          backgroundColor: 'rgba(0,0,0,0.65)',
+                          paddingHorizontal: 8,
+                          paddingVertical: 2,
+                          borderRadius: 8,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                        }}
+                      >
+                        <MaterialCommunityIcons name="magnify-plus-outline" size={12} color="#FFF" />
+                        <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '600' }}>
+                          {imageUris.length > 1 ? `${idx + 1}/${imageUris.length}` : (language === 'ur' ? 'دیکھیں' : 'View')}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            );
+          })()}
         </Animated.View>
 
         <Animated.View entering={enter(1)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
@@ -182,6 +254,41 @@ export default function PrescriptionDetailScreen() {
           )}
         </Animated.View>
       </ScrollView>
+
+      {/* Fullscreen Prescription Image Modal */}
+      <Modal
+        visible={!!modalImageUri}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setModalImageUri(null)}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', justifyContent: 'center' }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'flex-end', padding: 16 }}>
+            <TouchableOpacity
+              onPress={() => setModalImageUri(null)}
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 20,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              accessibilityLabel="Close"
+            >
+              <MaterialCommunityIcons name="close" size={24} color="#FFF" />
+            </TouchableOpacity>
+          </View>
+          <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 12 }}>
+            {modalImageUri && (
+              <Image
+                source={{ uri: modalImageUri }}
+                style={{ width: '100%', height: '100%', resizeMode: 'contain' }}
+              />
+            )}
+          </View>
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
