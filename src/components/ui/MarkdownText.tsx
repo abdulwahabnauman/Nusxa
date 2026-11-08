@@ -8,10 +8,16 @@ interface MarkdownStyleSet {
   italic: TextStyle;
   code: TextStyle;
   paragraph: TextStyle;
+  h1: TextStyle;
+  h2: TextStyle;
+  h3: TextStyle;
   list: ViewStyle;
   listItem: ViewStyle;
   bullet: TextStyle;
+  numberPrefix: TextStyle;
   listText: TextStyle;
+  blockquote: ViewStyle;
+  blockquoteText: TextStyle;
   spacer: ViewStyle;
 }
 
@@ -47,6 +53,30 @@ function buildStyles(
       lineHeight: base.lineHeight,
       marginBottom: 8,
     },
+    h1: {
+      ...base,
+      fontFamily: families.bold,
+      fontSize: (base.fontSize ?? 16) + 4,
+      lineHeight: (base.lineHeight ?? 24) + 4,
+      marginTop: 6,
+      marginBottom: 6,
+    },
+    h2: {
+      ...base,
+      fontFamily: families.bold,
+      fontSize: (base.fontSize ?? 16) + 2,
+      lineHeight: (base.lineHeight ?? 24) + 2,
+      marginTop: 4,
+      marginBottom: 4,
+    },
+    h3: {
+      ...base,
+      fontFamily: families.bold,
+      fontSize: base.fontSize,
+      lineHeight: base.lineHeight,
+      marginTop: 4,
+      marginBottom: 2,
+    },
     list: {
       marginBottom: 12,
     },
@@ -61,12 +91,29 @@ function buildStyles(
       fontSize: base.fontSize,
       minWidth: 16,
     },
+    numberPrefix: {
+      color: colors.text.secondary,
+      fontFamily: families.bold,
+      fontSize: base.fontSize,
+      minWidth: 20,
+    },
     listText: {
       ...base,
       flex: 1,
       fontFamily: families.regular,
       fontSize: base.fontSize,
       lineHeight: base.lineHeight,
+    },
+    blockquote: {
+      borderLeftWidth: 3,
+      borderLeftColor: colors.border.default,
+      paddingLeft: 10,
+      marginVertical: 4,
+    },
+    blockquoteText: {
+      ...base,
+      fontFamily: families.italic,
+      color: colors.text.secondary,
     },
     spacer: {
       height: 4,
@@ -85,6 +132,7 @@ export function parseMarkdown(
   const lines = text.split('\n');
   const nodes: React.ReactNode[] = [];
   let listItems: string[] = [];
+  let numberedItems: { num: string; content: string }[] = [];
   const colorStyle = textColor ? { color: textColor } : undefined;
 
   const processInline = (content: string): React.ReactNode => {
@@ -153,16 +201,90 @@ export function parseMarkdown(
   };
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i] ?? '';
+    const rawLine = lines[i] ?? '';
+    const trimmed = rawLine.trim();
 
-    // Unordered list item
-    if (line.trim().startsWith('- ')) {
-      const itemContent = line.trim().slice(2);
+    // Empty line
+    if (trimmed === '') {
+      nodes.push(<View key={i} style={s.spacer} />);
+      continue;
+    }
+
+    // Markdown Headings: #, ##, ###
+    const h3Match = trimmed.match(/^###\s+(.+)$/);
+    if (h3Match) {
+      nodes.push(
+        <Text key={i} style={[s.h3, colorStyle]}>
+          {processInline(h3Match[1]!)}
+        </Text>
+      );
+      continue;
+    }
+    const h2Match = trimmed.match(/^##\s+(.+)$/);
+    if (h2Match) {
+      nodes.push(
+        <Text key={i} style={[s.h2, colorStyle]}>
+          {processInline(h2Match[1]!)}
+        </Text>
+      );
+      continue;
+    }
+    const h1Match = trimmed.match(/^#\s+(.+)$/);
+    if (h1Match) {
+      nodes.push(
+        <Text key={i} style={[s.h1, colorStyle]}>
+          {processInline(h1Match[1]!)}
+        </Text>
+      );
+      continue;
+    }
+
+    // Blockquote (> ...)
+    const quoteMatch = trimmed.match(/^>\s*(.+)$/);
+    if (quoteMatch) {
+      nodes.push(
+        <View key={i} style={s.blockquote}>
+          <Text style={[s.blockquoteText, colorStyle]}>
+            {processInline(quoteMatch[1]!)}
+          </Text>
+        </View>
+      );
+      continue;
+    }
+
+    // Numbered list item (e.g. "1. ", "2. ")
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+    if (numMatch) {
+      const numPrefix = numMatch[1]!;
+      const itemContent = numMatch[2]!;
+      numberedItems.push({ num: numPrefix, content: itemContent });
+
+      const nextLine = lines[i + 1]?.trim() ?? '';
+      if (!/^\d+\.\s+/.test(nextLine)) {
+        nodes.push(
+          <View key={i} style={s.list}>
+            {numberedItems.map((item, idx) => (
+              <View key={idx} style={s.listItem}>
+                <Text style={[s.numberPrefix, colorStyle]}>{item.num}.</Text>
+                <Text style={[s.listText, { marginStart: 4 }, colorStyle]}>
+                  {processInline(item.content)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+        numberedItems = [];
+      }
+      continue;
+    }
+
+    // Unordered list item ("- " or "* ")
+    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+      const itemContent = trimmed.slice(2);
       listItems.push(itemContent);
 
-      // If next line is not a list item, render the list
-      const nextLine = lines[i + 1];
-      if (!nextLine || !nextLine.trim().startsWith('- ')) {
+      const nextLine = lines[i + 1]?.trim() ?? '';
+      if (!nextLine.startsWith('- ') && !nextLine.startsWith('* ')) {
         nodes.push(
           <View key={i} style={s.list}>
             {listItems.map((item, idx) => (
@@ -180,16 +302,10 @@ export function parseMarkdown(
       continue;
     }
 
-    // Empty line
-    if (line.trim() === '') {
-      nodes.push(<View key={i} style={s.spacer} />);
-      continue;
-    }
-
     // Regular paragraph
     nodes.push(
       <Text key={i} style={[s.paragraph, colorStyle]}>
-        {processInline(line)}
+        {processInline(rawLine)}
       </Text>
     );
   }
