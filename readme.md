@@ -48,6 +48,23 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 
 ---
 
+## Lively UI/UX Animations & Physics
+
+Nusxa integrates 5 handcrafted, high-fidelity micro-interactions built with `react-native-reanimated`, strictly aligned with clinical healthcare dignity and fully respecting `useReducedMotion()`:
+
+1. **Liquid Fill Adherence Ring (`src/components/progress/AdherenceRing.tsx`)**:
+   - Replaces static circular strokes with a multi-layered SVG liquid sine wave oscillating inside a translucent glass capsule container. Features spring-driven height leveling, continuous horizontal wave sloshing (`withRepeat`), top glass specular highlight, and high-contrast text readout.
+2. **Elastic Rubber-Band Swipe-to-Action (`src/components/medicine/DoseItem.tsx`)**:
+   - Replaces rigid clamped gestures with a logarithmic elastic rubber-band resistance curve (`excess * 0.38`), tactile haptic trigger crossing threshold, spring pop-scaled checkmark icon, and completion haptics upon marking a dose taken.
+3. **Dancing Audio Equalizer Waveform (`src/components/ui/AudioEqualizer.tsx`)**:
+   - 4-bar dynamic audio equalizer with asynchronous oscillating frequencies during on-device TTS playback (`SpeechButton.tsx`), with global listener synchronization across cards.
+4. **Isometric Holographic Scan Card (`src/components/scan/IsometricScanCard.tsx`)**:
+   - 3D isometric levitating prescription card (`perspective: 900`, `rotateX: 20deg`, `rotateZ: -7deg`, vertical float levitation) with soft ground drop shadow, prescription skeleton lines, an SVG holographic scanning laser beam, and smooth spring snap to upright upon completion (`stage === 'complete'`).
+5. **Doctor Heartbeat / ECG Line Typing Indicator (`src/components/chat/EcgTypingIndicator.tsx`)**:
+   - Replaces generic 3-dot typing bubbles with an authentic medical electrocardiogram P-Q-R-S-T waveform. An animated phosphor tracer head sweeps along the exact mathematical cardiac path at ~72 BPM, synchronized with a double systolic heart pulse ("lub-dub") right as the R-wave peaks.
+
+---
+
 ## Tech Stack
 
 | Layer              | Technology                              |
@@ -62,6 +79,7 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 | Notifications      | expo-notifications (local scheduled)    |
 | Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
 | PDF Generation     | expo-print + expo-sharing (doctor visit + analytics reports, on-device; RTL Urdu mode with bundled Noto Nastaliq font) |
+| Text-to-Speech     | expo-speech (on-device bilingual voice readout at 0.85 rate) |
 | Animations         | react-native-reanimated (reduced-motion aware) |
 | Vector Graphics    | react-native-svg (brand pill icon, charts) |
 | File Picking       | expo-document-picker (JSON data import) |
@@ -118,11 +136,17 @@ nusxa/
 │   │   │   ├── DoseItem.tsx      # Single dose row (taken/skip/pending, animated status icon)
 │   │   │   ├── ScheduleTimeline.tsx  # Vertical timeline of doses
 │   │   │   └── VerificationField.tsx # Editable field with confidence indicator
+│   │   ├── chat/                 # Chat components
+│   │   │   └── EcgTypingIndicator.tsx # Doctor heartbeat / ECG line typing indicator
+│   │   ├── scan/                 # Scan & processing components
+│   │   │   └── IsometricScanCard.tsx  # 3D isometric holographic prescription scanning card
 │   │   ├── progress/             # Adherence tracking components
-│   │   │   ├── AdherenceRing.tsx # Circular progress ring
+│   │   │   ├── AdherenceRing.tsx # Liquid fill wave adherence capsule
 │   │   │   ├── StreakCounter.tsx # Non-shaming streak display
 │   │   │   └── WeeklyChart.tsx   # 7-day bar chart
 │   │   └── ui/                   # Reusable UI primitives
+│   │       ├── AudioEqualizer.tsx # Dancing 4-bar audio equalizer waveform
+│   │       ├── SpeechButton.tsx   # On-device TTS voice button with live waveform
 │   │       ├── Badge.tsx, Button.tsx (spring press feedback), Card.tsx
 │   │       ├── EmptyState.tsx (accepts icon name or custom node), Input.tsx, Modal.tsx
 │   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx (all Reanimated)
@@ -182,6 +206,7 @@ nusxa/
 │       ├── pdf.ts                # Doctor visit + analytics PDF generation (expo-print HTML templates, RTL Urdu mode)
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
+│       ├── speech.ts             # On-device TTS manager (expo-speech, Urdu/English voices)
 │       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
 │       └── validation.ts         # Input validation helpers (used by review + schedule screens)
 │
