@@ -226,11 +226,10 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
       withSpring(0.92, { damping: 12, stiffness: 450 }),
       withSpring(1, { damping: 14, stiffness: 350 })
     );
-    morphProgress.value = withSpring(1, { damping: 14, stiffness: 320 }, (finished) => {
-      if (finished) {
-        runOnJS(onTaken)(next.scheduleId, next.medicineId);
-      }
-    });
+    morphProgress.value = withSpring(1, { damping: 14, stiffness: 320 });
+    setTimeout(() => {
+      onTaken(next.scheduleId, next.medicineId);
+    }, 240);
   };
 
   const takeButtonStyle = useAnimatedStyle(() => ({

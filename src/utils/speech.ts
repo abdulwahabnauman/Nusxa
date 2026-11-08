@@ -56,9 +56,27 @@ export function buildDoseSpeechText({
   return `Take ${doseTarget}${mealPhrase}${timePart}.`.trim();
 }
 
+type SpeechListener = (speakingText: string | null) => void;
+const speechListeners = new Set<SpeechListener>();
+
+function notifySpeechChange(text: string | null) {
+  for (const listener of speechListeners) {
+    try {
+      listener(text);
+    } catch {}
+  }
+}
+
+export function subscribeSpeech(listener: SpeechListener): () => void {
+  speechListeners.add(listener);
+  return () => {
+    speechListeners.delete(listener);
+  };
+}
+
 /**
  * Speaks text using on-device TTS.
- * Safely stops any ongoing speech first.
+ * Safely stops any ongoing speech first and dynamically resolves installed voice locale.
  */
 export async function speakDoseText(
   text: string,
@@ -75,23 +93,41 @@ export async function speakDoseText(
       await Speech.stop().catch(() => {});
     }
 
-    const langTag = language === 'ur' ? 'ur-PK' : 'en-US';
+    let langTag = language === 'ur' ? 'ur-PK' : 'en-US';
+    try {
+      const voices = await Speech.getAvailableVoicesAsync().catch(() => []);
+      if (voices && voices.length > 0) {
+        if (language === 'ur') {
+          const urVoice = voices.find((v) => v.language.toLowerCase().startsWith('ur'));
+          if (urVoice) langTag = urVoice.language;
+        } else {
+          const enVoice = voices.find((v) => v.language.toLowerCase().startsWith('en'));
+          if (enVoice) langTag = enVoice.language;
+        }
+      }
+    } catch {}
+
+    notifySpeechChange(text);
 
     Speech.speak(text, {
       language: langTag,
       pitch: 1.0,
       rate: 0.85, // clear, accessible pacing for elderly patients
       onDone: () => {
+        notifySpeechChange(null);
         callbacks?.onDone?.();
       },
       onStopped: () => {
+        notifySpeechChange(null);
         callbacks?.onStopped?.();
       },
       onError: (err) => {
+        notifySpeechChange(null);
         callbacks?.onError?.(err instanceof Error ? err : new Error(String(err)));
       },
     });
   } catch (err) {
+    notifySpeechChange(null);
     callbacks?.onError?.(err instanceof Error ? err : new Error(String(err)));
   }
 }
@@ -101,6 +137,7 @@ export async function speakDoseText(
  */
 export async function stopDoseSpeech(): Promise<void> {
   try {
+    notifySpeechChange(null);
     await Speech.stop();
   } catch {
     // ignore

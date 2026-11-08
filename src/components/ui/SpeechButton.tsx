@@ -5,12 +5,12 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { TouchableOpacity, StyleSheet, type ViewStyle } from 'react-native';
+import { TouchableOpacity, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
 import { selectionHaptic } from '../../utils/haptics';
-import { speakDoseText, stopDoseSpeech } from '../../utils/speech';
+import { speakDoseText, stopDoseSpeech, subscribeSpeech } from '../../utils/speech';
 
 interface SpeechButtonProps {
   text: string;
@@ -18,7 +18,7 @@ interface SpeechButtonProps {
   size?: number;
   color?: string;
   activeColor?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function SpeechButton({
@@ -31,32 +31,30 @@ export function SpeechButton({
 }: SpeechButtonProps) {
   const { colors } = useTheme();
   const { t, language } = useI18n();
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [activeSpeechText, setActiveSpeechText] = useState<string | null>(null);
 
   const defaultColor = color ?? colors.text.secondary;
   const highlightColor = activeColor ?? colors.accent.primary;
+  const isSpeaking = activeSpeechText === text;
 
-  // Cleanup on unmount so audio stops if user navigates away
+  // Subscribe to global TTS playback to stay in sync across list items
   useEffect(() => {
+    const unsubscribe = subscribeSpeech((currentlySpeaking) => {
+      setActiveSpeechText(currentlySpeaking);
+    });
     return () => {
-      stopDoseSpeech();
+      unsubscribe();
     };
   }, []);
 
   const handlePress = useCallback(async () => {
     selectionHaptic();
     if (isSpeaking) {
-      setIsSpeaking(false);
       await stopDoseSpeech();
       return;
     }
 
-    setIsSpeaking(true);
-    await speakDoseText(text, language, {
-      onDone: () => setIsSpeaking(false),
-      onStopped: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false),
-    });
+    await speakDoseText(text, language);
   }, [isSpeaking, text, language]);
 
   const a11yLabel = isSpeaking
