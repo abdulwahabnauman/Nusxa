@@ -48,6 +48,19 @@ Enter all three in **Settings**, each has its own card and input field. Keys are
 
 ---
 
+## UI/UX Formatting & Bilingual Localization
+
+Nusxa is designed with first-class bilingual support for English and Urdu (Nastaliq script):
+
+- **Markdown Parser in Chat (`src/components/ui/MarkdownText.tsx`)**:
+  - Full support for bold, italic, bullet lists, blockquotes, and ordered numbered lists.
+  - Custom regex engine supporting both Western Arabic digits (`1.`, `2.`) and Eastern Arabic numerals (`۱.`, `۲.`), with dot or parenthesis markers (`1)`, `۱)`).
+- **Comprehensive Bilingual Translation Coverage**:
+  - 100% typed keys synchronized across `src/i18n/en.ts` and `src/i18n/ur.ts`, including clinical review flags, emergency alerts, dose instruction chips, and settings.
+  - Native RTL layout mirroring and bundled Noto Nastaliq font so cross-platform text metrics on iOS and Android match identically without text clipping.
+
+---
+
 ## Tech Stack
 
 | Layer              | Technology                              |
