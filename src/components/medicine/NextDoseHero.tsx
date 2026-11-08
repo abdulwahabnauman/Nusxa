@@ -14,7 +14,10 @@ import Animated, {
   useAnimatedStyle,
   withSequence,
   withSpring,
+  withTiming,
+  withRepeat,
   interpolate,
+  interpolateColor,
   runOnJS,
 } from 'react-native-reanimated';
 import { MedicineFormIcon } from '../ui/PillIcon';
@@ -249,16 +252,54 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     ],
   }));
 
+  // Countdown under 15 minutes ambient glow & pulse (#24)
+  const isImminent = diffToStart <= 15 * 60_000 && !overdue && !isSnoozed;
+  const ambientPulse = useSharedValue(1);
+
+  useEffect(() => {
+    if (isImminent && !reducedMotion) {
+      ambientPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.4, { duration: 1200 }),
+          withTiming(1, { duration: 1200 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      ambientPulse.value = 1;
+    }
+  }, [isImminent, reducedMotion]);
+
+  const animatedHeroCardStyle = useAnimatedStyle(() => {
+    if (!isImminent || reducedMotion) {
+      return {
+        borderColor: colors.border.default,
+      };
+    }
+    const pulseBorderColor = interpolateColor(
+      ambientPulse.value,
+      [0.4, 1],
+      [colors.warning + '44', colors.warning]
+    );
+    return {
+      borderColor: pulseBorderColor,
+      shadowColor: colors.warning,
+      shadowOpacity: interpolate(ambientPulse.value, [0.4, 1], [0.06, 0.24], 'clamp'),
+      shadowRadius: interpolate(ambientPulse.value, [0.4, 1], [3, 10], 'clamp'),
+    };
+  });
+
   return (
-    <View
+    <Animated.View
       style={[
         styles.hero,
         {
           backgroundColor: colors.background.surface,
-          borderColor: colors.border.default,
           borderStartWidth: 3,
           borderStartColor: heroTint,
         },
+        animatedHeroCardStyle,
       ]}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -405,7 +446,7 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
           ))}
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
