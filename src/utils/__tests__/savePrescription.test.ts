@@ -276,7 +276,7 @@ describe('savePrescription', () => {
 
     expect(result).toEqual({ added: 0, updated: 1 });
     expect(createMedicine).not.toHaveBeenCalled();
-    expect(createPrescription).not.toHaveBeenCalled();
+    expect(createPrescription).toHaveBeenCalledTimes(1);
     expect(updateMedicine).toHaveBeenCalledTimes(1);
     expect((updateMedicine as jest.Mock).mock.calls[0]![0]).toBe('existing-1');
     // Old reminder cancelled and its row replaced — no dose history to keep
