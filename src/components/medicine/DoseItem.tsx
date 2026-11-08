@@ -114,7 +114,7 @@ export function DoseItem({
         e.translationX >= SWIPE_THRESHOLD && e.translationX > Math.abs(e.translationY) * 1.5;
       const fling = e.velocityX > 800 && e.translationX > 40;
       if ((deliberate || fling) && onTaken) {
-        takeDoseHaptic();
+        runOnJS(takeDoseHaptic)();
         runOnJS(onTaken)();
       }
       swipeX.value = withSpring(0, { damping: 22, stiffness: 400 });

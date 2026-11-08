@@ -1074,7 +1074,6 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingBottom: 16,
-    overflow: 'hidden',
   },
   scanLaser: {
     position: 'absolute',

@@ -18,7 +18,6 @@ import Animated, {
   withRepeat,
   interpolate,
   interpolateColor,
-  runOnJS,
 } from 'react-native-reanimated';
 import { MedicineFormIcon } from '../ui/PillIcon';
 import { SpeechButton } from '../ui/SpeechButton';
@@ -124,11 +123,101 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     [items],
   );
 
+  // Next = earliest pending dose, whether it's still ahead of us or already
+  // active/overdue. `pending` is sorted ascending by start time, so the
+  // earliest entry is always correct — there is no need (and it was a bug)
+  // to skip past an already-open dose to reach a later one that simply
+  // hasn't started yet.
+  const next = pending[0];
+
+  // Timing is derived up here, before any early return, because the
+  // animation hooks below depend on it and must run on every render. With no
+  // pending dose these fallbacks are computed but never rendered.
+  const doseDate = next ? todaysDateFor(next.time) : new Date(now);
+  const windowEndDate = new Date(doseDate.getTime() + (next?.windowMinutes ?? 120) * 60_000);
+  const diffToStart = doseDate.getTime() - now;
+  const diffToEnd = windowEndDate.getTime() - now;
+  const snoozeEntry = next ? snoozedUntil[next.scheduleId] : undefined;
+  const isSnoozed = !!snoozeEntry && snoozeEntry.until > now;
+
+  // "Started" = the dose window has opened (Take/Snooze become available).
+  // "Overdue" = the dose window has fully closed without action — this is
+  // the only state that should show the warning tint and "overdue by …"
+  // text. A dose that's merely in-progress (started but window still open)
+  // reads as "due now" in the normal accent color.
+  const started = diffToStart <= 0;
+  const overdue = diffToEnd <= 0;
+
+  // Breathing glow on the card once the dose is due within 15 minutes
+  const isImminent = !!next && diffToStart <= 15 * 60_000 && !overdue && !isSnoozed;
+  const ambientPulse = useSharedValue(1);
+
+  useEffect(() => {
+    if (isImminent && !reducedMotion) {
+      ambientPulse.value = withRepeat(
+        withSequence(
+          withTiming(0.4, { duration: 1200 }),
+          withTiming(1, { duration: 1200 })
+        ),
+        -1,
+        true
+      );
+    } else {
+      ambientPulse.value = 1;
+    }
+  }, [isImminent, reducedMotion]);
+
+  useEffect(() => {
+    takeButtonScale.value = 1;
+    morphProgress.value = 0;
+    setTakingScheduleId(null);
+  }, [next?.scheduleId]);
+
+  const takeButtonStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: takeButtonScale.value }],
+  }));
+
+  const pillIconStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(morphProgress.value, [0, 0.45], [1, 0], 'clamp'),
+    transform: [
+      { scale: interpolate(morphProgress.value, [0, 0.5], [1, 0.3], 'clamp') },
+      { rotate: `${interpolate(morphProgress.value, [0, 0.5], [0, -40], 'clamp')}deg` },
+    ],
+  }));
+
+  const checkIconStyle = useAnimatedStyle(() => ({
+    position: 'absolute',
+    opacity: interpolate(morphProgress.value, [0.4, 1], [0, 1], 'clamp'),
+    transform: [
+      { scale: interpolate(morphProgress.value, [0.4, 1], [0.3, 1], 'clamp') },
+      { rotate: `${interpolate(morphProgress.value, [0.4, 1], [40, 0], 'clamp')}deg` },
+    ],
+  }));
+
+  const animatedHeroCardStyle = useAnimatedStyle(() => {
+    if (!isImminent || reducedMotion) {
+      return {
+        borderColor: colors.border.default,
+      };
+    }
+    const pulseBorderColor = interpolateColor(
+      ambientPulse.value,
+      [0.4, 1],
+      [colors.warning + '44', colors.warning]
+    );
+    return {
+      borderColor: pulseBorderColor,
+      shadowColor: colors.warning,
+      shadowOpacity: interpolate(ambientPulse.value, [0.4, 1], [0.06, 0.24], 'clamp'),
+      shadowRadius: interpolate(ambientPulse.value, [0.4, 1], [3, 10], 'clamp'),
+    };
+  });
+
   if (items.length === 0) return null;
 
   // All done for today — unless some doses were missed, in which case the
   // timeline below tells that story better than a green "all done" banner
-  if (pending.length === 0) {
+  if (!next) {
     if (items.some((item) => item.status === 'missed')) return null;
     return (
       <View style={[styles.hero, { backgroundColor: colors.success + '1A', borderColor: colors.success + '33', borderStartWidth: 3, borderStartColor: colors.success }]}>
@@ -145,34 +234,11 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     );
   }
 
-  // Next = earliest pending dose, whether it's still ahead of us or already
-  // active/overdue. `pending` is sorted ascending by start time, so the
-  // earliest entry is always correct — there is no need (and it was a bug)
-  // to skip past an already-open dose to reach a later one that simply
-  // hasn't started yet.
-  const upcoming = pending[0];
-  if (!upcoming) return null;
-  const next = upcoming;
-  const doseDate = todaysDateFor(next.time);
-  const windowMs = (next.windowMinutes ?? 120) * 60_000;
-  const windowEndDate = new Date(doseDate.getTime() + windowMs);
-  const diffToStart = doseDate.getTime() - now;
-  const diffToEnd = windowEndDate.getTime() - now;
-  const snoozeEntry = snoozedUntil[next.scheduleId];
-  const isSnoozed = !!snoozeEntry && snoozeEntry.until > now;
-
   const [rangeStart, rangeEnd] = getTimeRangeParts(next.time, next.windowMinutes ?? 120, language);
   const windowLabel = t.dose.timeRange
     .replace('{start}', nf(rangeStart))
     .replace('{end}', nf(rangeEnd));
 
-  // "Started" = the dose window has opened (Take/Snooze become available).
-  // "Overdue" = the dose window has fully closed without action — this is
-  // the only state that should show the warning tint and "overdue by …"
-  // text. A dose that's merely in-progress (started but window still open)
-  // reads as "due now" in the normal accent color.
-  const started = diffToStart <= 0;
-  const overdue = diffToEnd <= 0;
   const diffMs = overdue ? diffToEnd : diffToStart;
   const heroTint = overdue ? colors.warning : colors.accent.primary;
 
@@ -209,12 +275,6 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
     applySnooze(minutes);
   };
 
-  useEffect(() => {
-    takeButtonScale.value = 1;
-    morphProgress.value = 0;
-    setTakingScheduleId(null);
-  }, [next?.scheduleId]);
-
   const handleTakePress = () => {
     takeDoseHaptic();
     if (reducedMotion) {
@@ -231,65 +291,6 @@ export function NextDoseHero({ items, onTaken }: NextDoseHeroProps) {
       onTaken(next.scheduleId, next.medicineId);
     }, 240);
   };
-
-  const takeButtonStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: takeButtonScale.value }],
-  }));
-
-  const pillIconStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(morphProgress.value, [0, 0.45], [1, 0], 'clamp'),
-    transform: [
-      { scale: interpolate(morphProgress.value, [0, 0.5], [1, 0.3], 'clamp') },
-      { rotate: `${interpolate(morphProgress.value, [0, 0.5], [0, -40], 'clamp')}deg` },
-    ],
-  }));
-
-  const checkIconStyle = useAnimatedStyle(() => ({
-    position: 'absolute',
-    opacity: interpolate(morphProgress.value, [0.4, 1], [0, 1], 'clamp'),
-    transform: [
-      { scale: interpolate(morphProgress.value, [0.4, 1], [0.3, 1], 'clamp') },
-      { rotate: `${interpolate(morphProgress.value, [0.4, 1], [40, 0], 'clamp')}deg` },
-    ],
-  }));
-
-  // Countdown under 15 minutes ambient glow & pulse (#24)
-  const isImminent = diffToStart <= 15 * 60_000 && !overdue && !isSnoozed;
-  const ambientPulse = useSharedValue(1);
-
-  useEffect(() => {
-    if (isImminent && !reducedMotion) {
-      ambientPulse.value = withRepeat(
-        withSequence(
-          withTiming(0.4, { duration: 1200 }),
-          withTiming(1, { duration: 1200 })
-        ),
-        -1,
-        true
-      );
-    } else {
-      ambientPulse.value = 1;
-    }
-  }, [isImminent, reducedMotion]);
-
-  const animatedHeroCardStyle = useAnimatedStyle(() => {
-    if (!isImminent || reducedMotion) {
-      return {
-        borderColor: colors.border.default,
-      };
-    }
-    const pulseBorderColor = interpolateColor(
-      ambientPulse.value,
-      [0.4, 1],
-      [colors.warning + '44', colors.warning]
-    );
-    return {
-      borderColor: pulseBorderColor,
-      shadowColor: colors.warning,
-      shadowOpacity: interpolate(ambientPulse.value, [0.4, 1], [0.06, 0.24], 'clamp'),
-      shadowRadius: interpolate(ambientPulse.value, [0.4, 1], [3, 10], 'clamp'),
-    };
-  });
 
   return (
     <Animated.View
