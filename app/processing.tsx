@@ -5,6 +5,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../src/theme/provider';
 import { ProgressSteps } from '../src/components/ui/ProgressSteps';
+import { IsometricScanCard } from '../src/components/scan/IsometricScanCard';
 import { Button } from '../src/components/ui/Button';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { processPrescription } from '../src/ai/pipeline';
@@ -184,13 +185,17 @@ export default function ProcessingScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background.primary }]}>
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
-          <MaterialCommunityIcons
-            name={stage === 'error' ? 'alert-circle-outline' : 'file-document-outline'}
-            size={56}
-            color={stage === 'error' ? colors.error : colors.accent.primary}
-          />
-        </View>
+        {stage === 'error' ? (
+          <View style={[styles.iconContainer, { backgroundColor: colors.accent.subtle }]}>
+            <MaterialCommunityIcons
+              name="alert-circle-outline"
+              size={56}
+              color={colors.error}
+            />
+          </View>
+        ) : (
+          <IsometricScanCard stage={stage} thumbnailUri={uris[0]} />
+        )}
 
         <Text style={[typography.heading.h2, { color: colors.text.primary, marginTop: spacing.xl, textAlign: 'center' }]}>
           {stage === 'error' ? t.processing.errorTitle : t.processing.reading}
