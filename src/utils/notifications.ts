@@ -361,8 +361,8 @@ export async function scheduleEscalationReminder(params: {
   });
 }
 
-/** How many past days are backfilled with missed records when the app reopens */
-export const MISSED_CATCHUP_DAYS = 7;
+/** How many past days are backfilled with missed records when the app reopens (covers extended absences/hospital stays up to 30 days) */
+export const MISSED_CATCHUP_DAYS = 30;
 
 /**
  * Mark past days' doses as missed once the day has ended without a

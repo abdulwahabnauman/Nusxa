@@ -46,7 +46,7 @@ interface GeminiRequest {
   };
   contents: GeminiContent[];
   generationConfig: {
-    temperature: number;
+    temperature?: number;
     maxOutputTokens: number;
     responseMimeType?: string;
     responseSchema?: unknown;
@@ -268,8 +268,8 @@ async function callGemini(
         },
         contents,
         generationConfig: {
-          temperature,
           maxOutputTokens: MAX_OUTPUT_TOKENS,
+          ...(typeof temperature === 'number' && !GEMINI_MODEL.startsWith('gemini-3') ? { temperature } : {}),
           ...(jsonResponse ? { responseMimeType: 'application/json' } : {}),
           // Controlled generation: hard-enforces the JSON shape server-side
           ...(responseSchema ? { responseSchema } : {}),

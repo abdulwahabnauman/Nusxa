@@ -22,19 +22,29 @@ export function parseDurationToDays(duration: string): number | null {
   if (!duration) return null;
   const lower = duration.toLowerCase().trim();
 
-  // Match patterns like "7 days", "2 weeks", "1 month"
-  const dayMatch = lower.match(/(\d+)\s*(day|days|d)/);
+  // Guard against dosage / measurement units mistakenly provided in duration field
+  if (/\b\d+\s*(mg|ml|mcg|g|drops?|pills?|tablets?|tabs?|capsules?|caps?|units?|iu|puffs?|sachets?|vials?|amps?)\b/.test(lower)) {
+    // Only parse if explicit duration time units are also present (e.g. '50 ml for 7 days')
+    if (!/\b(day|days|d|week|weeks|w|month|months|m)\b/.test(lower)) {
+      return null;
+    }
+  }
+
+  // Match patterns like "7 days", "2 weeks", "1 month" with word boundaries
+  const dayMatch = lower.match(/\b(\d+)\s*(?:days?|d)\b/);
   if (dayMatch) return parseInt(dayMatch[1]!, 10);
 
-  const weekMatch = lower.match(/(\d+)\s*(week|weeks|w)/);
+  const weekMatch = lower.match(/\b(\d+)\s*(?:weeks?|wks?|w)\b/);
   if (weekMatch) return parseInt(weekMatch[1]!, 10) * 7;
 
-  const monthMatch = lower.match(/(\d+)\s*(month|months|m)/);
+  const monthMatch = lower.match(/\b(\d+)\s*(?:months?|mos?|m)\b/);
   if (monthMatch) return parseInt(monthMatch[1]!, 10) * 30;
 
-  // Try to parse as just a number (assume days)
-  const numOnly = parseInt(lower, 10);
-  return isNaN(numOnly) ? null : numOnly;
+  // Try to parse as just a number if the string is strictly digits
+  if (/^\d+$/.test(lower)) {
+    return parseInt(lower, 10);
+  }
+  return null;
 }
 
 /** Convert a frequency string to daily dose count */

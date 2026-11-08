@@ -56,11 +56,38 @@ Designed for elderly accessibility and clinical clarity:
   - Tactile spring pop scaling and smooth circular fill transition upon completing or taking a dose.
 - **Scanner Viewfinder Laser (`app/scan.tsx`)**:
   - Continuous vertical laser sweep beam and corner alignment reticles guiding document framing.
-- **Urgent Dose Breathing Glow (`app/(tabs)/index.tsx`)**:
+- **Urgent Dose Breathing Glow (`src/components/medicine/NextDoseHero.tsx`)**:
   - Smooth pulsating aura on the next upcoming dose card when within 15 minutes of scheduled time.
 - **On-Device Voice Readout (`src/utils/speech.ts` & `src/components/ui/SpeechButton.tsx`)**:
   - Leverages `expo-speech` to speak medication names, dosage amounts, and meal instructions in English or Urdu at an accessible, slow pacing (0.85 rate).
   - Synchronized global listener ensures only one audio stream plays at a time.
+
+---
+
+## Clinical Safety Guidance & Regional Formulary
+
+Nusxa adheres strictly to the clinical principle that an AI companion must **never make independent medical decisions or override a physician's prescription**. Safety checks act as informational guardrails:
+
+- **Dosage Ceilings & High-Alert Warnings** (`validatePrescription` in `src/ai/pipeline.ts`):
+  - Parsed medications are checked against `DOSAGE_CEILINGS` in `src/constants/medical.ts` — per-dose ceilings first (e.g. Paracetamol >1000mg/dose, Ibuprofen >800mg/dose) and, when the frequency resolves to a doses-per-day count, the resulting daily total against the maximum daily limit (e.g. Paracetamol >4000mg/day, Metformin >2550mg/day). Insulin doses above 100 U and single methotrexate doses above 25 mg are flagged for manual verification.
+  - High-alert safety rules flag weekly-only medications like **Methotrexate** if scheduled daily.
+- **Pakistani & South Asian Regional Brand Formulary**:
+  - `SOUTH_ASIAN_BRAND_TO_GENERIC` in `src/constants/medical.ts` maps 56 commonly prescribed regional commercial brand names (e.g. *Panadol, Brufen, Augmentin, Flagyl, Glucophage, Arinac, Risek, Softin, Disprin, Calpol*) to their standardized international non-proprietary names (INN/generics), so interaction checks still work when a doctor writes a local brand.
+- **Opt-in Reference Notices (Settings)**:
+  - In adherence to Nusxa's non-directive philosophy, potential duplicate active ingredients and food/beverage reference notes (e.g. dairy with fluoroquinolones) are configured as **opt-in informational notices** in Settings rather than intrusive or unsolicited commands.
+
+---
+
+## UI/UX Formatting & Bilingual Localization
+
+Nusxa is designed with first-class bilingual support for English and Urdu (Nastaliq script):
+
+- **Markdown Parser in Chat (`src/components/ui/MarkdownText.tsx`)**:
+  - Full support for bold, italic, bullet lists, blockquotes, and ordered numbered lists.
+  - Custom regex engine supporting both Western Arabic digits (`1.`, `2.`) and Eastern Arabic numerals (`۱.`, `۲.`), with dot or parenthesis markers (`1)`, `۱)`).
+- **Comprehensive Bilingual Translation Coverage**:
+  - 100% typed keys synchronized across `src/i18n/en.ts` and `src/i18n/ur.ts`, including clinical review flags, emergency alerts, dose instruction chips, and settings.
+  - Native RTL layout mirroring and bundled Noto Nastaliq font so cross-platform text metrics on iOS and Android match identically without text clipping.
 
 ---
 
