@@ -40,17 +40,18 @@ Restart Metro (`npm start`) so the new env vars are picked up. When
 proxy and ignores user-provided keys; when empty, it falls back to the
 bring-your-own-key mode.
 
-## Notes
+## Rate Limiting & Protection
 
-- `APP_KEY` is required. The worker refuses every POST without it (the `GET /`
-  health check still answers), so a deploy missing the secret fails loudly
-  instead of serving the providers' quota to anyone who finds the URL.
-- The app key is embedded in the app binary, so it deters casual abuse rather
-  than being true security. For stronger protection, add Cloudflare rate
-  limiting rules (dashboard -> Security -> WAF -> Rate limiting rules) on the
-  `/chat` and `/vision` paths. Rate limiting belongs there rather than in the
-  worker: mobile carriers share one public IP across many subscribers, so a
-  per-IP limit inside the worker would block legitimate users.
+- `APP_KEY` is required. The worker refuses every POST without an `x-app-key` header (the `GET /`
+  health check still answers), so a deploy missing the secret fails loudly.
+- **Built-in per-IP rate limiting**: The worker enforces in-memory sliding-window throttling
+  (20 vision requests/hour, 60 chat requests/hour per client IP) using `CF-Connecting-IP`
+  or `X-Forwarded-For`. An LRU memory cap prevents instance memory exhaustion.
+- When rate-limited, the worker returns `429 Too Many Requests` accompanied by standard
+  `Retry-After: <seconds>` headers, which the client application parses to display precise
+  backoff timers.
+- For additional enterprise DDoS protection, Cloudflare WAF rate limiting rules can also be
+  layered on the `/chat` and `/vision` paths.
 - Free model quotas are per-key and shared by all app users (Groq is primary
   at ~1,000 req/day; Nemotron fills in automatically). For a larger audience,
   upgrade the provider plans.
