@@ -186,6 +186,10 @@ export default function ReviewScreen() {
         return t.review.lowConfidenceWarning.replace('{medicine}', name);
       case 'unreadable':
         return t.review.unreadableWarning.replace('{medicine}', name);
+      case 'abnormal_dosage':
+        return language === 'ur'
+          ? `غیر معمولی خوراک: ${name} (${flag.detail}) — براہ کرم نسخے سے تصدیق کریں۔`
+          : `Abnormal dosage: ${name} (${flag.detail}) — please verify against prescription.`;
     }
   };
 
