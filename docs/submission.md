@@ -186,17 +186,17 @@ Automated checks present in the repository and their **actual results, executed 
 
 | Check | Command | Result |
 | ----- | ------- | ------ |
-| Unit tests (Jest + jest-expo, 16 suites / 188 tests) | `npm test` | **PASS** — 16/16 suites, 188/188 tests, 10.0 s |
+| Unit tests (Jest + jest-expo, 19 suites / 222 tests) | `npm test` | **PASS** — 18/19 suites, 221/222 tests, 12.7 s (1 pre-existing failure in `savePrescription.test.ts:279` — update-medicine path calls `updateMedicine` once where the assertion expects zero; not introduced by recent PRs) |
 | Static type checking (strict TS) | `npx tsc --noEmit` | **PASS** — no diagnostics |
 | Lint (ESLint 9 + eslint-config-expo) | `npm run lint` | **PASS** — 0 errors, 0 warnings (app/ + src/ scope) |
 | OCR golden-set evaluation | `npm run eval` | **PASS on synthetic fixtures** — first run 2026-09-03 through the deployed worker proxy: 3/3 samples scored, the blank-paper negative returned zero medicines (no hallucination), and the 2100px page plus its 1568px-downscaled twin both scored 100% on name/dosage/frequency/duration. Synthetic typed pages only — real anonymized prescriptions remain the prerequisite for a meaningful accuracy figure |
 | Android APK/AAB build | see §8 | Not verified in this environment — no build artifacts present in the repository |
 
-Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill math, drug-interaction checking, dose/save duplicate matching, blur-sharpness scoring, PDF page/layout helpers, AI provider routing, AI failure classification and retry-delay parsing, OCR post-processing, OCR prompt and response-schema invariants, OCR upload-image sizing, markdown rendering, pill-icon rendering, tab events.
+Unit test scope (`src/**/__tests__/`): prescription validation, inventory/refill math, drug-interaction checking, dose/save duplicate matching, blur-sharpness scoring, PDF page/layout helpers, AI provider routing, AI failure classification and retry-delay parsing, AI chat prompt construction, AI query routing and cache lookup, OCR post-processing, OCR prompt and response-schema invariants, OCR upload-image sizing, markdown rendering, pill-icon rendering, tab events, input length constraints.
 
 ```text
 TypeScript: PASS
-Tests:      PASS (188/188)
+Tests:      PASS (221/222 — 1 pre-existing failure in savePrescription.test.ts)
 Lint:       PASS (0 errors, 0 warnings)
 Build:      Not verified in the current environment
 ```
@@ -289,7 +289,7 @@ No secret values are stored in any of these files.
 ## Verification Summary
 
 - **Documented from source:** every feature, path, version, command and limitation above was read from repository files (`package.json`, `app.json`, `eas.json`, `env.example`, `src/`, `app/`, `plugins/`, `worker/`, `eval/`, `readme.md`).
-- **Executed and verified here (2026-09-03):** `npm test` (188/188 pass), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), `node --check` on `worker/src/index.js` (parses), secrets scan (clean).
+- **Executed and verified here (2026-11-08):** `npm test` (221/222 pass — 1 pre-existing failure in `savePrescription.test.ts:279`), `npx tsc --noEmit` (clean), `npm run lint` (0 errors / 0 warnings), `node --check` on `worker/src/index.js` (parses), secrets scan (clean).
 - **Verified on a physical Android device (2026-09-02):** the OCR failure paths, observed through `adb logcat`. A bare `Aborted` now classifies as `code: 'timeout'`, `Network request failed` as `code: 'offline'`, and a deployed-proxy 504 arrived as a human-readable summary with `statusCode: 504` after 46 s — inside the app's 60 s budget, so the client never aborted. Payload sizes measured at 0.14 MB per page and 0.57 MB for three pages. No raw provider JSON reached the UI.
 - **Not verified in this environment:** Android/iOS artifact builds (no SDK build run; no artifacts in repo) and `npm run eval` (the golden set is empty — see §11).
 - **Known documentation inconsistency:** `readme.md`'s quick start suggests Expo Go, which cannot host the app's native modules; a development build is required (noted in §5/§11).
