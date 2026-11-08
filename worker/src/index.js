@@ -53,14 +53,18 @@ const ERROR_SUMMARIES = {
   not_found: 'Not found.',
 };
 
-function jsonReply(data, status = 200) {
+function jsonReply(data, status = 200, extraHeaders = {}) {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
   });
 }
 
 function errorReply(code, status, retryAfterSeconds) {
+  const extraHeaders = {};
+  if (retryAfterSeconds) {
+    extraHeaders['Retry-After'] = String(retryAfterSeconds);
+  }
   return jsonReply(
     {
       error: ERROR_SUMMARIES[code] ?? ERROR_SUMMARIES.upstream,
@@ -71,6 +75,7 @@ function errorReply(code, status, retryAfterSeconds) {
       },
     },
     status,
+    extraHeaders,
   );
 }
 
@@ -313,6 +318,14 @@ const MAX_CHAT_PER_HOUR = 60;
 function checkRateLimit(ip, pathname) {
   if (!ip) return true;
   const now = Date.now();
+
+  // Periodic eviction of expired IP window records to bound memory
+  if (ipRateLimits.size > 1000) {
+    for (const [k, v] of ipRateLimits.entries()) {
+      if (now > v.resetAt) ipRateLimits.delete(k);
+    }
+  }
+
   const key = `${ip}:${pathname}`;
   const record = ipRateLimits.get(key) || { count: 0, resetAt: now + RATE_LIMIT_WINDOW_MS };
 
