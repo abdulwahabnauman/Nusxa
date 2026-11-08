@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme/provider';
+import { useI18n } from '../../i18n';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface EcgTypingIndicatorProps {
@@ -86,11 +87,13 @@ const ECG_PATH =
   'C 78,15 81,10 85,10 C 89,10 92,15 96,15 ' +
   'L 130,15';
 
-export function EcgTypingIndicator({ label = 'CLINICAL TELEMETRY' }: EcgTypingIndicatorProps) {
-  const { colors, typography, spacing, borderRadius } = useTheme();
+export function EcgTypingIndicator({ label }: EcgTypingIndicatorProps) {
+  const { colors, typography, borderRadius } = useTheme();
+  const { t } = useI18n();
   const reducedMotion = useReducedMotion();
+  const displayLabel = label ?? t.chat.askingAI;
 
-  // Progress shared value (0 -> 1 repeats continuously every 1200ms (~70 BPM))
+  // Progress shared value (0 -> 1 repeats every 1250ms, i.e. one cardiac sweep)
   const progress = useSharedValue(0);
   const heartScale = useSharedValue(1);
   const staticBreathe = useSharedValue(0.7);
@@ -108,7 +111,7 @@ export function EcgTypingIndicator({ label = 'CLINICAL TELEMETRY' }: EcgTypingIn
       return;
     }
 
-    // Cardiac wave sweep loop (1250ms total cycle: ~72 BPM resting heart rate)
+    // Cardiac wave sweep loop (1250ms per full P-Q-R-S-T cycle)
     progress.value = withRepeat(
       withTiming(1, {
         duration: 1250,
@@ -184,7 +187,7 @@ export function EcgTypingIndicator({ label = 'CLINICAL TELEMETRY' }: EcgTypingIn
       ]}
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel="Assistant is thinking, medical ECG monitor active"
+      accessibilityLabel={t.chat.askingAI}
     >
       {/* Telemetry Header */}
       <View style={styles.headerRow}>
@@ -197,12 +200,12 @@ export function EcgTypingIndicator({ label = 'CLINICAL TELEMETRY' }: EcgTypingIn
         </Animated.View>
         <Text
           style={[
-            typography.label.xs,
+            typography.label.sm,
             styles.headerText,
             { color: colors.text.secondary },
           ]}
         >
-          {label}
+          {displayLabel}
         </Text>
         <View
           style={[

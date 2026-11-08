@@ -108,7 +108,7 @@ export function AdherenceRing({
   const liquidColor =
     clampedPercentage >= 80 ? colors.success
     : clampedPercentage >= 50 ? colors.warning
-    : colors.accent.primary;
+    : colors.error;
 
   // Seamless 2x periodic sine wave path for continuous infinite looping
   const w = size;
@@ -175,7 +175,10 @@ export function AdherenceRing({
               {
                 color: colors.text.primary,
                 textAlign: 'center',
-                fontSize: size * 0.22,
+                // Compact, ring-relative sizing so both the percentage and the
+                // label fit inside the circle. Line boxes get extra headroom
+                // so tall Nastaliq glyphs and the % sign never clip at the top.
+                fontSize: size * 0.2,
                 lineHeight: size * 0.32,
                 textShadowColor: colors.background.surface,
                 textShadowOffset: { width: 0, height: 1 },
@@ -194,8 +197,8 @@ export function AdherenceRing({
                   color: colors.text.secondary,
                   textAlign: 'center',
                   marginTop: -2,
-                  fontSize: Math.max(9, size * 0.11),
-                  lineHeight: Math.max(12, size * 0.2),
+                  fontSize: Math.max(8, size * 0.11),
+                  lineHeight: Math.max(12, size * 0.22),
                   textShadowColor: colors.background.surface,
                   textShadowOffset: { width: 0, height: 1 },
                   textShadowRadius: 2,

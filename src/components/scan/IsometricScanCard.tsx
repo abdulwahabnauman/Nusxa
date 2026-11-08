@@ -44,7 +44,8 @@ export function IsometricScanCard({
   const laserY = useSharedValue(0);
   const laserOpacity = useSharedValue(0.85);
 
-  const isScanning = stage === 'preparing' || stage === 'reading' || stage === 'validating';
+  const isScanning =
+    stage === 'preparing' || stage === 'reading' || stage === 'interpreting' || stage === 'validating';
 
   useEffect(() => {
     if (stage === 'complete') {
@@ -183,9 +184,9 @@ export function IsometricScanCard({
           <Svg width={width} height={14}>
             <Defs>
               <LinearGradient id="laserGrad" x1="0" y1="0" x2="1" y2="0">
-                <Stop offset="0%" stopColor="#10B981" stopOpacity="0.1" />
-                <Stop offset="50%" stopColor="#10B981" stopOpacity="0.95" />
-                <Stop offset="100%" stopColor="#10B981" stopOpacity="0.1" />
+                <Stop offset="0%" stopColor={colors.accent.primary} stopOpacity="0.1" />
+                <Stop offset="50%" stopColor={colors.accent.primary} stopOpacity="0.95" />
+                <Stop offset="100%" stopColor={colors.accent.primary} stopOpacity="0.1" />
               </LinearGradient>
             </Defs>
             <Rect x="0" y="5" width={width} height="4" rx="2" fill="url(#laserGrad)" />
