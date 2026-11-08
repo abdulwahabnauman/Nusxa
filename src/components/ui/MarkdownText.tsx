@@ -252,15 +252,15 @@ export function parseMarkdown(
       continue;
     }
 
-    // Numbered list item (e.g. "1. ", "2. ")
-    const numMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+    // Numbered list item (e.g. "1. ", "2. ", "1) ", "۱. ")
+    const numMatch = trimmed.match(/^([0-9۰-۹]+)[\.\)]\s+(.+)$/);
     if (numMatch) {
       const numPrefix = numMatch[1]!;
       const itemContent = numMatch[2]!;
       numberedItems.push({ num: numPrefix, content: itemContent });
 
       const nextLine = lines[i + 1]?.trim() ?? '';
-      if (!/^\d+\.\s+/.test(nextLine)) {
+      if (!/^[0-9۰-۹]+[\.\)]\s+/.test(nextLine)) {
         nodes.push(
           <View key={i} style={s.list}>
             {numberedItems.map((item, idx) => (
