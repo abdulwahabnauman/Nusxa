@@ -158,8 +158,7 @@ export async function routeChatQuery(
       const toolDataStr = await executeTool(toolMatch.name, toolMatch.args);
       const formattedResponse = formatToolResultForUser(toolMatch.name, toolDataStr, locale);
       if (formattedResponse) {
-        // Cache tool result for short duration
-        saveToCache(normalized, formattedResponse);
+        // Return freshly queried SQLite record (always real-time, never stale)
         return {
           route: 'local_tool',
           immediateResponse: formattedResponse,

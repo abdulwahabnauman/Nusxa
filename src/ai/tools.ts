@@ -7,8 +7,6 @@
 
 import { getActiveMedicines } from '../db/repositories/medicine';
 import { getTodayDoseRecords, getDailyAdherence } from '../db/repositories/dose';
-import { getActivePrescriptions } from '../db/repositories/prescription';
-import type { Medicine, DoseRecord } from '../types/models';
 
 export interface ToolDefinition {
   type: 'function';

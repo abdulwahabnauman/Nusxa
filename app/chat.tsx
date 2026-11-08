@@ -458,7 +458,7 @@ export default function ChatScreen() {
                 />
               </View>
               {/* Copy button and runtime telemetry provenance */}
-              {msg.role === 'assistant' && (
+              {msg.role === 'assistant' && (!reveal || reveal.id !== msg.id) && (
                 <View
                   style={{
                     flexDirection: 'row',
