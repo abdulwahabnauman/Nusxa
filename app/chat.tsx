@@ -35,6 +35,9 @@ import { MarkdownText } from '../src/components/ui/MarkdownText';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
+import { routeChatQuery, saveToCache } from '../src/ai/cache-router';
+import { validateAssistantResponse } from '../src/ai/guardrails';
+import { logChatEvent, estimateTokens } from '../src/ai/observability';
 
 /** One pulsing dot for the "assistant is typing" bubble */
 function TypingDot({ color, delay }: { color: string; delay: number }) {
@@ -65,7 +68,7 @@ function TypingDot({ color, delay }: { color: string; delay: number }) {
 
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   // Deep-link context from the medicine detail screen ("Ask AI about this
@@ -212,6 +215,7 @@ export default function ChatScreen() {
     const text = raw.trim();
     if (!text || loading) return;
     setFailedText(null);
+    const startTime = Date.now();
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
       role: 'user',
@@ -224,6 +228,39 @@ export default function ChatScreen() {
     setLoading(true);
 
     try {
+      // 1. Intelligent Query Routing & Semantic Cache check (Priority: Emergency > Cache > Local Tool > LLM)
+      const resolution = await routeChatQuery(text, language);
+
+      if (resolution.immediateResponse) {
+        const latencyMs = Date.now() - startTime;
+        logChatEvent({
+          query: text,
+          route: resolution.route,
+          source: resolution.source,
+          latencyMs,
+          tokensEstimated: 0,
+          costEstimatedCents: 0,
+          guardrailTriggered: resolution.route === 'emergency',
+          toolName: resolution.toolName,
+        });
+
+        const assistantMsg: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: resolution.immediateResponse,
+          timestamp: new Date().toISOString(),
+          meta: {
+            source: resolution.source === 'cache' ? 'cached' : resolution.source === 'local_database' ? 'tool' : 'guardrail',
+            latencyMs,
+            cost: '$0.00',
+          },
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        if (!reducedMotion) setReveal({ id: assistantMsg.id, count: 3 });
+        return;
+      }
+
+      // 2. LLM Network Route: check API credentials
       const keys = await resolveTextProviderKeys();
       if (!isAiProxyConfigured() && !keys.openRouterKey && !keys.groqKey) {
         const errorMsg: ChatMessage = {
@@ -248,11 +285,38 @@ export default function ChatScreen() {
       const { multiTurnChat } = require('../src/ai/client') as typeof import('../src/ai/client');
       const response = await multiTurnChat(chatMessages, keys);
 
+      // 3. Clinical Safety Output Guardrails (Validate dosages and unprescribed claims)
+      const guardrailResult = validateAssistantResponse(response);
+      const finalContent = guardrailResult.sanitizedContent;
+
+      // 4. Cache dynamic response for session repeat queries
+      saveToCache(text, finalContent);
+
+      const latencyMs = Date.now() - startTime;
+      const tokensEst = estimateTokens(systemPrompt + text + finalContent);
+
+      // 5. Runtime Telemetry Logging
+      logChatEvent({
+        query: text,
+        route: 'llm',
+        source: 'llm',
+        latencyMs,
+        tokensEstimated: tokensEst,
+        costEstimatedCents: 0.05,
+        guardrailTriggered: !guardrailResult.passed,
+      });
+
       const assistantMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: response,
+        content: finalContent,
         timestamp: new Date().toISOString(),
+        meta: {
+          source: 'llm',
+          latencyMs,
+          tokens: tokensEst,
+          cost: '~$0.0005',
+        },
       };
       setMessages((prev) => [...prev, assistantMsg]);
       if (!reducedMotion) setReveal({ id: assistantMsg.id, count: 3 });
@@ -393,16 +457,41 @@ export default function ChatScreen() {
                   textColor={msg.role === 'user' ? colors.onAccent : colors.text.primary}
                 />
               </View>
-              {/* Copy button on assistant answers */}
-              {msg.role === 'assistant' && (!reveal || reveal.id !== msg.id) && (
-                <TouchableOpacity
-                  onPress={() => handleCopyMessage(msg.content)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={{ alignSelf: 'flex-end', marginTop: 4, padding: 2 }}
-                  accessibilityLabel={t.chat.copyMessage}
+              {/* Copy button and runtime telemetry provenance */}
+              {msg.role === 'assistant' && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginTop: 6,
+                    paddingTop: 4,
+                    borderTopWidth: 0.5,
+                    borderTopColor: colors.border.default,
+                    gap: 8,
+                  }}
                 >
-                  <MaterialCommunityIcons name="content-copy" size={14} color={colors.text.disabled} />
-                </TouchableOpacity>
+                  {msg.meta ? (
+                    <Text style={[typography.label.xs, { color: colors.text.disabled, fontSize: 10 }]}>
+                      {msg.meta.source === 'cached' && '⚡ Cached • 0ms • $0'}
+                      {msg.meta.source === 'tool' && `📋 Grounded SQLite • ${msg.meta.latencyMs ?? 10}ms`}
+                      {msg.meta.source === 'guardrail' && '🛡️ Emergency Triage • Intercepted'}
+                      {msg.meta.source === 'llm' && `⚡ AI • ${msg.meta.latencyMs}ms • ${msg.meta.cost || '$0.00'}`}
+                    </Text>
+                  ) : (
+                    <View />
+                  )}
+                  {(!reveal || reveal.id !== msg.id) && (
+                    <TouchableOpacity
+                      onPress={() => handleCopyMessage(msg.content)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={{ padding: 2 }}
+                      accessibilityLabel={t.chat.copyMessage}
+                    >
+                      <MaterialCommunityIcons name="content-copy" size={13} color={colors.text.disabled} />
+                    </TouchableOpacity>
+                  )}
+                </View>
               )}
             </View>
           ))}

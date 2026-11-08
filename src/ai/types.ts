@@ -90,4 +90,10 @@ export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: string;
+  meta?: {
+    source?: 'cached' | 'llm' | 'tool' | 'guardrail';
+    latencyMs?: number;
+    tokens?: number;
+    cost?: string;
+  };
 }
