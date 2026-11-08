@@ -1,7 +1,7 @@
 /**
  * Reusable SpeechButton for Text-to-Speech (TTS) dose instruction readouts.
- * Features an organic dancing 4-bar audio equalizer waveform during active playback,
- * instant stop toggle, and global sync across medicine list cards.
+ * Shows a dancing equalizer while its own readout is playing, with an instant
+ * stop toggle and automatic cleanup on unmount.
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -38,7 +38,7 @@ export function SpeechButton({
   const highlightColor = activeColor ?? colors.accent.primary;
   const isSpeaking = activeSpeechText === text;
 
-  // Global subscription so only one button dances/speaks at any moment
+  // Subscribe to global TTS playback so only one button dances at a time
   useEffect(() => {
     const unsubscribe = subscribeSpeech((currentlySpeaking) => {
       setActiveSpeechText(currentlySpeaking);
@@ -59,17 +59,17 @@ export function SpeechButton({
   }, [isSpeaking, text, language]);
 
   const a11yLabel = isSpeaking
-    ? (t.dose?.stopAudio ?? 'Stop audio')
+    ? t.dose.stopAudio
     : medicineName
-      ? (t.dose?.listenA11y ?? 'Listen to instructions for {name}').replace('{name}', medicineName)
-      : (t.dose?.listenInstructions ?? 'Listen to instructions');
+      ? t.dose.listenA11y.replace('{name}', medicineName)
+      : t.dose.listenInstructions;
 
   return (
     <TouchableOpacity
       onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
-      accessibilityHint={isSpeaking ? (t.dose?.stopAudio ?? 'Stop audio') : (t.dose?.listenInstructions ?? 'Listen to instructions')}
+      accessibilityHint={isSpeaking ? t.dose.stopAudio : t.dose.listenInstructions}
       hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
       style={[
         styles.button,
@@ -78,7 +78,7 @@ export function SpeechButton({
       ]}
     >
       {isSpeaking ? (
-        <AudioEqualizer color={highlightColor} size={size} isPlaying={true} />
+        <AudioEqualizer color={highlightColor} size={size} isPlaying />
       ) : (
         <MaterialCommunityIcons
           name="volume-medium"

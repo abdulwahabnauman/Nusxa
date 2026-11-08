@@ -196,14 +196,20 @@ export default function ChatScreen() {
           role: 'assistant',
           content: t.chat.errorNoKey,
           timestamp: new Date().toISOString(),
+          isError: true,
         };
         setMessages((prev) => [...prev, errorMsg]);
         return;
       }
 
+      // Filter out error messages and take a sliding window of recent conversation turns (max 10)
+      // to prevent token budget blowups, slowdowns, and prompt context pollution.
+      const validHistory = messages.filter((m) => !m.isError && (m.role === 'user' || m.role === 'assistant'));
+      const slidingWindow = validHistory.slice(-10);
+
       const chatMessages = [
         { role: 'system' as const, content: systemPrompt },
-        ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        ...slidingWindow.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         { role: 'user' as const, content: text },
       ];
 
@@ -227,6 +233,7 @@ export default function ChatScreen() {
         role: 'assistant',
         content: t.chat.errorRetryMsg,
         timestamp: new Date().toISOString(),
+        isError: true,
       };
       setMessages((prev) => [...prev, errorMsg]);
       // Never a dead-end: offer a one-tap retry for the failed question
@@ -348,6 +355,8 @@ export default function ChatScreen() {
                 styles.messageBubble,
                 msg.role === 'user'
                   ? { backgroundColor: colors.accent.primary, alignSelf: 'flex-end' }
+                  : msg.isError
+                  ? { backgroundColor: colors.background.subtle, borderColor: colors.error, borderWidth: 1, alignSelf: 'flex-start' }
                   : { backgroundColor: colors.background.surface, borderColor: colors.border.default, borderWidth: 1, alignSelf: 'flex-start' },
                 { borderRadius: borderRadius.lg, maxWidth: '85%', paddingHorizontal: 14, paddingVertical: 10 },
               ]}
