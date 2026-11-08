@@ -145,7 +145,8 @@ export async function createEncryptedBackup(password: string): Promise<string> {
 /** True when the raw file content looks like an encrypted backup envelope */
 export function isEncryptedBackup(raw: string): boolean {
   try {
-    const parsed = JSON.parse(raw) as { exportFormat?: unknown; cipher?: unknown } | null;
+    const clean = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+    const parsed = JSON.parse(clean) as { exportFormat?: unknown; cipher?: unknown } | null;
     return (
       !!parsed &&
       typeof parsed === 'object' &&
@@ -163,7 +164,8 @@ export function isEncryptedBackup(raw: string): boolean {
  */
 export function openEncryptedBackup(raw: string, password: string): string {
   try {
-    const wrapper = JSON.parse(raw) as { cipher?: string };
+    const clean = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+    const wrapper = JSON.parse(clean) as { cipher?: string };
     if (!wrapper.cipher) throw new Error('bad envelope');
     const decrypted = CryptoJS.AES.decrypt(wrapper.cipher, password).toString(CryptoJS.enc.Utf8);
     if (!decrypted) throw new Error('bad password');
@@ -198,7 +200,8 @@ export interface ImportResult {
 function parseExport(raw: string): NusxaExport {
   let parsed: unknown;
   try {
-    parsed = JSON.parse(raw);
+    const clean = raw.charCodeAt(0) === 0xFEFF ? raw.slice(1) : raw;
+    parsed = JSON.parse(clean);
   } catch {
     throw new Error('The selected file is not valid JSON.');
   }

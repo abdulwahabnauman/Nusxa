@@ -83,10 +83,21 @@ async function downscaleForOcr(uri: string): Promise<string> {
   }
 }
 
+/** Safely extract JSON substring if wrapped in markdown or extraneous text */
+function extractJsonString(raw: string): string {
+  const trimmed = raw.trim();
+  const firstBrace = trimmed.indexOf('{');
+  const lastBrace = trimmed.lastIndexOf('}');
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    return trimmed.slice(firstBrace, lastBrace + 1);
+  }
+  return trimmed;
+}
+
 /** Parse the AI OCR response into structured data */
 function parseOCRResponse(raw: string): PrescriptionJSON {
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(extractJsonString(raw));
 
     // Ensure correct structure with defaults
     return {
