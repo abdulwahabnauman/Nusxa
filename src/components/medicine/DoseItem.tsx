@@ -9,6 +9,7 @@ import Animated, {
   withSpring,
   runOnJS,
   interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useI18n } from '../../i18n';
@@ -150,8 +151,8 @@ export function DoseItem({
   }));
 
   const revealStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(swipeX.value, [0, SWIPE_THRESHOLD * 0.35, SWIPE_THRESHOLD], [0.2, 0.7, 1], 'clamp');
-    const scale = interpolate(swipeX.value, [0, SWIPE_THRESHOLD, SWIPE_MAX + 30], [0.92, 1, 1.06], 'clamp');
+    const opacity = interpolate(swipeX.value, [0, SWIPE_THRESHOLD * 0.35, SWIPE_THRESHOLD], [0.2, 0.7, 1], Extrapolation.CLAMP);
+    const scale = interpolate(swipeX.value, [0, SWIPE_THRESHOLD, SWIPE_MAX + 30], [0.92, 1, 1.06], Extrapolation.CLAMP);
     return {
       opacity,
       transform: [{ scale }],
@@ -159,7 +160,7 @@ export function DoseItem({
   });
 
   const checkIconStyle = useAnimatedStyle(() => {
-    const scale = interpolate(swipeX.value, [0, SWIPE_THRESHOLD * 0.5, SWIPE_THRESHOLD, SWIPE_MAX + 30], [0.4, 0.8, 1, 1.25], 'clamp');
+    const scale = interpolate(swipeX.value, [0, SWIPE_THRESHOLD * 0.5, SWIPE_THRESHOLD, SWIPE_MAX + 30], [0.4, 0.8, 1, 1.25], Extrapolation.CLAMP);
     return {
       transform: [{ scale }],
     };

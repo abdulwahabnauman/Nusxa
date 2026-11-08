@@ -15,6 +15,7 @@ import Animated, {
   withTiming,
   Easing,
   interpolate,
+  Extrapolation,
 } from 'react-native-reanimated';
 import { useTheme } from '../../theme/provider';
 import { useSettingsStore } from '../../stores/settings-store';
@@ -79,7 +80,7 @@ export function AdherenceRing({
       fillHeight.value,
       [0, 100],
       [size, -waveHeight],
-      'clamp'
+      Extrapolation.CLAMP
     );
     return {
       transform: [
@@ -94,7 +95,7 @@ export function AdherenceRing({
       fillHeight.value,
       [0, 100],
       [size, -waveHeight - 1],
-      'clamp'
+      Extrapolation.CLAMP
     );
     return {
       transform: [
