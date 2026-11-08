@@ -446,7 +446,7 @@ export default function ChatScreen() {
                   }}
                 >
                   {msg.meta ? (
-                    <Text style={[typography.label.xs, { color: colors.text.disabled, fontSize: 10 }]}>
+                    <Text style={[typography.label.sm, { color: colors.text.disabled, fontSize: 10 }]}>
                       {msg.meta.source === 'cached' && '⚡ Cached • 0ms • $0'}
                       {msg.meta.source === 'tool' && `📋 Grounded SQLite • ${msg.meta.latencyMs ?? 10}ms`}
                       {msg.meta.source === 'guardrail' && '🛡️ Emergency Triage • Intercepted'}

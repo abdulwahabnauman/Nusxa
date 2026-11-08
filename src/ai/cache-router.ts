@@ -196,7 +196,7 @@ function formatToolResultForUser(
           : 'You have no doses scheduled for today.';
       }
       const lines = doses.map((d) => {
-        const time = d.scheduled_time.includes('T') ? d.scheduled_time.split('T')[1].slice(0, 5) : d.scheduled_time;
+        const time = d.scheduled_time.includes('T') ? (d.scheduled_time.split('T')[1] ?? '').slice(0, 5) : d.scheduled_time;
         const icon = d.status === 'taken' ? '✅' : d.status === 'missed' ? '❌' : '⏳';
         return `${icon} **${d.medicine_name}** at ${time} (${d.status.toUpperCase()})`;
       });
