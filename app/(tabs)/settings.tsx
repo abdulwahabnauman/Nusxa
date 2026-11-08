@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager, KeyboardAvoidingView } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, Switch, TouchableOpacity, Alert, TextInput, I18nManager, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -867,6 +867,36 @@ export default function SettingsScreen() {
                   accessibilityLabel={t.settings.reminderEscalation}
                 />
               </View>
+              {Platform.OS === 'android' && (
+                <View style={[styles.row, { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderColor: colors.border.default }]}>
+                  <View style={{ flex: 1, marginEnd: spacing.sm }}>
+                    <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                      {language === 'ur' ? 'بیٹری کی بچت اور بروقت الارم' : 'Battery Saver & Reliable Alarms'}
+                    </Text>
+                    <Text style={[typography.body.xs, { color: colors.text.secondary }]}>
+                      {language === 'ur'
+                        ? 'اگر الارم تاخیر سے آئیں تو فون سیٹنگز میں نُسخہ کے لیے بیٹری کی بچت کو غیر فعال کریں'
+                        : 'Xiaomi, Samsung & Vivo devices may delay alarms. Exclude Nusxa from aggressive battery saver.'}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={openAppSettings}
+                    style={{
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      borderRadius: 8,
+                      backgroundColor: colors.background.subtle,
+                      borderColor: colors.border.default,
+                      borderWidth: 1,
+                    }}
+                    accessibilityLabel={language === 'ur' ? 'سیٹنگز کھولیں' : 'Open device app settings'}
+                  >
+                    <Text style={[typography.label.sm, { color: colors.accent.primary }]}>
+                      {t.scanner.openSettings}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
             </Card>
           </View>
 
