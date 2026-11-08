@@ -319,7 +319,6 @@ export const DOSAGE_CEILINGS: DosageCeilingRule[] = [
 export const SOUTH_ASIAN_BRAND_TO_GENERIC: Record<string, string[]> = {
   // Proton Pump Inhibitors / Antacids
   'risek': ['omeprazole'],
-  'omega': ['omeprazole'],
   'eziday': ['esomeprazole'],
   'nexum': ['esomeprazole'],
   'pantop': ['pantoprazole'],

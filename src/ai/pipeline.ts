@@ -4,7 +4,7 @@ import { visionCompletion, chatCompletion, TextProviderKeys, AIError } from './c
 import { OCR_SYSTEM_PROMPT, OCR_RESPONSE_SCHEMA, INTERPRETATION_SYSTEM_PROMPT } from './prompts';
 import { PrescriptionJSON, PipelineStage, ValidationResult, ValidationFlag, MedicineJSON } from './types';
 import { LOW_CONFIDENCE_THRESHOLD, OCR_MAX_IMAGE_EDGE } from '../constants/config';
-import { DOSAGE_CEILINGS } from '../constants/medical';
+import { DOSAGE_CEILINGS, FREQUENCY_TO_DAILY_COUNT } from '../constants/medical';
 import { resizeToFit } from '../utils/ocr-image';
 import { postProcessPrescription } from './postprocess';
 import { formatExplanationText } from './explain-format';
@@ -187,35 +187,40 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
 
       const mgMatch = combinedStr.match(/(\d+(?:\.\d+)?)\s*mg/i);
       const unitMatch = combinedStr.match(/(\d+(?:\.\d+)?)\s*(?:u|units?)\b/i);
+      const mgPerDose = mgMatch ? parseFloat(mgMatch[1]!) : null;
 
-      if (ceiling.maxDailyDoseMg && mgMatch) {
-        const val = parseFloat(mgMatch[1]!);
-        if (val > ceiling.maxDailyDoseMg) {
+      if (ceiling.maxSingleDoseMg !== undefined && mgPerDose !== null && mgPerDose > ceiling.maxSingleDoseMg) {
+        flags.push({
+          code: 'abnormal_dosage',
+          medicine: med.name,
+          index: i,
+          detail: `${mgPerDose} mg per dose (usual max ${ceiling.maxSingleDoseMg} mg)`,
+        });
+      } else if (ceiling.maxDailyDoseMg !== undefined && mgPerDose !== null) {
+        const dosesPerDay = FREQUENCY_TO_DAILY_COUNT[(med.frequency ?? '').trim().toLowerCase()];
+        // Without a recognised frequency the per-dose amount is the only
+        // floor we know for the daily total, so compare that directly.
+        const dailyTotalMg = mgPerDose * (dosesPerDay ?? 1);
+        if (dailyTotalMg > ceiling.maxDailyDoseMg) {
           flags.push({
             code: 'abnormal_dosage',
             medicine: med.name,
             index: i,
-            detail: `${val} mg (Max daily: ${ceiling.maxDailyDoseMg} mg)`,
+            detail: dosesPerDay
+              ? `${mgPerDose} mg x ${dosesPerDay} = ${dailyTotalMg} mg/day (usual max ${ceiling.maxDailyDoseMg} mg/day)`
+              : `${mgPerDose} mg per dose (usual max ${ceiling.maxDailyDoseMg} mg/day)`,
           });
         }
-      } else if (ceiling.maxSingleDoseMg && mgMatch) {
-        const val = parseFloat(mgMatch[1]!);
-        if (val > ceiling.maxSingleDoseMg) {
-          flags.push({
-            code: 'abnormal_dosage',
-            medicine: med.name,
-            index: i,
-            detail: `${val} mg (Max single dose: ${ceiling.maxSingleDoseMg} mg)`,
-          });
-        }
-      } else if (ceiling.maxUnitsPerDose && unitMatch) {
+      }
+
+      if (ceiling.maxUnitsPerDose !== undefined && unitMatch) {
         const val = parseFloat(unitMatch[1]!);
         if (val > ceiling.maxUnitsPerDose) {
           flags.push({
             code: 'abnormal_dosage',
             medicine: med.name,
             index: i,
-            detail: `${val} Units`,
+            detail: `${val} units per dose (usual max ${ceiling.maxUnitsPerDose} units)`,
           });
         }
       }

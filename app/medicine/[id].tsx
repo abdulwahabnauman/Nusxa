@@ -528,12 +528,10 @@ export default function MedicineDetailScreen() {
           <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
             <View style={{ marginBottom: spacing.xs }}>
               <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
-                {language === 'ur' ? 'خوراک و مشروبات کے نوٹس (حوالہ)' : 'Dietary Reference Notes'}
+                {t.review.dietaryNotesTitle}
               </Text>
               <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
-                {language === 'ur'
-                  ? 'طبی کتب سے عمومی حوالہ؛ آپ کے معالج کی ہدایات ہمیشہ مقدم ہیں۔'
-                  : 'General pharmacology reference; your doctor\'s instructions always govern.'}
+                {t.review.dietaryNotesDisclaimer}
               </Text>
             </View>
             <Card>

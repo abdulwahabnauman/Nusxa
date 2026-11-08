@@ -226,9 +226,9 @@ export default function ReviewScreen() {
       case 'unreadable':
         return t.review.unreadableWarning.replace('{medicine}', name);
       case 'abnormal_dosage':
-        return language === 'ur'
-          ? `غیر معمولی خوراک: ${name}${flag.detail ? ` (${flag.detail})` : ''} — براہ کرم نسخے سے تصدیق کریں۔`
-          : `Abnormal dosage: ${name}${flag.detail ? ` (${flag.detail})` : ''} — please verify against prescription.`;
+        return t.review.abnormalDosageWarning
+          .replace('{medicine}', name)
+          .replace('{detail}', flag.detail);
     }
   };
 
@@ -396,13 +396,13 @@ export default function ReviewScreen() {
                   <MaterialCommunityIcons name="information-outline" size={20} color={colors.accent.primary} />
                   <View style={{ flex: 1, marginLeft: 8 }}>
                     <Text style={[typography.label.sm, { color: colors.text.primary }]}>
-                      {language === 'ur' ? 'مشترکہ اجزاء کی آگاہی (حوالہ)' : 'Shared Ingredient Reference'}
+                      {t.review.sharedIngredientNoticeTitle}
                     </Text>
                     {sharedIngredients.map((item, idx) => (
                       <Text key={idx} style={[typography.body.xs, { color: colors.text.secondary, marginTop: 4 }]}>
-                        {language === 'ur'
-                          ? `ادویات (${item.medicines.join(' اور ')}) میں مشترکہ جزو (${item.ingredient}) درج ہے۔ اپنے معالج کی دی گئی خوراک کے مطابق لیں۔`
-                          : `Medicines (${item.medicines.join(' & ')}) share the active ingredient "${item.ingredient}". Always follow the specific instructions written by your physician.`}
+                        {t.review.sharedIngredientNoticeBody
+                          .replace('{medicines}', item.medicines.join(', '))
+                          .replace('{ingredient}', item.ingredient)}
                       </Text>
                     ))}
                   </View>
