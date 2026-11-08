@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
   Keyboard,
 } from 'react-native';
@@ -16,14 +15,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withDelay,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { useReducedMotion } from '../src/hooks/useReducedMotion';
@@ -35,33 +26,7 @@ import { MarkdownText } from '../src/components/ui/MarkdownText';
 import { showToast } from '../src/components/ui/GlobalToast';
 import { loadChatHistory, saveChatHistory, clearChatHistory } from '../src/utils/chatHistory';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
-
-/** One pulsing dot for the "assistant is typing" bubble */
-function TypingDot({ color, delay }: { color: string; delay: number }) {
-  const pulse = useSharedValue(0.3);
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withDelay(
-        delay,
-        withSequence(
-          withTiming(1, { duration: 350 }),
-          withTiming(0.3, { duration: 350 }),
-        ),
-      ),
-      -1,
-      false,
-    );
-  }, [delay, pulse]);
-  const style = useAnimatedStyle(() => ({
-    opacity: pulse.value,
-    transform: [{ scale: 0.7 + pulse.value * 0.3 }],
-  }));
-  return (
-    <Animated.View
-      style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, style]}
-    />
-  );
-}
+import { EcgTypingIndicator } from '../src/components/chat/EcgTypingIndicator';
 
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -429,16 +394,8 @@ export default function ChatScreen() {
           )}
 
           {loading && (
-            <View style={[styles.messageBubble, { backgroundColor: colors.background.surface, borderWidth: 1, borderColor: colors.border.default, borderRadius: borderRadius.lg, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 12 }]}>
-              {reducedMotion ? (
-                <ActivityIndicator size="small" color={colors.accent.primary} />
-              ) : (
-                <View style={{ flexDirection: 'row', gap: 4 }}>
-                  {[0, 150, 300].map((d) => (
-                    <TypingDot key={d} color={colors.accent.primary} delay={d} />
-                  ))}
-                </View>
-              )}
+            <View style={{ alignSelf: 'flex-start', marginVertical: spacing.xs }}>
+              <EcgTypingIndicator />
             </View>
           )}
         </ScrollView>
