@@ -30,6 +30,8 @@ import {
 } from '../src/utils/interactions';
 import { getActiveMedicines } from '../src/db/repositories/medicine';
 import { getMissingFields, findDuplicateMedicines, isMedicineComplete } from '../src/utils/validation';
+import { useSettingsStore } from '../src/stores/settings-store';
+import { SOUTH_ASIAN_BRAND_TO_GENERIC } from '../src/constants/medical';
 import type { Medicine } from '../src/types/models';
 
 export default function ReviewScreen() {
@@ -121,6 +123,43 @@ export default function ReviewScreen() {
     () => findDuplicateMedicines(data?.medicines ?? []),
     [data]
   );
+
+  const duplicateIngredientAlerts = useSettingsStore((s) => s.duplicateIngredientAlerts);
+
+  // Opt-in check for shared active ingredients (e.g. Paracetamol in Panadol & Arinac)
+  const sharedIngredients = useMemo(() => {
+    if (!duplicateIngredientAlerts || !data?.medicines) return [];
+    const map = new Map<string, string[]>();
+    for (const m of data.medicines) {
+      const rawName = (m.name || '').trim();
+      if (!rawName) continue;
+      const lower = rawName.toLowerCase();
+      const resolvedGenerics = new Set<string>();
+
+      if (m.generic_name) {
+        resolvedGenerics.add(m.generic_name.toLowerCase().trim());
+      }
+      for (const [brand, generics] of Object.entries(SOUTH_ASIAN_BRAND_TO_GENERIC)) {
+        if (lower.includes(brand)) {
+          for (const g of generics) resolvedGenerics.add(g);
+        }
+      }
+
+      for (const g of resolvedGenerics) {
+        const existing = map.get(g) || [];
+        if (!existing.includes(rawName)) existing.push(rawName);
+        map.set(g, existing);
+      }
+    }
+
+    const results: { ingredient: string; medicines: string[] }[] = [];
+    for (const [ingredient, medList] of map.entries()) {
+      if (medList.length > 1) {
+        results.push({ ingredient, medicines: medList });
+      }
+    }
+    return results;
+  }, [duplicateIngredientAlerts, data?.medicines]);
 
   if (!data) {
     return (
@@ -344,6 +383,29 @@ export default function ReviewScreen() {
                   <Text style={[typography.body.sm, { color: colors.text.primary, marginLeft: 8, flex: 1 }]}>
                     {t.review.duplicateNames.replace('{names}', duplicateNames.join(', '))}
                   </Text>
+                </View>
+              </Card>
+            </View>
+          )}
+
+          {/* Shared Active Ingredient Notice (Opt-in educational reference) */}
+          {duplicateIngredientAlerts && sharedIngredients.length > 0 && (
+            <View style={[styles.warningsSection, { paddingHorizontal: spacing.base }]}>
+              <Card style={{ backgroundColor: colors.background.surface, borderColor: colors.border.default, borderWidth: 1 }}>
+                <View style={styles.warningRow}>
+                  <MaterialCommunityIcons name="information-outline" size={20} color={colors.accent.primary} />
+                  <View style={{ flex: 1, marginLeft: 8 }}>
+                    <Text style={[typography.label.sm, { color: colors.text.primary }]}>
+                      {language === 'ur' ? 'مشترکہ اجزاء کی آگاہی (حوالہ)' : 'Shared Ingredient Reference'}
+                    </Text>
+                    {sharedIngredients.map((item, idx) => (
+                      <Text key={idx} style={[typography.body.xs, { color: colors.text.secondary, marginTop: 4 }]}>
+                        {language === 'ur'
+                          ? `ادویات (${item.medicines.join(' اور ')}) میں مشترکہ جزو (${item.ingredient}) درج ہے۔ اپنے معالج کی دی گئی خوراک کے مطابق لیں۔`
+                          : `Medicines (${item.medicines.join(' & ')}) share the active ingredient "${item.ingredient}". Always follow the specific instructions written by your physician.`}
+                      </Text>
+                    ))}
+                  </View>
                 </View>
               </Card>
             </View>
