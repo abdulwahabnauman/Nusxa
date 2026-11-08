@@ -213,10 +213,13 @@ async function handleChat(request, env) {
 
 async function callGeminiOnce(env, system, text, images, temperature, responseSchema) {
   const generationConfig = {
-    temperature,
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     responseMimeType: 'application/json',
   };
+  // Gemini 3.x / Flash models with thinking/structured output deprecate or reject arbitrary sampling parameters
+  if (typeof temperature === 'number' && !GEMINI_MODEL.startsWith('gemini-3')) {
+    generationConfig.temperature = temperature;
+  }
   // Controlled generation: the app sends a response schema so the OCR JSON
   // shape is hard-enforced. Older app versions omit it — keep working.
   if (responseSchema && typeof responseSchema === 'object') {
