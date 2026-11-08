@@ -1,7 +1,11 @@
 import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
 import { getProfile, updateProfile } from '../db/repositories/profile';
 
 type Language = 'en' | 'ur';
+
+const DUPLICATE_INGREDIENTS_KEY = 'nusxa_pref_duplicate_ingredients';
+const FOOD_TIMING_KEY = 'nusxa_pref_food_timing';
 
 interface SettingsState {
   language: Language;
@@ -12,12 +16,16 @@ interface SettingsState {
   easternNumerals: boolean;
   useOwnKeys: boolean;
   snoozeMinutes: number;
+  duplicateIngredientAlerts: boolean;
+  foodTimingAlerts: boolean;
   setLanguage: (lang: Language) => void;
   setNotificationsEnabled: (enabled: boolean) => void;
   setReminderEscalation: (enabled: boolean) => void;
   setReducedMotion: (enabled: boolean) => void;
   setUseOwnKeys: (enabled: boolean) => void;
   setSnoozeMinutes: (minutes: number) => void;
+  setDuplicateIngredientAlerts: (enabled: boolean) => void;
+  setFoodTimingAlerts: (enabled: boolean) => void;
 }
 
 // Helper function to save settings to database
@@ -82,6 +90,13 @@ export async function hydrateSettings(): Promise<void> {
   if (hydrationRan) return;
   hydrationRan = true;
   const loaded = await loadSettingsFromDatabase();
+  let duplicateIngredientAlerts = false;
+  let foodTimingAlerts = false;
+  try {
+    duplicateIngredientAlerts = (await SecureStore.getItemAsync(DUPLICATE_INGREDIENTS_KEY)) === '1';
+    foodTimingAlerts = (await SecureStore.getItemAsync(FOOD_TIMING_KEY)) === '1';
+  } catch {}
+
   if (Object.keys(loaded).length === 0) {
     // No profile row yet (fresh install pre-onboarding) — allow a retry
     // on the next call instead of locking in the defaults.
@@ -96,6 +111,8 @@ export async function hydrateSettings(): Promise<void> {
     snoozeMinutes: loaded.snoozeMinutes ?? 10,
     reminderEscalation: loaded.reminderEscalation ?? true,
     useOwnKeys: loaded.useOwnKeys ?? false,
+    duplicateIngredientAlerts,
+    foodTimingAlerts,
   });
 }
 
@@ -103,7 +120,14 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
   // Best-effort load at import time. This usually races openDatabase() and
   // resolves with defaults; hydrateSettings() re-applies the saved values
   // once the DB is ready, so the user's language survives cold starts.
-  loadSettingsFromDatabase().then((initialSettings) => {
+  loadSettingsFromDatabase().then(async (initialSettings) => {
+    let duplicateIngredientAlerts = false;
+    let foodTimingAlerts = false;
+    try {
+      duplicateIngredientAlerts = (await SecureStore.getItemAsync(DUPLICATE_INGREDIENTS_KEY)) === '1';
+      foodTimingAlerts = (await SecureStore.getItemAsync(FOOD_TIMING_KEY)) === '1';
+    } catch {}
+
     if (Object.keys(initialSettings).length === 0) return;
     set({
       language: initialSettings.language || 'en',
@@ -113,6 +137,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
       snoozeMinutes: initialSettings.snoozeMinutes ?? 10,
       reminderEscalation: initialSettings.reminderEscalation ?? true,
       useOwnKeys: initialSettings.useOwnKeys ?? false,
+      duplicateIngredientAlerts,
+      foodTimingAlerts,
     });
   });
 
@@ -125,6 +151,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     easternNumerals: false,
     useOwnKeys: false,
     snoozeMinutes: 10,
+    duplicateIngredientAlerts: false,
+    foodTimingAlerts: false,
     
     setLanguage: (language) => {
       // Numeral style follows the language: Urdu always shows ۰۱۲۳۴۵۶۷۸۹
@@ -155,6 +183,16 @@ export const useSettingsStore = create<SettingsState>((set, get) => {
     setSnoozeMinutes: (snoozeMinutes) => {
       set({ snoozeMinutes });
       saveSettingsToDatabase(get());
+    },
+
+    setDuplicateIngredientAlerts: (duplicateIngredientAlerts) => {
+      set({ duplicateIngredientAlerts });
+      SecureStore.setItemAsync(DUPLICATE_INGREDIENTS_KEY, duplicateIngredientAlerts ? '1' : '0').catch(() => {});
+    },
+
+    setFoodTimingAlerts: (foodTimingAlerts) => {
+      set({ foodTimingAlerts });
+      SecureStore.setItemAsync(FOOD_TIMING_KEY, foodTimingAlerts ? '1' : '0').catch(() => {});
     },
   };
 });

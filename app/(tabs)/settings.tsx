@@ -157,6 +157,10 @@ export default function SettingsScreen() {
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
   const useOwnKeys = useSettingsStore((s) => s.useOwnKeys);
   const setUseOwnKeys = useSettingsStore((s) => s.setUseOwnKeys);
+  const duplicateIngredientAlerts = useSettingsStore((s) => s.duplicateIngredientAlerts);
+  const setDuplicateIngredientAlerts = useSettingsStore((s) => s.setDuplicateIngredientAlerts);
+  const foodTimingAlerts = useSettingsStore((s) => s.foodTimingAlerts);
+  const setFoodTimingAlerts = useSettingsStore((s) => s.setFoodTimingAlerts);
   const nf = (v: string | number) => formatDigits(v, easternNumerals);
   const profile = useAuthStore((s) => s.profile);
   const setProfile = useAuthStore((s) => s.setProfile);
@@ -865,6 +869,66 @@ export default function SettingsScreen() {
                   }}
                   trackColor={{ false: colors.border.default, true: colors.accent.primary }}
                   accessibilityLabel={t.settings.reminderEscalation}
+                />
+              </View>
+            </Card>
+          </View>
+
+          {/* Clinical Reference Preferences (Optional & Non-Authoritative) */}
+          <View style={[styles.section, { paddingHorizontal: spacing.base }]}>
+            <Text style={[typography.label.base, { color: colors.text.secondary, marginBottom: spacing.sm }]}>
+              {language === 'ur' ? 'طبی حوالہ جاتی معلومات (اختیاری)' : 'Clinical Reference Notices (Optional)'}
+            </Text>
+            <Card>
+              <Text style={[typography.body.xs, { color: colors.text.secondary, marginBottom: spacing.md }]}>
+                {language === 'ur'
+                  ? 'طبی لٹریچر سے حوالہ جاتی نوٹس۔ نُسخہ کوئی حکم جاری نہیں کرتا؛ آپ کے معالج ڈاکٹر کی ہدایات ہمیشہ حتمی ہیں۔'
+                  : 'Educational pharmacological references. Nusxa never makes decisions or overrides care; your doctor\'s instructions always take precedence.'}
+              </Text>
+
+              {/* Duplicate Ingredient Notice */}
+              <View style={styles.row}>
+                <View style={{ flex: 1, marginEnd: spacing.sm }}>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                    {language === 'ur' ? 'مشترکہ اجزاء کی آگاہی' : 'Duplicate Ingredient Notice'}
+                  </Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>
+                    {language === 'ur'
+                      ? 'اگر نسخے میں شامل ادویات میں ایک ہی جزو (مثلاً پیراسیٹامول) موجود ہو تو محض آگاہی دیں'
+                      : 'Informational note if multiple medicines share an active ingredient (e.g. Paracetamol in Panadol & Arinac)'}
+                  </Text>
+                </View>
+                <Switch
+                  value={duplicateIngredientAlerts}
+                  onValueChange={(val) => {
+                    selectionHaptic();
+                    setDuplicateIngredientAlerts(val);
+                  }}
+                  trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                  accessibilityLabel={language === 'ur' ? 'مشترکہ اجزاء کی آگاہی' : 'Duplicate Ingredient Notice'}
+                />
+              </View>
+
+              {/* Dietary Reference Notes */}
+              <View style={[styles.row, { marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 1, borderColor: colors.border.default }]}>
+                <View style={{ flex: 1, marginEnd: spacing.sm }}>
+                  <Text style={[typography.body.base, { color: colors.text.primary }]}>
+                    {language === 'ur' ? 'خوراک و مشروبات کے حوالہ جاتی نوٹس' : 'Dietary Reference Notes'}
+                  </Text>
+                  <Text style={[typography.body.xs, { color: colors.text.secondary }]}>
+                    {language === 'ur'
+                      ? 'کتابی لٹریچر کے مطابق چائے یا دودھ سے عمومی وقفے کے نوٹس (اگر ڈاکٹر نے منع نہ کیا ہو)'
+                      : 'Show non-binding reference notes from pharmacology books regarding tea/calcium timing'}
+                  </Text>
+                </View>
+                <Switch
+                  value={foodTimingAlerts}
+                  onValueChange={(val) => {
+                    selectionHaptic();
+                    setFoodTimingAlerts(val);
+                  }}
+                  trackColor={{ false: colors.border.default, true: colors.accent.primary }}
+                  accessibilityLabel={language === 'ur' ? 'خوراک و مشروبات کے حوالہ جاتی نوٹس' : 'Dietary Reference Notes'}
                 />
               </View>
             </Card>
