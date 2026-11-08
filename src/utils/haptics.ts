@@ -12,6 +12,13 @@ export async function doseHaptic(): Promise<void> {
   } catch { /* haptics unavailable (simulator/Expo Go quirks) */ }
 }
 
+/** Confirmatory tactile pulse for marking a dose taken with spring morph (medium impact) */
+export async function takeDoseHaptic(): Promise<void> {
+  try {
+    await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  } catch { /* haptics unavailable */ }
+}
+
 /** Success confirmation (saves, exports, completed flows) */
 export async function successHaptic(): Promise<void> {
   try {

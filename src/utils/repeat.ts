@@ -36,22 +36,27 @@ export function serializeDaysOfWeek(days: number[] | null | undefined): string |
 }
 
 export function parseDaysOfWeek(raw: string | null | undefined): number[] {
-  if (!raw) return [];
-  return normalizeDaysOfWeek(raw.split(',').map((v) => parseInt(v, 10)));
+  if (!raw || typeof raw !== 'string' || !raw.trim()) return [];
+  return normalizeDaysOfWeek(raw.split(',').map((v) => parseInt(v.trim(), 10)));
 }
 
 /** Whole days between two YYYY-MM-DD dates, immune to DST shifts */
 export function daysBetweenISO(startISO: string, endISO: string): number {
+  if (!startISO || !endISO) return 0;
   const toUtc = (iso: string) => {
     const [y, m, d] = iso.slice(0, 10).split('-').map(Number);
-    return Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1);
+    if (y == null || m == null || d == null || isNaN(y) || isNaN(m) || isNaN(d)) return 0;
+    return Date.UTC(y, m - 1, d);
   };
-  return Math.round((toUtc(endISO) - toUtc(startISO)) / 86_400_000);
+  const diff = toUtc(endISO) - toUtc(startISO);
+  return isNaN(diff) ? 0 : Math.round(diff / 86_400_000);
 }
 
 export function weekdayOfISO(dateISO: string): number {
+  if (!dateISO) return 0;
   const [y, m, d] = dateISO.slice(0, 10).split('-').map(Number);
-  return new Date(Date.UTC(y ?? 1970, (m ?? 1) - 1, d ?? 1)).getUTCDay();
+  if (y == null || m == null || d == null || isNaN(y) || isNaN(m) || isNaN(d)) return 0;
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay();
 }
 
 export function isDailyRepeat(
@@ -70,6 +75,7 @@ export interface OccurrenceRule {
 
 /** Whether a schedule with this recurrence is due on the given date */
 export function occursOnDate(rule: OccurrenceRule, dateISO: string): boolean {
+  if (!rule || !rule.startDate || !dateISO) return false;
   const date = dateISO.slice(0, 10);
   if (date < rule.startDate.slice(0, 10)) return false;
   if (rule.endDate && date > rule.endDate.slice(0, 10)) return false;

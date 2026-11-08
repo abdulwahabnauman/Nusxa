@@ -15,6 +15,8 @@ import { Input } from '../../src/components/ui/Input';
 import { Modal } from '../../src/components/ui/Modal';
 import { MarkdownText } from '../../src/components/ui/MarkdownText';
 import { MedicineFormIcon } from '../../src/components/ui/PillIcon';
+import { SpeechButton } from '../../src/components/ui/SpeechButton';
+import { buildDoseSpeechText } from '../../src/utils/speech';
 import { SkeletonCard } from '../../src/components/ui/Skeleton';
 import { EmptyState } from '../../src/components/ui/EmptyState';
 import { showToast, showToastWithAction } from '../../src/components/ui/GlobalToast';
@@ -41,6 +43,7 @@ export default function MedicineDetailScreen() {
   const { colors, typography, spacing } = useTheme();
   const { t, language } = useI18n();
   const easternNumerals = useSettingsStore((s) => s.easternNumerals);
+  const foodTimingAlerts = useSettingsStore((s) => s.foodTimingAlerts);
   const reducedMotion = useReducedMotion();
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -332,9 +335,22 @@ export default function MedicineDetailScreen() {
               <MedicineFormIcon form={medicine.form} size={26} color={colors.accent.primary} contrastColor={colors.accent.primary + '55'} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[typography.heading.h2, { color: colors.text.primary }]}>
-                {medicine.name ?? t.common.unknownMedicine}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Text style={[typography.heading.h2, { color: colors.text.primary, flex: 1, marginEnd: 8 }]}>
+                  {medicine.name ?? t.common.unknownMedicine}
+                </Text>
+                <SpeechButton
+                  text={buildDoseSpeechText({
+                    medicineName: medicine.name ?? t.common.unknownMedicine,
+                    dosage: medicine.dosage ?? medicine.strength,
+                    mealInstruction: medicine.meal_instruction,
+                    time: visibleSchedules[0]?.time ? formatTime12h(visibleSchedules[0].time, language) : null,
+                    language,
+                  })}
+                  medicineName={medicine.name ?? undefined}
+                  size={22}
+                />
+              </View>
               {(medicine.strength || medicine.form) && (
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6, gap: 8 }}>
                   {!!medicine.strength && (
@@ -415,11 +431,23 @@ export default function MedicineDetailScreen() {
                   <Text style={[typography.body.base, {
                     color: sch.is_active ? colors.text.primary : colors.text.disabled,
                     marginStart: 8,
+                    flex: 1,
                   }]}>
                     {range} — {sch.frequency}
                     {sch.meal_instruction && sch.meal_instruction !== 'none' &&
                       ` (${sch.meal_instruction === 'before' ? t.dose.beforeMeals : sch.meal_instruction === 'with' ? t.dose.withMeals : t.dose.afterMeals})`}
                   </Text>
+                  <SpeechButton
+                    text={buildDoseSpeechText({
+                      medicineName: medicine.name ?? t.common.unknownMedicine,
+                      dosage: medicine.dosage ?? medicine.strength,
+                      mealInstruction: sch.meal_instruction ?? medicine.meal_instruction,
+                      time: formatTime12h(sch.time, language),
+                      language,
+                    })}
+                    medicineName={medicine.name ?? undefined}
+                    size={18}
+                  />
                 </View>
                 );
               })}
@@ -522,16 +550,21 @@ export default function MedicineDetailScreen() {
           </Card>
         </Animated.View>
 
-        {/* Food Interactions */}
-        {medicine.food_interactions.length > 0 && (
+        {/* Food Interactions — displayed only if user opted into dietary references */}
+        {foodTimingAlerts && medicine.food_interactions.length > 0 && (
           <Animated.View entering={enter(7)} style={[styles.section, { paddingHorizontal: spacing.base }]}>
-            <Text style={[typography.heading.h4, { color: colors.text.primary, marginBottom: spacing.sm }]}>
-              {t.medicine.foodInteractions}
-            </Text>
+            <View style={{ marginBottom: spacing.xs }}>
+              <Text style={[typography.heading.h4, { color: colors.text.primary }]}>
+                {t.review.dietaryNotesTitle}
+              </Text>
+              <Text style={[typography.body.xs, { color: colors.text.secondary, marginTop: 2 }]}>
+                {t.review.dietaryNotesDisclaimer}
+              </Text>
+            </View>
             <Card>
               {medicine.food_interactions.map((item, i) => (
                 <View key={i} style={styles.listItem}>
-                  <MaterialCommunityIcons name="food-apple-outline" size={16} color={colors.warning} />
+                  <MaterialCommunityIcons name="food-apple-outline" size={16} color={colors.accent.primary} />
                   <Text style={[typography.body.sm, { color: colors.text.primary, marginStart: 8, flex: 1 }]}>
                     {item}
                   </Text>

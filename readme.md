@@ -90,11 +90,64 @@ Nusxa Chat implements the industry-standard four-pillar architecture for product
    - **Post-generation Safety Filter**: Inspects model outputs for unsanctioned clinical changes (altering dosages, discontinuing medicine, or diagnosing illnesses) and enforces clinical safety boundary disclosures.
 3. **Semantic Cache & Multi-Tier Router (`src/ai/cache-router.ts`)**:
    - Normalizes text casing, punctuation, and bilingual phrases.
-   - Routes inputs through a zero-cost hierarchy: `Emergency (0ms)` &rarr; `Static Cache (0ms)` &rarr; `Local SQLite Tool (<15ms)` &rarr; `LLM Network Call`.
+   - Routes inputs through a zero-cost hierarchy: `Emergency (0ms)` → `Static Cache (0ms)` → `Local SQLite Tool (<15ms)` → `LLM Network Call`.
    - Resolves 30–40% of conversational traffic (greetings, polite acknowledgments, app identity) instantly with zero token consumption.
 4. **Runtime Observability & Live Telemetry (`src/ai/observability.ts`)**:
    - Records live latency, token consumption, cache hit ratios, and guardrail trigger rates in an on-device ring buffer.
    - Injects subtle provenance metadata pills under assistant message bubbles (`⚡ Cached • 0ms • $0`, `📋 Grounded SQLite • 12ms`, `🛡️ Emergency Triage • Intercepted`, `⚡ AI • 320ms • ~$0.0005`).
+
+---
+
+## Animations, Micro-Interactions & Voice Accessibility
+
+Designed for elderly accessibility and clinical clarity, built with `react-native-reanimated` and fully respecting `useReducedMotion()`:
+
+- **Pill-to-Checkmark Morphing (`src/components/medicine/DoseItem.tsx`)**:
+  - Tactile spring pop scaling and smooth circular fill transition upon completing or taking a dose.
+- **Elastic Rubber-Band Swipe-to-Action (`src/components/medicine/DoseItem.tsx`)**:
+  - Past the commit threshold the row follows the finger with linear rubber-band resistance (`excess * 0.38`) instead of a hard clamp, fires a haptic tick the moment the threshold is crossed, and pop-scales the checkmark as the reveal layer saturates.
+- **Scanner Viewfinder Laser (`app/scan.tsx`)**:
+  - Continuous vertical laser sweep beam and corner alignment reticles guiding document framing.
+- **Urgent Dose Breathing Glow (`src/components/medicine/NextDoseHero.tsx`)**:
+  - Smooth pulsating aura on the next upcoming dose card when within 15 minutes of scheduled time.
+- **Liquid Fill Adherence Ring (`src/components/progress/AdherenceRing.tsx`)**:
+  - Two layered SVG sine waves slosh horizontally inside a clipped circular capsule while the liquid level springs up or down to the current adherence percentage; a specular glass highlight sits on top of the fill.
+- **Isometric Holographic Scan Card (`src/components/scan/IsometricScanCard.tsx`)**:
+  - Levitating prescription card (`perspective: 900`, `rotateX: 20deg`, `rotateZ: -7deg`) with a soft ground shadow, skeleton prescription lines, an SVG laser beam sweeping the document while OCR runs, and a spring snap back to upright when the pipeline completes.
+- **ECG Typing Indicator (`src/components/chat/EcgTypingIndicator.tsx`)**:
+  - Replaces the generic three-dot typing bubble with a P-Q-R-S-T electrocardiogram trace; a phosphor tracer head rides the mathematical cardiac path, one full sweep per 1.25 s, with a double systolic heart pulse as the R-wave peaks.
+- **On-Device Voice Readout (`src/utils/speech.ts` & `src/components/ui/SpeechButton.tsx`)**:
+  - Leverages `expo-speech` to speak medication names, dosage amounts, and meal instructions in English or Urdu at an accessible, slow pacing (0.85 rate).
+  - Synchronized global listener ensures only one audio stream plays at a time.
+- **Dancing Audio Equalizer (`src/components/ui/AudioEqualizer.tsx`)**:
+  - While a readout is playing, the speech button swaps its icon for four bars oscillating at asynchronous rates, with the same global listener keeping every card in sync.
+
+---
+
+## Clinical Safety Guidance & Regional Formulary
+
+Nusxa adheres strictly to the clinical principle that an AI companion must **never make independent medical decisions or override a physician's prescription**. Safety checks act as informational guardrails:
+
+- **Dosage Ceilings & High-Alert Warnings** (`validatePrescription` in `src/ai/pipeline.ts`):
+  - Parsed medications are checked against `DOSAGE_CEILINGS` in `src/constants/medical.ts` — per-dose ceilings first (e.g. Paracetamol >1000mg/dose, Ibuprofen >800mg/dose) and, when the frequency resolves to a doses-per-day count, the resulting daily total against the maximum daily limit (e.g. Paracetamol >4000mg/day, Metformin >2550mg/day). Insulin doses above 100 U and single methotrexate doses above 25 mg are flagged for manual verification.
+  - High-alert safety rules flag weekly-only medications like **Methotrexate** if scheduled daily.
+- **Pakistani & South Asian Regional Brand Formulary**:
+  - `SOUTH_ASIAN_BRAND_TO_GENERIC` in `src/constants/medical.ts` maps 56 commonly prescribed regional commercial brand names (e.g. *Panadol, Brufen, Augmentin, Flagyl, Glucophage, Arinac, Risek, Softin, Disprin, Calpol*) to their standardized international non-proprietary names (INN/generics), so interaction checks still work when a doctor writes a local brand.
+- **Opt-in Reference Notices (Settings)**:
+  - In adherence to Nusxa's non-directive philosophy, potential duplicate active ingredients and food/beverage reference notes (e.g. dairy with fluoroquinolones) are configured as **opt-in informational notices** in Settings rather than intrusive or unsolicited commands.
+
+---
+
+## UI/UX Formatting & Bilingual Localization
+
+Nusxa is designed with first-class bilingual support for English and Urdu (Nastaliq script):
+
+- **Markdown Parser in Chat (`src/components/ui/MarkdownText.tsx`)**:
+  - Full support for bold, italic, bullet lists, blockquotes, and ordered numbered lists.
+  - Custom regex engine supporting both Western Arabic digits (`1.`, `2.`) and Eastern Arabic numerals (`۱.`, `۲.`), with dot or parenthesis markers (`1)`, `۱)`).
+- **Comprehensive Bilingual Translation Coverage**:
+  - 100% typed keys synchronized across `src/i18n/en.ts` and `src/i18n/ur.ts`, including clinical review flags, emergency alerts, dose instruction chips, and settings.
+  - Native RTL layout mirroring and bundled Noto Nastaliq font so cross-platform text metrics on iOS and Android match identically without text clipping.
 
 ---
 
@@ -112,6 +165,7 @@ Nusxa Chat implements the industry-standard four-pillar architecture for product
 | Notifications      | expo-notifications (local scheduled)    |
 | Secure Storage     | expo-secure-store (3 API keys: Gemini, OpenRouter, Groq) |
 | PDF Generation     | expo-print + expo-sharing (doctor visit + analytics reports, on-device; RTL Urdu mode with bundled Noto Nastaliq font) |
+| Text-to-Speech     | expo-speech (on-device bilingual voice readout at 0.85 rate) |
 | Animations         | react-native-reanimated (reduced-motion aware) |
 | Vector Graphics    | react-native-svg (brand pill icon, charts) |
 | File Picking       | expo-document-picker (JSON data import) |
@@ -172,11 +226,17 @@ nusxa/
 │   │   │   ├── DoseItem.tsx      # Single dose row (taken/skip/pending, animated status icon)
 │   │   │   ├── ScheduleTimeline.tsx  # Vertical timeline of doses
 │   │   │   └── VerificationField.tsx # Editable field with confidence indicator
+│   │   ├── chat/                 # Chat components
+│   │   │   └── EcgTypingIndicator.tsx # Doctor heartbeat / ECG line typing indicator
+│   │   ├── scan/                 # Scan & processing components
+│   │   │   └── IsometricScanCard.tsx  # 3D isometric holographic prescription scanning card
 │   │   ├── progress/             # Adherence tracking components
-│   │   │   ├── AdherenceRing.tsx # Circular progress ring
+│   │   │   ├── AdherenceRing.tsx # Liquid fill wave adherence capsule
 │   │   │   ├── StreakCounter.tsx # Non-shaming streak display
 │   │   │   └── WeeklyChart.tsx   # 7-day bar chart
 │   │   └── ui/                   # Reusable UI primitives
+│   │       ├── AudioEqualizer.tsx # Dancing 4-bar audio equalizer waveform
+│   │       ├── SpeechButton.tsx   # On-device TTS voice button with live waveform
 │   │       ├── Badge.tsx, Button.tsx (spring press feedback), Card.tsx
 │   │       ├── EmptyState.tsx (accepts icon name or custom node), Input.tsx, Modal.tsx
 │   │       ├── ProgressSteps.tsx, Skeleton.tsx, Toast.tsx (all Reanimated)
@@ -236,6 +296,7 @@ nusxa/
 │       ├── pdf.ts                # Doctor visit + analytics PDF generation (expo-print HTML templates, RTL Urdu mode)
 │       ├── inventory.ts          # Refill estimation from frequency strings
 │       ├── notifications.ts      # Local notification scheduling
+│       ├── speech.ts             # On-device TTS manager (expo-speech, Urdu/English voices)
 │       ├── secureStorage.ts      # expo-secure-store wrapper for all 3 API keys (Gemini, OpenRouter, Groq)
 │       └── validation.ts         # Input validation helpers (used by review + schedule screens)
 │

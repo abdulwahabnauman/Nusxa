@@ -9,6 +9,7 @@
  */
 import {
   MEDICINE_INTERACTIONS,
+  SOUTH_ASIAN_BRAND_TO_GENERIC,
   type InteractionRule,
   type InteractionSeverity,
 } from '../constants/medical';
@@ -49,7 +50,15 @@ function matchTerms(m: MedicineLike): string[] {
     const n = normalize(raw);
     if (n.length >= 3) out.add(n);
     const stripped = n.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
-    if (stripped.length >= 3) out.add(stripped);
+    if (stripped.length >= 3) {
+      out.add(stripped);
+      // Map local Pakistani and South Asian brands to their generic INN counterparts
+      for (const [brand, generics] of Object.entries(SOUTH_ASIAN_BRAND_TO_GENERIC)) {
+        if (stripped.includes(brand)) {
+          for (const gen of generics) out.add(gen);
+        }
+      }
+    }
   }
   return [...out];
 }

@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ActivityIndicator,
   Alert,
   Keyboard,
 } from 'react-native';
@@ -16,14 +15,6 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Clipboard from 'expo-clipboard';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withRepeat,
-  withDelay,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
 import { useTheme } from '../src/theme/provider';
 import { useI18n } from '../src/i18n';
 import { useReducedMotion } from '../src/hooks/useReducedMotion';
@@ -38,33 +29,7 @@ import { getActiveMedicines } from '../src/db/repositories/medicine';
 import { routeChatQuery, saveToCache } from '../src/ai/cache-router';
 import { validateAssistantResponse } from '../src/ai/guardrails';
 import { logChatEvent, estimateTokens } from '../src/ai/observability';
-
-/** One pulsing dot for the "assistant is typing" bubble */
-function TypingDot({ color, delay }: { color: string; delay: number }) {
-  const pulse = useSharedValue(0.3);
-  useEffect(() => {
-    pulse.value = withRepeat(
-      withDelay(
-        delay,
-        withSequence(
-          withTiming(1, { duration: 350 }),
-          withTiming(0.3, { duration: 350 }),
-        ),
-      ),
-      -1,
-      false,
-    );
-  }, [delay, pulse]);
-  const style = useAnimatedStyle(() => ({
-    opacity: pulse.value,
-    transform: [{ scale: 0.7 + pulse.value * 0.3 }],
-  }));
-  return (
-    <Animated.View
-      style={[{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }, style]}
-    />
-  );
-}
+import { EcgTypingIndicator } from '../src/components/chat/EcgTypingIndicator';
 
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -268,14 +233,20 @@ export default function ChatScreen() {
           role: 'assistant',
           content: t.chat.errorNoKey,
           timestamp: new Date().toISOString(),
+          isError: true,
         };
         setMessages((prev) => [...prev, errorMsg]);
         return;
       }
 
+      // Filter out error messages and take a sliding window of recent conversation turns (max 10)
+      // to prevent token budget blowups, slowdowns, and prompt context pollution.
+      const validHistory = messages.filter((m) => !m.isError && (m.role === 'user' || m.role === 'assistant'));
+      const slidingWindow = validHistory.slice(-10);
+
       const chatMessages = [
         { role: 'system' as const, content: systemPrompt },
-        ...messages.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        ...slidingWindow.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         { role: 'user' as const, content: text },
       ];
 
@@ -326,6 +297,7 @@ export default function ChatScreen() {
         role: 'assistant',
         content: t.chat.errorRetryMsg,
         timestamp: new Date().toISOString(),
+        isError: true,
       };
       setMessages((prev) => [...prev, errorMsg]);
       // Never a dead-end: offer a one-tap retry for the failed question
@@ -447,6 +419,8 @@ export default function ChatScreen() {
                 styles.messageBubble,
                 msg.role === 'user'
                   ? { backgroundColor: colors.accent.primary, alignSelf: 'flex-end' }
+                  : msg.isError
+                  ? { backgroundColor: colors.background.subtle, borderColor: colors.error, borderWidth: 1, alignSelf: 'flex-start' }
                   : { backgroundColor: colors.background.surface, borderColor: colors.border.default, borderWidth: 1, alignSelf: 'flex-start' },
                 { borderRadius: borderRadius.lg, maxWidth: '85%', paddingHorizontal: 14, paddingVertical: 10 },
               ]}
@@ -518,16 +492,8 @@ export default function ChatScreen() {
           )}
 
           {loading && (
-            <View style={[styles.messageBubble, { backgroundColor: colors.background.surface, borderWidth: 1, borderColor: colors.border.default, borderRadius: borderRadius.lg, alignSelf: 'flex-start', paddingHorizontal: 14, paddingVertical: 12 }]}>
-              {reducedMotion ? (
-                <ActivityIndicator size="small" color={colors.accent.primary} />
-              ) : (
-                <View style={{ flexDirection: 'row', gap: 4 }}>
-                  {[0, 150, 300].map((d) => (
-                    <TypingDot key={d} color={colors.accent.primary} delay={d} />
-                  ))}
-                </View>
-              )}
+            <View style={{ alignSelf: 'flex-start', marginVertical: spacing.xs }}>
+              <EcgTypingIndicator />
             </View>
           )}
         </ScrollView>

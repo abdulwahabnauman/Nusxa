@@ -248,3 +248,141 @@ export const MEDICINE_INTERACTIONS: InteractionRule[] = [
   },
 ];
 
+/**
+ * Sanity dosage ceilings for high-risk medications.
+ * OCR misreads (e.g. 4 U -> 40 U, or 500 mg -> 5000 mg) can lead to dangerous errors.
+ * These thresholds trigger a prompt asking the patient to verify against the doctor's handwriting.
+ */
+export interface DosageCeilingRule {
+  genericKeywords: string[];
+  maxSingleDoseMg?: number;
+  maxDailyDoseMg?: number;
+  maxUnitsPerDose?: number;
+  unit: string;
+  warningEn: string;
+  warningUr: string;
+}
+
+export const DOSAGE_CEILINGS: DosageCeilingRule[] = [
+  {
+    genericKeywords: ['paracetamol', 'acetaminophen', 'panadol', 'calpol', 'disprol', 'febrol'],
+    maxSingleDoseMg: 1000,
+    maxDailyDoseMg: 4000,
+    unit: 'mg',
+    warningEn: 'Exceeds standard 4,000 mg/day ceiling',
+    warningUr: 'معمول کی حد 4,000 ملی گرام یومیہ سے زیادہ ہے',
+  },
+  {
+    genericKeywords: ['ibuprofen', 'brufen', 'advil', 'motrin'],
+    maxSingleDoseMg: 800,
+    maxDailyDoseMg: 2400,
+    unit: 'mg',
+    warningEn: 'Exceeds standard 2,400 mg/day ceiling',
+    warningUr: 'معمول کی حد 2,400 ملی گرام یومیہ سے زیادہ ہے',
+  },
+  {
+    genericKeywords: ['insulin', 'humulin', 'lantus', 'novorapid', 'mixtard'],
+    maxUnitsPerDose: 100,
+    unit: 'units',
+    warningEn: 'High insulin dose (>100 U). Verify handwritten units',
+    warningUr: 'انسولین کی زیادہ مقدار (100 یونٹ سے زائد)۔ تصدیق کریں',
+  },
+  {
+    genericKeywords: ['methotrexate'],
+    maxDailyDoseMg: 25,
+    unit: 'mg',
+    warningEn: 'Methotrexate is normally weekly. Daily dose requires verification',
+    warningUr: 'میتھوٹریکسیٹ عموماً ہفتہ وار لی جاتی ہے۔ روزانہ خوراک کی تصدیق کریں',
+  },
+  {
+    genericKeywords: ['aspirin', 'disprin', 'loprin'],
+    maxSingleDoseMg: 1000,
+    maxDailyDoseMg: 3000,
+    unit: 'mg',
+    warningEn: 'Exceeds standard 3,000 mg/day ceiling',
+    warningUr: 'معمول کی حد 3,000 ملی گرام یومیہ سے زیادہ ہے',
+  },
+  {
+    genericKeywords: ['metformin', 'glucophage'],
+    maxSingleDoseMg: 1000,
+    maxDailyDoseMg: 2550,
+    unit: 'mg',
+    warningEn: 'Exceeds standard 2,550 mg/day ceiling',
+    warningUr: 'معمول کی حد 2,550 ملی گرام یومیہ سے زیادہ ہے',
+  },
+];
+
+/**
+ * South Asian & Pakistani brand names mapped to international non-proprietary (INN) generic names.
+ * Ensures drug interactions and classification work reliably even when doctors write proprietary local brands.
+ */
+export const SOUTH_ASIAN_BRAND_TO_GENERIC: Record<string, string[]> = {
+  // Proton Pump Inhibitors / Antacids
+  'risek': ['omeprazole'],
+  'eziday': ['esomeprazole'],
+  'nexum': ['esomeprazole'],
+  'pantop': ['pantoprazole'],
+  'zopent': ['pantoprazole'],
+
+  // Cardiovascular / Antiplatelets / Statins
+  'lowplat': ['clopidogrel'],
+  'plavix': ['clopidogrel'],
+  'loprin': ['aspirin'],
+  'ascad': ['aspirin'],
+  'disprin': ['aspirin'],
+  'concor': ['bisoprolol'],
+  'bisocor': ['bisoprolol'],
+  'lipiget': ['atorvastatin'],
+  'atorva': ['atorvastatin'],
+  'rovista': ['rosuvastatin'],
+  'xplendid': ['rosuvastatin'],
+  'zestril': ['lisinopril'],
+  'angispan': ['nitroglycerin'],
+  'dilgard': ['diltiazem'],
+  'cordarone': ['amiodarone'],
+  'lanoxin': ['digoxin'],
+
+  // Pain / NSAIDs / Antipyretics
+  'panadol': ['paracetamol'],
+  'calpol': ['paracetamol'],
+  'disprol': ['paracetamol'],
+  'febrol': ['paracetamol'],
+  'brufen': ['ibuprofen'],
+  'voltral': ['diclofenac'],
+  'voveran': ['diclofenac'],
+  'synflex': ['naproxen'],
+  'caflam': ['diclofenac'],
+  'nuberol': ['paracetamol', 'orphenadrine'],
+  'arinac': ['ibuprofen', 'pseudoephedrine'],
+
+  // Antibiotics & Anti-infectives
+  'augmentin': ['amoxicillin', 'clavulanate'],
+  'amoxil': ['amoxicillin'],
+  'himiox': ['amoxicillin'],
+  'novidat': ['ciprofloxacin'],
+  'ciproxin': ['ciprofloxacin'],
+  'leflox': ['levofloxacin'],
+  'kravit': ['levofloxacin'],
+  'klaricid': ['clarithromycin'],
+  'zithromax': ['azithromycin'],
+  'azomax': ['azithromycin'],
+  'flagyl': ['metronidazole'],
+  'entamizole': ['metronidazole', 'diloxanide'],
+  'ceftriax': ['ceftriaxone'],
+
+  // Diabetes / Endocrine
+  'glucophage': ['metformin'],
+  'getryl': ['glimepiride'],
+  'amaryl': ['glimepiride'],
+  'janumet': ['metformin', 'sitagliptin'],
+  'tagipmet': ['metformin', 'sitagliptin'],
+  'thyronorm': ['levothyroxine'],
+
+  // Antihistamines & Respiratory
+  'softin': ['loratadine'],
+  't-day': ['levocetirizine'],
+  'rigix': ['cetirizine'],
+  'kestine': ['ebastine'],
+  'ventolin': ['salbutamol'],
+};
+

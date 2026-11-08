@@ -69,7 +69,8 @@ export type ValidationFlag =
     }
   | { code: 'low_confidence'; medicine: string | null; index: number }
   | { code: 'unreadable'; medicine: string | null; index: number }
-  | { code: 'duplicate_names' };
+  | { code: 'duplicate_names' }
+  | { code: 'abnormal_dosage'; medicine: string | null; index: number; detail: string };
 
 export interface ValidationResult {
   /** Raw warnings reported by the model (kept verbatim) */
@@ -96,4 +97,5 @@ export interface ChatMessage {
     tokens?: number;
     cost?: string;
   };
+  isError?: boolean;
 }
