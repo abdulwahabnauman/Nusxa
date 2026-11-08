@@ -312,3 +312,78 @@ export const DOSAGE_CEILINGS: DosageCeilingRule[] = [
   },
 ];
 
+/**
+ * South Asian & Pakistani brand names mapped to international non-proprietary (INN) generic names.
+ * Ensures drug interactions and classification work reliably even when doctors write proprietary local brands.
+ */
+export const SOUTH_ASIAN_BRAND_TO_GENERIC: Record<string, string[]> = {
+  // Proton Pump Inhibitors / Antacids
+  'risek': ['omeprazole'],
+  'omega': ['omeprazole'],
+  'eziday': ['esomeprazole'],
+  'nexum': ['esomeprazole'],
+  'pantop': ['pantoprazole'],
+  'zopent': ['pantoprazole'],
+
+  // Cardiovascular / Antiplatelets / Statins
+  'lowplat': ['clopidogrel'],
+  'plavix': ['clopidogrel'],
+  'loprin': ['aspirin'],
+  'ascad': ['aspirin'],
+  'disprin': ['aspirin'],
+  'concor': ['bisoprolol'],
+  'bisocor': ['bisoprolol'],
+  'lipiget': ['atorvastatin'],
+  'atorva': ['atorvastatin'],
+  'rovista': ['rosuvastatin'],
+  'xplendid': ['rosuvastatin'],
+  'zestril': ['lisinopril'],
+  'angispan': ['nitroglycerin'],
+  'dilgard': ['diltiazem'],
+  'cordarone': ['amiodarone'],
+  'lanoxin': ['digoxin'],
+
+  // Pain / NSAIDs / Antipyretics
+  'panadol': ['paracetamol'],
+  'calpol': ['paracetamol'],
+  'disprol': ['paracetamol'],
+  'febrol': ['paracetamol'],
+  'brufen': ['ibuprofen'],
+  'voltral': ['diclofenac'],
+  'voveran': ['diclofenac'],
+  'synflex': ['naproxen'],
+  'caflam': ['diclofenac'],
+  'nuberol': ['paracetamol', 'orphenadrine'],
+  'arinac': ['ibuprofen', 'pseudoephedrine'],
+
+  // Antibiotics & Anti-infectives
+  'augmentin': ['amoxicillin', 'clavulanate'],
+  'amoxil': ['amoxicillin'],
+  'himiox': ['amoxicillin'],
+  'novidat': ['ciprofloxacin'],
+  'ciproxin': ['ciprofloxacin'],
+  'leflox': ['levofloxacin'],
+  'kravit': ['levofloxacin'],
+  'klaricid': ['clarithromycin'],
+  'zithromax': ['azithromycin'],
+  'azomax': ['azithromycin'],
+  'flagyl': ['metronidazole'],
+  'entamizole': ['metronidazole', 'diloxanide'],
+  'ceftriax': ['ceftriaxone'],
+
+  // Diabetes / Endocrine
+  'glucophage': ['metformin'],
+  'getryl': ['glimepiride'],
+  'amaryl': ['glimepiride'],
+  'janumet': ['metformin', 'sitagliptin'],
+  'tagipmet': ['metformin', 'sitagliptin'],
+  'thyronorm': ['levothyroxine'],
+
+  // Antihistamines & Respiratory
+  'softin': ['loratadine'],
+  't-day': ['levocetirizine'],
+  'rigix': ['cetirizine'],
+  'kestine': ['ebastine'],
+  'ventolin': ['salbutamol'],
+};
+
