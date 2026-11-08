@@ -184,7 +184,17 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
             code: 'abnormal_dosage',
             medicine: med.name,
             index: i,
-            detail: `${val} mg (Max: ${ceiling.maxDailyDoseMg} mg)`,
+            detail: `${val} mg (Max daily: ${ceiling.maxDailyDoseMg} mg)`,
+          });
+        }
+      } else if (ceiling.maxSingleDoseMg && mgMatch) {
+        const val = parseFloat(mgMatch[1]!);
+        if (val > ceiling.maxSingleDoseMg) {
+          flags.push({
+            code: 'abnormal_dosage',
+            medicine: med.name,
+            index: i,
+            detail: `${val} mg (Max single dose: ${ceiling.maxSingleDoseMg} mg)`,
           });
         }
       } else if (ceiling.maxUnitsPerDose && unitMatch) {
@@ -195,6 +205,19 @@ function validatePrescription(data: PrescriptionJSON): ValidationResult {
             medicine: med.name,
             index: i,
             detail: `${val} Units`,
+          });
+        }
+      }
+
+      // Methotrexate frequency check: daily instead of weekly schedule
+      if (ceiling.genericKeywords.includes('methotrexate')) {
+        const freqLower = (med.frequency ?? '').toLowerCase();
+        if (/daily|od|\b1\s*x\s*1\b|روزانہ/.test(freqLower)) {
+          flags.push({
+            code: 'abnormal_dosage',
+            medicine: med.name,
+            index: i,
+            detail: 'Daily frequency flagged — normally taken weekly',
           });
         }
       }
