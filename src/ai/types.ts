@@ -92,10 +92,11 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   meta?: {
-    source?: 'cached' | 'llm' | 'tool' | 'guardrail';
+    source?: 'cached' | 'llm' | 'tool' | 'guardrail' | 'rag';
     latencyMs?: number;
     tokens?: number;
     cost?: string;
+    ragMatches?: string[];
   };
   isError?: boolean;
 }
