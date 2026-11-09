@@ -503,28 +503,30 @@ const migration_v21: Migration = {
     // 1. Create drug_monographs table
     await db.execAsync(CREATE_DRUG_MONOGRAPHS_TABLE);
 
-    // 2. Insert all clinical monographs
-    for (const m of DRUG_MONOGRAPHS) {
-      await db.runAsync(
-        `INSERT OR REPLACE INTO drug_monographs
-         (id, generic_name, brand_names, drug_class, indications, food_interactions,
-          contraindications, severe_interactions, side_effects, precautions, content)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-        [
-          m.id,
-          m.generic_name,
-          m.brand_names,
-          m.drug_class,
-          m.indications,
-          m.food_interactions,
-          m.contraindications,
-          m.severe_interactions,
-          m.side_effects,
-          m.precautions,
-          m.content,
-        ],
-      );
-    }
+    // 2. Insert all clinical monographs inside an atomic transaction
+    await db.withTransactionAsync(async () => {
+      for (const m of DRUG_MONOGRAPHS) {
+        await db.runAsync(
+          `INSERT OR REPLACE INTO drug_monographs
+           (id, generic_name, brand_names, drug_class, indications, food_interactions,
+            contraindications, severe_interactions, side_effects, precautions, content)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+          [
+            m.id,
+            m.generic_name,
+            m.brand_names,
+            m.drug_class,
+            m.indications,
+            m.food_interactions,
+            m.contraindications,
+            m.severe_interactions,
+            m.side_effects,
+            m.precautions,
+            m.content,
+          ],
+        );
+      }
+    });
 
     // 3. Create FTS5 virtual table and synchronization triggers (with environment guard)
     try {

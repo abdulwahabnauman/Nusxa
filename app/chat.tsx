@@ -247,6 +247,9 @@ export default function ChatScreen() {
 
       // 3. On-Device Clinical Knowledge Retrieval (RAG via SQLite FTS5 + BM25 ranking)
       const activeMedNames = medicines.map((m) => m.name).filter(Boolean) as string[];
+      if (medicineName && !activeMedNames.some((n) => n.toLowerCase() === medicineName.toLowerCase())) {
+        activeMedNames.unshift(medicineName);
+      }
       const ragMatches = await searchClinicalKnowledge(text, {
         limit: 2,
         activeMedicines: activeMedNames,

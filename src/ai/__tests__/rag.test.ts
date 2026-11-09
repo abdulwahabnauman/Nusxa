@@ -53,6 +53,19 @@ describe('Clinical Knowledge Retrieval (RAG via SQLite FTS5 + BM25)', () => {
       expect(result.ftsQuery).toContain('food');
     });
 
+    it('binds contextual pronouns (this medicine, ye goli) to active prescriptions', () => {
+      const result = buildFtsMatchQuery('Can I take this with milk?', ['Ciprofloxacin 500mg']);
+      expect(result.ftsQuery).not.toBeNull();
+      expect(result.ftsQuery).toContain('ciprofloxacin');
+      expect(result.ftsQuery).toContain('milk');
+    });
+
+    it('ignores common English stopwords like "for", "can", and "fine" from false-positive drug matching', () => {
+      const result = buildFtsMatchQuery('What is this for?', ['Metformin 500mg']);
+      // "for" must not be matched as a drug
+      expect(result.fallbackTerms).not.toContain('for');
+    });
+
     it('returns null query for empty or whitespace strings', () => {
       expect(buildFtsMatchQuery('').ftsQuery).toBeNull();
       expect(buildFtsMatchQuery('   ').ftsQuery).toBeNull();

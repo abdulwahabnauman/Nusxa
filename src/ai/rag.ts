@@ -24,6 +24,34 @@ export interface RagSearchResult {
   retrievalStrategy: 'fts5_bm25' | 'sql_like_fallback' | 'in_memory_fallback';
 }
 
+/** Common English and Urdu stopwords to prevent false-positive token matches */
+const STOPWORDS = new Set([
+  'a', 'about', 'above', 'after', 'again', 'against', 'all', 'am', 'an', 'and', 'any', 'are', 'as', 'at',
+  'be', 'because', 'been', 'before', 'being', 'below', 'between', 'both', 'but', 'by',
+  'can', 'could', 'did', 'do', 'does', 'doing', 'down', 'during',
+  'each', 'few', 'fine', 'for', 'from', 'further',
+  'had', 'has', 'have', 'having', 'he', 'her', 'here', 'hers', 'herself', 'him', 'himself', 'his', 'how',
+  'i', 'if', 'in', 'into', 'is', 'it', 'its', 'itself',
+  'just', 'like', 'make', 'me', 'more', 'most', 'my', 'myself',
+  'no', 'nor', 'not', 'now', 'of', 'off', 'on', 'once', 'only', 'or', 'other', 'ought', 'our', 'ours', 'ourselves', 'out', 'over', 'own',
+  'same', 'she', 'should', 'so', 'some', 'such',
+  'than', 'that', 'the', 'their', 'theirs', 'them', 'themselves', 'then', 'there', 'these', 'they', 'this', 'those', 'through', 'to', 'too',
+  'under', 'until', 'up', 'very',
+  'was', 'we', 'were', 'what', 'when', 'where', 'which', 'while', 'who', 'whom', 'why', 'with', 'would',
+  'you', 'your', 'yours', 'yourself', 'yourselves'
+]);
+
+/** Pre-indexed known generic names from monographs for exact token matching */
+const KNOWN_GENERIC_TOKENS = new Set<string>();
+for (const m of DRUG_MONOGRAPHS) {
+  const parts = m.generic_name.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+  for (const p of parts) {
+    if (p.length >= 3 && !STOPWORDS.has(p)) {
+      KNOWN_GENERIC_TOKENS.add(p);
+    }
+  }
+}
+
 /** Clinical topic synonyms across English, Urdu, and Roman Urdu */
 const CLINICAL_TOPIC_SYNONYMS: Record<string, string[]> = {
   milk: ['milk', 'dairy', 'calcium', 'yogurt', 'cheese', 'doodh', 'dahi'],
@@ -141,27 +169,51 @@ export function buildFtsMatchQuery(
   const matchedDrugs = new Set<string>();
   const matchedTopics = new Set<string>();
 
-  // 1. Check active user medicines from prescription
+  // Tokenize active prescription medicine names into clean searchable tokens
+  const activeMedTokens = new Map<string, string>(); // token -> original name
   for (const med of activeMedicineNames) {
     if (!med) continue;
-    const medLower = med.toLowerCase();
-    for (const word of words) {
-      if (word.length >= 3 && medLower.includes(word)) {
-        matchedDrugs.add(word);
+    const parts = med.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/);
+    for (const p of parts) {
+      // Exclude strength/dosage suffixes like 500mg, 10mg, tab, capsule
+      if (p.length >= 3 && !/^\d+/.test(p) && !['mg', 'ml', 'mcg', 'tab', 'tabs', 'capsule', 'caps'].includes(p)) {
+        activeMedTokens.set(p, med);
       }
     }
   }
 
-  // 2. Check brand map and clinical monograph catalog
+  // 1. Check user words against recognized drugs
   for (const word of words) {
+    if (STOPWORDS.has(word)) continue;
+
+    // Check against active prescription tokens
+    if (activeMedTokens.has(word)) {
+      matchedDrugs.add(word);
+      if (BRAND_MAP[word]) matchedDrugs.add(BRAND_MAP[word]!);
+    }
+
+    // Check against brand catalog
     if (BRAND_MAP[word]) {
       matchedDrugs.add(BRAND_MAP[word]!);
       matchedDrugs.add(word);
     }
-    for (const m of DRUG_MONOGRAPHS) {
-      if (m.generic_name.toLowerCase().includes(word) && word.length >= 4) {
-        matchedDrugs.add(word);
-      }
+
+    // Check against generic names
+    if (KNOWN_GENERIC_TOKENS.has(word)) {
+      matchedDrugs.add(word);
+    }
+  }
+
+  // 2. Contextual Pronoun Binding:
+  // If no drug was explicitly typed, but the question uses reference terms like
+  // "this", "my medicine", "the pill", "ye dawai", bind to active medicines
+  const CONTEXT_PRONOUNS = ['this', 'my', 'the', 'medicine', 'medication', 'meds', 'pill', 'pills', 'tablet', 'tablets', 'dawa', 'dawai', 'goli', 'yeh', 'ye'];
+  const hasContextReference = words.some((w) => CONTEXT_PRONOUNS.includes(w));
+  if (matchedDrugs.size === 0 && hasContextReference && activeMedicineNames.length > 0) {
+    for (const [token] of activeMedTokens.entries()) {
+      matchedDrugs.add(token);
+      if (BRAND_MAP[token]) matchedDrugs.add(BRAND_MAP[token]!);
+      break; // Bind primary active drug
     }
   }
 
@@ -206,8 +258,8 @@ export function buildFtsMatchQuery(
     return { ftsQuery, fallbackTerms: topicArray };
   }
 
-  // Fallback to significant user terms (length >= 4)
-  const significant = words.filter((w) => w.length >= 4);
+  // Fallback to significant user terms (length >= 4) not in stopwords
+  const significant = words.filter((w) => w.length >= 4 && !STOPWORDS.has(w));
   if (significant.length > 0) {
     return {
       ftsQuery: `(${significant.map((s) => `"${s}"`).join(' OR ')})`,
