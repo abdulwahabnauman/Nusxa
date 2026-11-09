@@ -5,7 +5,7 @@
  * updates the stored `schema_version` row to its own version, so after all
  * migrations run the stored value always equals this constant.
  */
-export const CURRENT_SCHEMA_VERSION = 20;
+export const CURRENT_SCHEMA_VERSION = 21;
 
 export const CREATE_PROFILE_TABLE = `
 CREATE TABLE IF NOT EXISTS profile (
@@ -143,3 +143,51 @@ ALTER TABLE profile ADD COLUMN notifications_enabled INTEGER DEFAULT 1;
 ALTER TABLE profile ADD COLUMN reduced_motion INTEGER DEFAULT 0;
 ALTER TABLE profile ADD COLUMN theme_preference TEXT DEFAULT 'system';
 `;
+
+/** Clinical drug monograph knowledge base table */
+export const CREATE_DRUG_MONOGRAPHS_TABLE = `
+CREATE TABLE IF NOT EXISTS drug_monographs (
+  id TEXT PRIMARY KEY,
+  generic_name TEXT NOT NULL,
+  brand_names TEXT NOT NULL,
+  drug_class TEXT NOT NULL,
+  indications TEXT NOT NULL,
+  food_interactions TEXT NOT NULL,
+  contraindications TEXT NOT NULL,
+  severe_interactions TEXT NOT NULL,
+  side_effects TEXT NOT NULL,
+  precautions TEXT NOT NULL,
+  content TEXT NOT NULL
+);
+`;
+
+/** FTS5 Full-Text Search virtual table with BM25 ranking */
+export const CREATE_DRUG_MONOGRAPHS_FTS_TABLE = `
+CREATE VIRTUAL TABLE IF NOT EXISTS drug_monographs_fts USING fts5(
+  generic_name,
+  brand_names,
+  drug_class,
+  content,
+  content='drug_monographs',
+  content_rowid='rowid',
+  tokenize='unicode61 remove_diacritics 1'
+);
+`;
+
+/** Triggers to keep FTS5 synchronized with drug_monographs */
+export const CREATE_DRUG_MONOGRAPHS_TRIGGERS = [
+  `CREATE TRIGGER IF NOT EXISTS drug_monographs_ai AFTER INSERT ON drug_monographs BEGIN
+     INSERT INTO drug_monographs_fts(rowid, generic_name, brand_names, drug_class, content)
+     VALUES (new.rowid, new.generic_name, new.brand_names, new.drug_class, new.content);
+   END;`,
+  `CREATE TRIGGER IF NOT EXISTS drug_monographs_ad AFTER DELETE ON drug_monographs BEGIN
+     INSERT INTO drug_monographs_fts(drug_monographs_fts, rowid, generic_name, brand_names, drug_class, content)
+     VALUES ('delete', old.rowid, old.generic_name, old.brand_names, old.drug_class, old.content);
+   END;`,
+  `CREATE TRIGGER IF NOT EXISTS drug_monographs_au AFTER UPDATE ON drug_monographs BEGIN
+     INSERT INTO drug_monographs_fts(drug_monographs_fts, rowid, generic_name, brand_names, drug_class, content)
+     VALUES ('delete', old.rowid, old.generic_name, old.brand_names, old.drug_class, old.content);
+     INSERT INTO drug_monographs_fts(rowid, generic_name, brand_names, drug_class, content)
+     VALUES (new.rowid, new.generic_name, new.brand_names, new.drug_class, new.content);
+   END;`,
+];

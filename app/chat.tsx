@@ -30,6 +30,7 @@ import { routeChatQuery, saveToCache } from '../src/ai/cache-router';
 import { validateAssistantResponse } from '../src/ai/guardrails';
 import { logChatEvent, estimateTokens } from '../src/ai/observability';
 import { EcgTypingIndicator } from '../src/components/chat/EcgTypingIndicator';
+import { searchClinicalKnowledge, formatRagContextForPrompt } from '../src/ai/rag';
 
 export default function ChatScreen() {
   const { colors, typography, spacing, borderRadius } = useTheme();
@@ -244,8 +245,20 @@ export default function ChatScreen() {
       const validHistory = messages.filter((m) => !m.isError && (m.role === 'user' || m.role === 'assistant'));
       const slidingWindow = validHistory.slice(-10);
 
+      // 3. On-Device Clinical Knowledge Retrieval (RAG via SQLite FTS5 + BM25 ranking)
+      const activeMedNames = medicines.map((m) => m.name).filter(Boolean) as string[];
+      const ragMatches = await searchClinicalKnowledge(text, {
+        limit: 2,
+        activeMedicines: activeMedNames,
+      });
+
+      let enrichedSystemPrompt = systemPrompt;
+      if (ragMatches.length > 0) {
+        enrichedSystemPrompt = `${systemPrompt}\n\n${formatRagContextForPrompt(ragMatches)}`;
+      }
+
       const chatMessages = [
-        { role: 'system' as const, content: systemPrompt },
+        { role: 'system' as const, content: enrichedSystemPrompt },
         ...slidingWindow.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content })),
         { role: 'user' as const, content: text },
       ];
@@ -256,17 +269,17 @@ export default function ChatScreen() {
       const { multiTurnChat } = require('../src/ai/client') as typeof import('../src/ai/client');
       const response = await multiTurnChat(chatMessages, keys);
 
-      // 3. Clinical Safety Output Guardrails (Validate dosages and unprescribed claims)
+      // 4. Clinical Safety Output Guardrails (Validate dosages and unprescribed claims)
       const guardrailResult = validateAssistantResponse(response);
       const finalContent = guardrailResult.sanitizedContent;
 
-      // 4. Cache dynamic response for session repeat queries
+      // 5. Cache dynamic response for session repeat queries
       saveToCache(text, finalContent);
 
       const latencyMs = Date.now() - startTime;
-      const tokensEst = estimateTokens(systemPrompt + text + finalContent);
+      const tokensEst = estimateTokens(enrichedSystemPrompt + text + finalContent);
 
-      // 5. Runtime Telemetry Logging
+      // 6. Runtime Telemetry Logging (including RAG provenance)
       logChatEvent({
         query: text,
         route: 'llm',
@@ -275,6 +288,9 @@ export default function ChatScreen() {
         tokensEstimated: tokensEst,
         costEstimatedCents: 0.05,
         guardrailTriggered: !guardrailResult.passed,
+        ragUsed: ragMatches.length > 0,
+        ragChunksCount: ragMatches.length,
+        ragDrugs: ragMatches.map((m) => m.generic_name),
       });
 
       const assistantMsg: ChatMessage = {
@@ -283,10 +299,11 @@ export default function ChatScreen() {
         content: finalContent,
         timestamp: new Date().toISOString(),
         meta: {
-          source: 'llm',
+          source: ragMatches.length > 0 ? 'rag' : 'llm',
           latencyMs,
           tokens: tokensEst,
           cost: '~$0.0005',
+          ragMatches: ragMatches.map((m) => m.generic_name),
         },
       };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -450,6 +467,7 @@ export default function ChatScreen() {
                       {msg.meta.source === 'cached' && '⚡ Cached • 0ms • $0'}
                       {msg.meta.source === 'tool' && `📋 Grounded SQLite • ${msg.meta.latencyMs ?? 10}ms`}
                       {msg.meta.source === 'guardrail' && '🛡️ Emergency Triage • Intercepted'}
+                      {msg.meta.source === 'rag' && `📚 Clinical RAG (BM25) • ${msg.meta.latencyMs}ms • ${msg.meta.cost || '$0.00'}`}
                       {msg.meta.source === 'llm' && `⚡ AI • ${msg.meta.latencyMs}ms • ${msg.meta.cost || '$0.00'}`}
                     </Text>
                   ) : (

@@ -9,7 +9,11 @@ import {
   CREATE_SCHEMA_VERSION_TABLE,
   CREATE_INDEXES,
   ALTER_PROFILE_ADD_LANGUAGE,
+  CREATE_DRUG_MONOGRAPHS_TABLE,
+  CREATE_DRUG_MONOGRAPHS_FTS_TABLE,
+  CREATE_DRUG_MONOGRAPHS_TRIGGERS,
 } from './schema';
+import { DRUG_MONOGRAPHS } from './schemas/drugMonographs';
 import {
   EDUCATION_SCHEMA,
   SAMPLE_CATEGORIES,
@@ -488,6 +492,55 @@ const migration_v20: Migration = {
   },
 };
 
+/**
+ * Version 21: Clinical Knowledge Retrieval (RAG with SQLite FTS5)
+ * Seeds an authoritative clinical drug monograph database and indexes it
+ * using SQLite's FTS5 virtual table with BM25 keyword relevance ranking.
+ */
+const migration_v21: Migration = {
+  version: 21,
+  up: async (db) => {
+    // 1. Create drug_monographs table
+    await db.execAsync(CREATE_DRUG_MONOGRAPHS_TABLE);
+
+    // 2. Insert all clinical monographs
+    for (const m of DRUG_MONOGRAPHS) {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO drug_monographs
+         (id, generic_name, brand_names, drug_class, indications, food_interactions,
+          contraindications, severe_interactions, side_effects, precautions, content)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        [
+          m.id,
+          m.generic_name,
+          m.brand_names,
+          m.drug_class,
+          m.indications,
+          m.food_interactions,
+          m.contraindications,
+          m.severe_interactions,
+          m.side_effects,
+          m.precautions,
+          m.content,
+        ],
+      );
+    }
+
+    // 3. Create FTS5 virtual table and synchronization triggers (with environment guard)
+    try {
+      await db.execAsync(CREATE_DRUG_MONOGRAPHS_FTS_TABLE);
+      for (const triggerSql of CREATE_DRUG_MONOGRAPHS_TRIGGERS) {
+        await db.execAsync(triggerSql);
+      }
+      await db.execAsync(`INSERT INTO drug_monographs_fts(drug_monographs_fts) VALUES('rebuild');`);
+    } catch (err) {
+      console.warn('[DB] FTS5 initialization skipped (unsupported module in host environment):', err);
+    }
+
+    await db.runAsync('UPDATE schema_version SET version = 21;');
+  },
+};
+
 export const MIGRATIONS: Migration[] = [
   migration_v1,
   migration_v2,
@@ -509,6 +562,7 @@ export const MIGRATIONS: Migration[] = [
   migration_v18,
   migration_v19,
   migration_v20,
+  migration_v21,
 ];
 
 /** Run pending migrations */

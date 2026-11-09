@@ -17,6 +17,9 @@ export interface TelemetryEvent {
   guardrailTriggered?: boolean;
   toolName?: string;
   error?: string;
+  ragUsed?: boolean;
+  ragChunksCount?: number;
+  ragDrugs?: string[];
 }
 
 export interface TelemetrySummary {
@@ -30,6 +33,7 @@ export interface TelemetrySummary {
   averageLatencyMs: number;
   totalTokensEstimated: number;
   totalCostSavedCents: number;
+  ragRetrievals: number;
 }
 
 const MAX_RING_BUFFER = 100;
@@ -45,6 +49,7 @@ let sessionStats = {
   totalLatencyMs: 0,
   totalTokens: 0,
   costSavedCents: 0,
+  ragRetrievals: 0,
 };
 
 /**
@@ -90,6 +95,10 @@ export function logChatEvent(event: Omit<TelemetryEvent, 'id' | 'timestamp'>): T
     sessionStats.guardrailViolations++;
   }
 
+  if (fullEvent.ragUsed) {
+    sessionStats.ragRetrievals++;
+  }
+
   return fullEvent;
 }
 
@@ -119,6 +128,7 @@ export function getChatTelemetrySummary(): TelemetrySummary {
     averageLatencyMs: avgLatency,
     totalTokensEstimated: sessionStats.totalTokens,
     totalCostSavedCents: Number(sessionStats.costSavedCents.toFixed(2)),
+    ragRetrievals: sessionStats.ragRetrievals,
   };
 }
 
